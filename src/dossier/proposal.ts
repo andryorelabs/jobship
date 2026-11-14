@@ -64,7 +64,7 @@ function parseFacts(value: unknown): Result<FactProposal[]> {
   if (!rows.ok) return rows;
   const facts: FactProposal[] = [];
   for (const [index, row] of rows.value.entries()) {
-    const { id, text, source } = row;
+    const { id, text, source, estimate } = row;
     const tags = stringList(row["tags"]);
     const cites = stringList(row["cites"]);
     if (typeof id !== "string" || id === "" || typeof text !== "string" || text.trim() === "") {
@@ -77,7 +77,10 @@ function parseFacts(value: unknown): Result<FactProposal[]> {
     if (!isOneOf(DOSSIER_SOURCES, source)) {
       return invalid(`fact ${id}: source must be one of ${DOSSIER_SOURCES.join(", ")}`);
     }
-    facts.push({ id, text, tags, source, cites });
+    if (estimate !== undefined && (typeof estimate !== "string" || estimate.trim() === "")) {
+      return invalid(`fact ${id}: estimate must be a non-empty string`);
+    }
+    facts.push({ id, text, tags, source, cites, ...(estimate === undefined ? {} : { estimate }) });
   }
   return { ok: true, value: facts };
 }

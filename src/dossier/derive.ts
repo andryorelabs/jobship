@@ -74,11 +74,18 @@ function bulletRow(bullet: Bullet): Record<string, unknown> {
 function storedFactRow(row: Record<string, unknown>): string {
   const tags = Array.isArray(row["tags"]) ? row["tags"] : [];
   const cites = Array.isArray(row["cites"]) ? row["cites"] : [];
-  return canonical([row["id"], row["text"], tags, row["source"] ?? null, cites]);
+  return canonical([
+    row["id"],
+    row["text"],
+    tags,
+    row["source"] ?? null,
+    cites,
+    row["estimate"] ?? null,
+  ]);
 }
 
 function proposedFactRow(fact: FactProposal): string {
-  return canonical([fact.id, fact.text, fact.tags, fact.source, fact.cites]);
+  return canonical([fact.id, fact.text, fact.tags, fact.source, fact.cites, fact.estimate ?? null]);
 }
 
 function bulletKey(bullet: Bullet): string {
@@ -291,11 +298,16 @@ function findRowIndex(sequence: YAMLSeq, id: string): number {
   return sequence.items.findIndex((item) => isMap(item) && item.get("id") === id);
 }
 
+/**
+ * Adds, merges or removes one row. `clearable` names optional keys a row replaces as a
+ * whole: a key the new row leaves out is deleted from the stored row.
+ */
 function upsertRow(
   document: Document,
   sequence: YAMLSeq,
   change: DerivedChange,
   row: Record<string, unknown>,
+  clearable: readonly string[],
 ): boolean {
   const index = findRowIndex(sequence, change.id);
   if (change.op === "remove") {
@@ -310,10 +322,12 @@ function upsertRow(
   const existing = sequence.items[index];
   if (!isMap(existing)) return false;
   const current: unknown = existing.toJS(document);
-  if (canonical({ ...(isObject(current) ? current : {}), ...row }) === canonical(current)) {
-    return false;
-  }
+  const cleared = clearable.filter((name) => !(name in row) && existing.has(name));
+  const merged = { ...(isObject(current) ? current : {}), ...row };
+  for (const name of cleared) delete merged[name];
+  if (canonical(merged) === canonical(current)) return false;
   for (const [name, value] of Object.entries(row)) existing.set(name, value);
+  for (const name of cleared) existing.delete(name);
   return true;
 }
 
@@ -327,13 +341,14 @@ function renderRowFile(
   key: "facts" | "bullets",
   changes: readonly DerivedChange[],
   toRow: (value: unknown) => Record<string, unknown>,
+  clearable: readonly string[] = [],
 ): Rendered {
   const document = loadDocument(dir, file);
   const sequence = sequenceAt(document, key);
   let applied = 0;
   for (const change of changes) {
     const row = change.op === "remove" ? {} : toRow(change.value);
-    if (upsertRow(document, sequence, change, row)) applied += 1;
+    if (upsertRow(document, sequence, change, row, clearable)) applied += 1;
   }
   return { content: serialize(document), applied };
 }
@@ -409,6 +424,7 @@ function toFactRow(value: unknown): Record<string, unknown> {
     tags: value["tags"],
     source: value["source"],
     cites: value["cites"],
+    ...(typeof value["estimate"] === "string" ? { estimate: value["estimate"] } : {}),
   };
 }
 
@@ -432,7 +448,7 @@ function renderAll(dir: DataDir, items: readonly DerivedChange[]): Map<DerivedFi
     const changes = items.filter((item) => item.file === file);
     if (changes.length === 0) continue;
     if (file === "facts.yaml")
-      rendered.set(file, renderRowFile(dir, file, "facts", changes, toFactRow));
+      rendered.set(file, renderRowFile(dir, file, "facts", changes, toFactRow, ["estimate"]));
     else if (file === "bullets.yaml")
       rendered.set(file, renderRowFile(dir, file, "bullets", changes, toBulletRow));
     else if (file === "profile.yaml") rendered.set(file, renderProfile(dir, changes));
