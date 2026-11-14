@@ -14,7 +14,7 @@ import type { CommandContext } from "../core/commands.ts";
 import { isObject } from "../core/narrow.ts";
 import { resolveTypst } from "../core/tools.ts";
 import type { DataDir } from "../core/types.ts";
-import { buildCv, systemRunner, type TypstRunner } from "./build.ts";
+import { buildCv, countPages, systemRunner, type TypstRunner } from "./build.ts";
 import { runWith } from "./command.ts";
 import { loadBullets, loadFactBank, loadNeverClaim, loadVariants } from "./facts.ts";
 import { lintCv } from "./lint.ts";
@@ -160,6 +160,29 @@ describe("buildCv", () => {
   });
 });
 
+describe("countPages", () => {
+  test("counts form-feed separated pages", () => {
+    expect(countPages("one\fTwo\fthree")).toBe(3);
+  });
+
+  test("ignores a trailing form feed", () => {
+    expect(countPages("one\ftwo\f")).toBe(2);
+    expect(countPages("one\n\f")).toBe(1);
+  });
+
+  test("text without a form feed is one page", () => {
+    expect(countPages("one page of text")).toBe(1);
+    expect(countPages("")).toBe(1);
+  });
+
+  test("buildCv reports pages from the extracted text", async () => {
+    const result = await buildCv(dir, { runner: fakeRunner("a\fb\f") });
+    expect(result.ok && result.value.pages).toBe(2);
+    const single = await buildCv(dir, { runner: fakeRunner("a") });
+    expect(single.ok && single.value.pages).toBe(1);
+  });
+});
+
 describe("lintCv", () => {
   test("flags never-claim terms case-insensitively with location", () => {
     const findings = lintCv("Built things\nran KUBERNETES clusters", ctx());
@@ -279,6 +302,92 @@ describe("real typst", () => {
     const result = await buildCv(dir, { name: "backend", runner: systemRunner });
     expect(result.ok ? "ok" : result.error.message).toBe("ok");
     if (result.ok) expect(readFileSync(result.value.text, "utf8")).toContain("checkout API");
+  });
+});
+
+const BULLET_SENTENCE =
+  "delivered a measured improvement across the platform after profiling the slowest paths, " +
+  "agreeing the rollout with every stakeholder, migrating each consumer in small steps, " +
+  "and documenting the result so the next team could repeat the approach without help.";
+const LONG_BULLET_FILLER = `${BULLET_SENTENCE} ${BULLET_SENTENCE}`;
+
+function writeThreeEntryFixture(): string[] {
+  const entries = ["alpha", "beta", "gamma"];
+  const factLines = entries.flatMap((entry) => [
+    `  - id: f-${entry}`,
+    `    text: ${entry} work`,
+    "    tags: [bulk]",
+  ]);
+  const experience = entries.flatMap((entry) => [
+    `  - id: e-${entry}`,
+    `    name: Entry${entry.toUpperCase()} Corp`,
+    "    role: Engineer",
+    "    dates: 2020 to 2021",
+  ]);
+  writeFileSync(
+    path.join(root, "facts.yaml"),
+    [
+      "profile:",
+      "  name: Jane Example",
+      "  contact:",
+      "    email: jane@example.com",
+      "experience:",
+      ...experience,
+      "facts:",
+      ...factLines,
+      "",
+    ].join("\n"),
+  );
+  const bulletLines = entries.flatMap((entry) =>
+    [1, 2, 3].flatMap((index) => [
+      `  - id: b-${entry}-${index}`,
+      `    text: MARK${entry.toUpperCase()}${index} ${LONG_BULLET_FILLER}`,
+      "    tags: [bulk]",
+      `    facts: [f-${entry}]`,
+      `    entry: e-${entry}`,
+      `    order: ${index}`,
+    ]),
+  );
+  writeFileSync(path.join(root, "bullets.yaml"), ["bullets:", ...bulletLines, ""].join("\n"));
+  return entries.map((entry) => entry.toUpperCase());
+}
+
+describe("real typst layout", () => {
+  test.skipIf(!hasTypst)(
+    "no Entry splits across the page break and pages is reported",
+    async () => {
+      const entries = writeThreeEntryFixture();
+      const result = await buildCv(dir, { runner: systemRunner });
+      expect(result.ok ? "ok" : result.error.message).toBe("ok");
+      if (!result.ok) return;
+      const pages = readFileSync(result.value.text, "utf8").split("\f");
+      expect(result.value.pages).toBeGreaterThanOrEqual(2);
+      for (const entry of entries) {
+        const markers = [`Entry${entry} Corp`, `MARK${entry}1`, `MARK${entry}2`, `MARK${entry}3`];
+        const holding = pages.flatMap((page, index) =>
+          markers.some((marker) => page.includes(marker)) ? [index] : [],
+        );
+        expect(new Set(holding).size).toBe(1);
+        expect(markers.every((marker) => pages[holding[0] ?? 0]?.includes(marker))).toBe(true);
+      }
+    },
+  );
+
+  test.skipIf(!hasTypst)("renders a data dir without experience or projects", async () => {
+    writeFileSync(
+      path.join(root, "facts.yaml"),
+      readFileSync(path.join(examples, "facts.yaml"), "utf8").replace(
+        /experience:\n(?: {2}.*\n)+/,
+        "",
+      ),
+    );
+    writeFileSync(
+      path.join(root, "bullets.yaml"),
+      readFileSync(path.join(examples, "bullets.yaml"), "utf8").replace(/ {4}entry: .*\n/g, ""),
+    );
+    const result = await buildCv(dir, { runner: systemRunner });
+    expect(result.ok ? "ok" : result.error.message).toBe("ok");
+    if (result.ok) expect(readFileSync(result.value.text, "utf8")).toContain("Highlights");
   });
 });
 
