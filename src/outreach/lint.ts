@@ -44,6 +44,12 @@ function firstName(fullName: string): string {
   return normalize(fullName.split(/\s+/)[0] ?? "");
 }
 
+function sameName(addressee: string, name: string): boolean {
+  const spoken = normalize(addressee);
+  if (spoken === normalize(name)) return true;
+  return !/\s/.test(spoken) && spoken === firstName(name);
+}
+
 function lengthFinding(draft: Draft): LintFinding | null {
   if (draft.channel === "linkedin") {
     const length = Array.from(draft.body.trimEnd()).length;
@@ -81,17 +87,24 @@ function stockPhraseFindings(body: string): LintFinding[] {
   }));
 }
 
-function nameFindings(draft: Draft, recipient: Recipient): LintFinding[] {
-  const expected = firstName(recipient.name);
+function nameFindings(
+  draft: Draft,
+  recipient: Recipient,
+  contacts: readonly string[],
+): LintFinding[] {
+  const known = [recipient.name, ...contacts];
   const findings: LintFinding[] = [];
   const greeted = GREETING.exec(draft.body)?.[1];
-  if (greeted !== undefined && normalize(greeted) !== expected) {
+  if (greeted !== undefined && !known.some((name) => normalize(greeted) === firstName(name))) {
     findings.push({
       rule: "wrong-name",
       message: `greeting addresses "${greeted}" but the recipient is "${recipient.name}"`,
     });
   }
-  if (draft.addressee !== undefined && firstName(draft.addressee) !== expected) {
+  if (
+    draft.addressee !== undefined &&
+    !known.some((name) => sameName(draft.addressee ?? "", name))
+  ) {
     findings.push({
       rule: "wrong-name",
       message: `Draft addressee "${draft.addressee}" does not match recipient "${recipient.name}"`,
@@ -113,7 +126,7 @@ function companyFindings(draft: Draft, company: string): LintFinding[] {
 
 export function lintDraft(
   draft: Draft,
-  ctx: { recipient: Recipient; company: string },
+  ctx: { recipient: Recipient; company: string; contacts?: readonly string[] },
 ): LintFinding[] {
   if (draft.body.trim() === "") return [{ rule: "empty", message: "Draft is empty" }];
   const length = lengthFinding(draft);
@@ -121,7 +134,7 @@ export function lintDraft(
     ...(length === null ? [] : [length]),
     ...placeholderFindings(draft.body),
     ...stockPhraseFindings(draft.body),
-    ...nameFindings(draft, ctx.recipient),
+    ...nameFindings(draft, ctx.recipient, ctx.contacts ?? []),
     ...companyFindings(draft, ctx.company),
   ];
 }

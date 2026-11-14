@@ -32,6 +32,19 @@
     "attribution": "Visible link back to Himalayas"
   },
   {
+    "id": "workable-search",
+    "name": "Workable job search",
+    "homepage": "https://jobs.workable.com",
+    "access": "feed",
+    "regions": ["global"],
+    "workModes": ["remote", "hybrid", "onsite"],
+    "jobTypes": ["tech", "general"],
+    "parser": "workable-search",
+    "endpoint": "https://jobs.workable.com/api/v1/jobs",
+    "stability": "unofficial",
+    "method": "GET"
+  },
+  {
     "id": "getonboard",
     "name": "Get on Board",
     "homepage": "https://www.getonbrd.com",

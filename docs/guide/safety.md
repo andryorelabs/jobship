@@ -2,7 +2,7 @@
 
 ## No submit, no send
 
-jobship never submits a form and never sends a message. No command and no skill has such a code path. The `apply` skill fills a form, runs a required-field sweep, verifies it with `jobship apply verify` and stops before Submit. The `outreach` and `inbox` skills create drafts and propose changes; you press Send.
+jobship never submits a form and never sends a message. No command and no skill has such a code path. The `apply` skill fills a form, runs a required-field sweep, verifies it with `jobship apply verify` and stops before Submit. The `contact` skill only researches and records people; it never contacts them or probes mail servers. The `outreach` and `inbox` skills create drafts and propose changes; you press Send.
 
 ## The Guard
 

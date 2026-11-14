@@ -137,6 +137,43 @@ const himalayas: AdapterSpec = {
     ),
 };
 
+const WORKABLE_SEARCH_URL = "https://jobs.workable.com/api/v1/jobs";
+
+const workableSearch: AdapterSpec = {
+  name: "workable-search",
+  requiresSlug: false,
+  url: (query) => `${WORKABLE_SEARCH_URL}?query=${keywordQuery(query)}`,
+  parse: (body) =>
+    mapRows(records(field(body, "jobs")), "jobs", (row) => {
+      const id = identifier(row["id"]);
+      const title = text(row["title"]);
+      const url = text(row["url"]);
+      if (id === undefined || title === undefined || url === undefined) return undefined;
+      const location = field(row, "location");
+      const place = [text(field(location, "city")), text(field(location, "countryName"))]
+        .filter((part): part is string => part !== undefined)
+        .join(", ");
+      const workplace = text(row["workplace"]);
+      const description = text(row["description"]);
+      return withOptional(
+        {
+          id: `workable-search:${id}`,
+          source: "workable-search",
+          url,
+          company: text(field(row["company"], "title")) ?? "unknown",
+          title,
+        },
+        {
+          location: place === "" ? undefined : place,
+          remote: workplace === undefined ? undefined : workplace === "remote",
+          contract: text(row["employmentType"]),
+          description: description === undefined ? undefined : stripHtml(description),
+          postedAt: isoDate(row["created"]),
+        },
+      );
+    }),
+};
+
 const remoteok: AdapterSpec = {
   name: "remoteok",
   requiresSlug: false,
@@ -277,6 +314,7 @@ export function createBoardAdapters(
     defineAdapter(withEndpoint(getonboard, endpoints.getonboard), fetchFunction),
     defineAdapter(withEndpoint(himalayas, endpoints.himalayas), fetchFunction),
     defineAdapter(remoteok, fetchFunction),
+    defineAdapter(workableSearch, fetchFunction),
     hn(fetchFunction),
   ];
 }
