@@ -178,7 +178,7 @@ describe("board adapters", () => {
     });
   }
 
-  test("registers all nine adapters", () => {
+  test("registers all ten adapters", () => {
     expect(Object.keys(createSources(throwingFetch)).toSorted()).toEqual([
       "ashby",
       "getonboard",
@@ -189,6 +189,7 @@ describe("board adapters", () => {
       "remoteok",
       "smartrecruiters",
       "workable",
+      "workable-search",
     ]);
   });
 });
