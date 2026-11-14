@@ -85,6 +85,18 @@ A Variant built for one Lead.
 **Answer bank**:
 Reusable form answers with provenance and scope; it abstains when unsure.
 
+**Impact framing**:
+A consented rewrite of Bullets and Entries that leads with outcomes, built only from real facts the user confirms one by one.
+_Avoid_: Spin, embellishment
+
+**Estimate**:
+A figure on a Fact bank fact that was calculated rather than measured, stored with its arithmetic and assumptions and labeled as an estimate in any CV.
+_Avoid_: Guess, projection
+
+**Evidence**:
+A source the user consents to that backs a fact or an Estimate, such as their own repository or a public product page.
+_Avoid_: Proof, verification
+
 ### Onboarding
 
 **Dossier**:
@@ -150,6 +162,7 @@ _Avoid_: Verified
 - A **Fit score** judges a Lead against the Profile.
 - A **Bullet** is built only from **Fact bank** facts and belongs to an **Entry**; a **Variant** selects Bullets by tag rules; a **Tailored CV** is a Variant built for one Lead.
 - The **Never-claim list** names what a CV must never contain.
+- **Impact framing** rewrites Bullets from Fact bank facts; a fact may carry an **Estimate**, and **Evidence** backs facts and Estimates.
 - **Onboarding** builds the **Dossier**, which has **Dossier sections**; the Fact bank, Bullets, Profile, Never-claim list and Answer bank are derived from the Dossier through **Approval batches**.
 - Each **Answer bank** entry is stored under an **Answer key**; identity data in the Dossier carries an **Identity tier**.
 - A **Blocker** arises during an Application; the **Needs-you queue** holds all open Blockers.
@@ -167,4 +180,5 @@ _Avoid_: Verified
 - "Inbox" is avoided for the **Needs-you queue**: the queue holds open Blockers, not mail.
 - **Profile** is not "Settings" or "Preferences", and the **Fact bank** is not "Profile data": the Profile holds search criteria, the Fact bank holds verified facts.
 - The Dossier's search section is not the **Profile**: it holds what the user wants in their own words, and the Profile is derived from it. "Portal" is avoided for the accounts the user holds on job platforms; call them platform accounts.
+- An **Estimate** is not a measurement: a CV line that uses one says "estimated", "~" or "approx.".
 - "Contact" is a noun for a person, never a verb for sending: the human sends every Draft.
