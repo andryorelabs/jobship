@@ -101,7 +101,7 @@ Lists open Blockers grouped by Application and scope.
 
 ### `jobship outreach`
 
-- `outreach lint --channel linkedin|email --recipient <name> --company <company> --file <draft> [--addressee <name>] [--draft-company <company>]` checks length caps (LinkedIn 300 characters, email 160 words), placeholders, stock phrases and name/company consistency.
+- `outreach lint --channel linkedin|email --recipient <name> --company <company> --file <draft> [--addressee <name>] [--draft-company <company>] [--key <key>]` checks length caps (LinkedIn 300 characters, email 160 words), placeholders, stock phrases and name/company consistency. With `--key`, the names of the Lead's Contacts also count as valid addressees.
 - `outreach log --channel linkedin|email --recipient <name> [--key <key>]` records an outreach and enforces `outreachDailyCap`.
 
 ### `jobship contact`
