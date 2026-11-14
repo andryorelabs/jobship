@@ -513,6 +513,28 @@ describe("sweep configuration", () => {
     expect(result.value.misconfigured).toEqual([]);
   });
 
+  test("empty sources sweep each saved company with its slug", async () => {
+    writeProfile([]);
+    writeFileSync(
+      path.join(root, "companies.json"),
+      JSON.stringify({ companies: [{ ats: "greenhouse", slug: "acme" }] }),
+    );
+    const slugs: (string | undefined)[] = [];
+    const greenhouse: SourceAdapter = {
+      name: "greenhouse",
+      fetch: (query) => {
+        slugs.push(query.slug);
+        return Promise.resolve({ postings: [], errors: [], warnings: [] });
+      },
+    };
+    const result = await runSweep(makeContext(), {
+      adapters: { greenhouse },
+      fetch: () => Promise.reject(new Error("offline")),
+    });
+    if (!result.ok) throw new Error(result.error.message);
+    expect(slugs).toEqual(["acme"]);
+  });
+
   test("--source naming a Source outside the Profile is a usage failure", async () => {
     writeProfile(["hn"]);
     const result = await run(["sweep", "--source", "lever"], makeContext());

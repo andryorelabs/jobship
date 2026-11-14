@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import type { CommandContext } from "../core/commands.ts";
 import { run } from "./command.ts";
-import { readCompanies, writeCompanies } from "./companies.ts";
+import { addCompany, readCompanies, updateCompanies } from "./companies.ts";
 
 const CAREERS_URL = "https://boards.greenhouse.io/acme";
 
@@ -81,14 +81,25 @@ describe("company add", () => {
   });
 });
 
-describe("writeCompanies", () => {
+describe("updateCompanies", () => {
   test("round-trips discovered entries with checkedAt", async () => {
     const saved = [
       { ats: "lever", slug: "x", origin: "manual" as const },
       { ats: "ashby", slug: "y", origin: "discovered" as const, checkedAt: "2026-01-01" },
     ];
-    expect(await writeCompanies({ path: root }, saved)).toEqual({ ok: true, value: undefined });
+    expect(await updateCompanies({ path: root }, () => saved)).toEqual({ ok: true, value: saved });
     expect(readCompanies({ path: root })).toEqual({ ok: true, value: saved });
+  });
+
+  test("keeps a company added while an update runs", async () => {
+    const discovered = { ats: "ashby", slug: "y", origin: "discovered" as const };
+    await Promise.all([
+      addCompany({ path: root }, { ats: "lever", slug: "x" }),
+      updateCompanies({ path: root }, (current) => [...current, discovered]),
+    ]);
+    const companies = readCompanies({ path: root });
+    if (!companies.ok) throw new Error(companies.error.message);
+    expect(companies.value.map((entry) => entry.slug).toSorted()).toEqual(["x", "y"]);
   });
 });
 

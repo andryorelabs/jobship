@@ -59,13 +59,20 @@ export function readCompanies(dir: DataDir): Result<SavedCompany[]> {
 
 export type AddOutcome = { readonly added: boolean; readonly company: SavedCompany };
 
-export async function writeCompanies(
+/**
+ * Replaces the Saved companies with what `update` derives from the current list, reading and
+ * writing inside one lock so a concurrent `company add` is never lost.
+ */
+export async function updateCompanies(
   dir: DataDir,
-  companies: SavedCompany[],
-): Promise<Result<void>> {
-  return withLock<Result<void>>(dir.path, () => {
+  update: (current: readonly SavedCompany[]) => SavedCompany[],
+): Promise<Result<SavedCompany[]>> {
+  return withLock<Result<SavedCompany[]>>(dir.path, () => {
+    const current = readCompanies(dir);
+    if (!current.ok) return Promise.resolve(current);
+    const companies = update(current.value);
     writeAtomic(path.join(dir.path, COMPANIES_FILE), `${JSON.stringify({ companies }, null, 2)}\n`);
-    return Promise.resolve({ ok: true as const, value: undefined });
+    return Promise.resolve({ ok: true as const, value: companies });
   });
 }
 
