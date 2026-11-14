@@ -2,6 +2,10 @@
 
 #set page(margin: 1.8cm)
 #set text(size: 10.5pt)
+#set par(leading: 0.8em)
+#set list(spacing: 12pt)
+#set block(spacing: 1.4em)
+#show heading: set block(above: 1.6em, below: 1em)
 
 #let header = cv.at("header", default: (name: "", contact: (:)))
 
@@ -22,13 +26,28 @@
   title
 }
 
-#let render-entries(entries) = for entry in entries [
-  === #entry-title(entry)
+#let short-entry-limit = 3
 
-  #for bullet in entry.bullets [
-    - #bullet.text
-  ]
-]
+#let render-entry(entry) = {
+  let entry-head = [=== #entry-title(entry)]
+  let items = entry.bullets
+  if items.len() <= short-entry-limit {
+    block(breakable: false, {
+      entry-head
+      for bullet in items [- #bullet.text]
+    })
+  } else {
+    block(breakable: false, {
+      entry-head
+      [- #items.first().text]
+    })
+    for bullet in items.slice(1) [- #bullet.text]
+  }
+}
+
+#let render-entries(entries) = for entry in entries {
+  render-entry(entry)
+}
 
 #let experience = cv.at("experience", default: ())
 #let projects = cv.at("projects", default: ())

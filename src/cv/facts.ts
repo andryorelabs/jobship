@@ -50,6 +50,10 @@ function stringList(value: unknown): string[] | null {
   return items;
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "";
+}
+
 function stringMap(value: unknown): Record<string, string> | null {
   if (value === undefined || value === null) return {};
   if (!isObject(value)) return null;
@@ -129,7 +133,16 @@ export function loadFactBank(dir: DataDir): Result<FactBank> {
     }
     const tags = stringList(entry["tags"]);
     if (tags === null) return fail(`facts.yaml: fact ${entry["id"]} has invalid tags`);
-    facts.push({ id: entry["id"], text: entry["text"], tags });
+    const estimate = entry["estimate"];
+    if (estimate !== undefined && estimate !== null && !isNonEmptyString(estimate)) {
+      return fail(`facts.yaml: fact ${entry["id"]} estimate must be a non-empty string`);
+    }
+    facts.push({
+      id: entry["id"],
+      text: entry["text"],
+      tags,
+      ...(typeof estimate === "string" ? { estimate } : {}),
+    });
   }
   const profile = parseProfile(document.value["profile"]);
   if (!profile.ok) return profile;

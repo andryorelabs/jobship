@@ -46,7 +46,87 @@ describe("parseProposal", () => {
   test("accepts an empty proposal", () => {
     expect(parseProposal({}).ok).toBe(true);
   });
+
+  test("carries a fact estimate and leaves it off when absent", () => {
+    const parsed = parseProposal({
+      facts: [
+        { ...estimatedFact(), estimate: "1,000 PDFs/month × 3–5 min ≈ 50–85 h/month" },
+        estimatedFact("plain"),
+      ],
+    });
+    if (!parsed.ok) throw new Error(parsed.error.message);
+    expect(parsed.value.facts[0]?.estimate).toBe("1,000 PDFs/month × 3–5 min ≈ 50–85 h/month");
+    expect("estimate" in (parsed.value.facts[1] ?? {})).toBe(false);
+  });
+
+  test.each([[""], ["   "], [5], [null], [["a"]]])(
+    "rejects estimate %p as proposal-invalid",
+    (estimate) => {
+      const parsed = parseProposal({ facts: [{ ...estimatedFact(), estimate }] });
+      expect(parsed.ok).toBe(false);
+      if (!parsed.ok) expect(parsed.error.code).toBe("proposal-invalid");
+    },
+  );
 });
+
+describe("fact estimate", () => {
+  const ESTIMATE = "1,000 PDFs/month × 3–5 min ≈ 50–85 h/month";
+
+  test("derive writes the estimate to the batch and apply stores it", async () => {
+    const batchPath = await applyProposal({ facts: [{ ...estimatedFact(), estimate: ESTIMATE }] });
+    expect(readFileSync(batchPath, "utf8")).toContain(ESTIMATE);
+    const [stored] = listOf("facts.yaml", "facts");
+    expect(isObject(stored) && stored["estimate"]).toBe(ESTIMATE);
+  });
+
+  test("an estimate-only change is an update and apply rewrites it", async () => {
+    await applyProposal({ facts: [estimatedFact()] });
+    const proposal = parseProposal({ facts: [{ ...estimatedFact(), estimate: ESTIMATE }] });
+    if (!proposal.ok) throw new Error(proposal.error.message);
+    const derived = await deriveBatch(context(), proposal.value);
+    if (!derived.ok) throw new Error(derived.error.message);
+    expect(derived.value.items.map((item) => [item.op, item.id])).toEqual([
+      ["update", "mentoring"],
+    ]);
+    const applied = await applyDossierBatch(context(), derived.value.batchPath);
+    expect(applied).toEqual({ ok: true, value: { applied: 1 } });
+    const [stored] = listOf("facts.yaml", "facts");
+    expect(isObject(stored) && stored["estimate"]).toBe(ESTIMATE);
+  });
+
+  test("an unchanged estimate yields no items", async () => {
+    const raw = { facts: [{ ...estimatedFact(), estimate: ESTIMATE }] };
+    await applyProposal(raw);
+    const proposal = parseProposal(raw);
+    if (!proposal.ok) throw new Error(proposal.error.message);
+    const derived = await deriveBatch(context(), proposal.value);
+    if (!derived.ok) throw new Error(derived.error.message);
+    expect(derived.value.items).toEqual([]);
+  });
+
+  test("dropping the estimate is an update and apply removes it", async () => {
+    await applyProposal({ facts: [{ ...estimatedFact(), estimate: ESTIMATE }] });
+    const proposal = parseProposal({ facts: [estimatedFact()] });
+    if (!proposal.ok) throw new Error(proposal.error.message);
+    const derived = await deriveBatch(context(), proposal.value);
+    if (!derived.ok) throw new Error(derived.error.message);
+    expect(derived.value.items.map((item) => item.op)).toEqual(["update"]);
+    const applied = await applyDossierBatch(context(), derived.value.batchPath);
+    expect(applied).toEqual({ ok: true, value: { applied: 1 } });
+    const [stored] = listOf("facts.yaml", "facts");
+    expect(isObject(stored) && "estimate" in stored).toBe(false);
+  });
+});
+
+function estimatedFact(id = "mentoring"): Record<string, unknown> {
+  return {
+    id,
+    text: "Mentored 3 junior engineers",
+    tags: ["leadership"],
+    source: "interview",
+    cites: ["dossier/career.md:12"],
+  };
+}
 
 describe("deriveBatch", () => {
   test("an empty proposal yields zero items and applies as a no-op", async () => {
