@@ -1,11 +1,9 @@
 import type { CommandContext } from "../../core/commands.ts";
 import { failure, success, type Envelope } from "../../core/envelope.ts";
-import { DEFAULT_LIMIT, runDiscover, type FindCandidates } from "./discover.ts";
+import { DEFAULT_LIMIT, runDiscover } from "./discover.ts";
+import { findCandidates } from "./finders.ts";
 
 const USAGE = "usage: jobship discover [--limit <n>] [--keyword <text>]";
-
-const productionFindCandidates: FindCandidates = () =>
-  Promise.resolve({ candidates: [], errors: ["discovery finders are not wired yet"] });
 
 type ParsedArgs = { readonly limit: number; readonly keyword?: string };
 
@@ -38,7 +36,7 @@ export async function run(argv: string[], ctx: CommandContext): Promise<Envelope
   const result = await runDiscover(
     ctx.dataDir,
     {
-      findCandidates: productionFindCandidates,
+      findCandidates,
       fetch: (input, init) => fetch(input, init),
       now: new Date(),
       env: ctx.env,
