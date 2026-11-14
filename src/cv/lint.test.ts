@@ -116,3 +116,47 @@ describe("identity-leak rule", () => {
     expect(leaks("123 Example\nSt")).toHaveLength(0);
   });
 });
+
+describe("unlabeled-estimate rule", () => {
+  const bank: FactBank = {
+    facts: [
+      {
+        id: "e1",
+        text: "Automated invoice intake",
+        tags: [],
+        estimate: "1,000 PDFs x 4 min = 60 h",
+      },
+      { id: "p1", text: "Ran 12 reviews", tags: [] },
+      { id: "e2", text: "Cut 12 manual steps", tags: [], estimate: "12 steps x 2" },
+    ],
+  };
+  const rules = (cv: string): string[] =>
+    lintCv(cv, { facts: bank, neverClaim: [] }).map((finding) => finding.rule);
+
+  test("flags an estimated number without a marker", () => {
+    expect(rules("Saved 60 hours a month")).toContain("unlabeled-estimate");
+  });
+
+  test("passes with English and Spanish markers", () => {
+    expect(rules("Saved an estimated ~60 hours a month")).not.toContain("unlabeled-estimate");
+    expect(rules("Ahorro estimado de 60 horas")).not.toContain("unlabeled-estimate");
+    expect(rules("Ahorro de aprox. 60 horas")).not.toContain("unlabeled-estimate");
+  });
+
+  test("a marker on another line does not count", () => {
+    expect(rules("Approx. figures below\nSaved 60 hours")).toContain("unlabeled-estimate");
+  });
+
+  test("a number also in a plain fact is not flagged", () => {
+    expect(rules("Led 12 reviews")).not.toContain("unlabeled-estimate");
+  });
+
+  test("unbacked-number still flags unknown numbers and accepts estimate-only ones", () => {
+    expect(rules("Saved 99 hours")).toContain("unbacked-number");
+    expect(rules("Saved ~60 hours")).not.toContain("unbacked-number");
+  });
+
+  test("facts without estimate behave as before", () => {
+    expect(rulesFor("Ran 12 reviews", "Ran 12 reviews")).toEqual([]);
+  });
+});

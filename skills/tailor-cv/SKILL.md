@@ -13,6 +13,7 @@ Produce a Tailored CV for one Lead by selecting Bullets, never by writing new cl
 - No submit: never submit a form or send a message. The human presses Submit and Send.
 - Facts only: every line of the CV traces to a fact id in the Fact bank through a Bullet. A requirement with no supporting fact stays missing; never add it, reword a Bullet to imply it, or round a number.
 - Never edit the Fact bank, Bullets or Never-claim list to make a build or lint pass. Print the proposed change and let the human make it.
+- Reframing requests (outcome-first wording, client names, figures or Estimates) belong to the `impact-framing` skill, not here. Point the human to it instead of rewording Bullets.
 
 ## Procedure
 

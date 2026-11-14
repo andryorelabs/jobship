@@ -1,11 +1,12 @@
 import type { IdentityField } from "../dossier/dossier.ts";
-import type { FactBank, LintFinding } from "./types.ts";
+import type { Fact, FactBank, LintFinding } from "./types.ts";
 
 const PHRASE_WORDS = 4;
 const TODO_SOURCE = "TODO(?:\\([^)]*\\)|:)";
 const PLACEHOLDER_SOURCE =
   "TBD|FIXME|XXX+|lorem ipsum|\\{\\{[^}]*\\}\\}|\\[(?:placeholder|insert[^\\]]*|your [^\\]]*)\\]";
 const NUMBER_SOURCE = "\\d[\\d,.]*\\d|\\d";
+const ESTIMATE_MARKER = /~|estimated|approx\.?|estimad|aprox\.?/iu;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -170,8 +171,12 @@ function placeholderFindings(text: string): LintFinding[] {
   }));
 }
 
+function factNumbers(fact: Fact): string[] {
+  return [...numbersIn(fact.text), ...numbersIn(fact.estimate ?? "")];
+}
+
 function numberFindings(text: string, facts: FactBank): LintFinding[] {
-  const known = new Set(facts.facts.flatMap((fact) => numbersIn(fact.text)));
+  const known = new Set(facts.facts.flatMap(factNumbers));
   const findings: LintFinding[] = [];
   for (const hit of locate(text, new RegExp(NUMBER_SOURCE, "gu"))) {
     if (known.has(normalizeNumber(hit.term))) continue;
@@ -184,6 +189,34 @@ function numberFindings(text: string, facts: FactBank): LintFinding[] {
     });
   }
   return findings;
+}
+
+/**
+ * Numbers found only in facts that carry an `estimate` and in no plain fact. Every
+ * CV line holding one must carry an estimate marker.
+ */
+function estimatedOnlyNumbers(facts: FactBank): Set<string> {
+  const plain = new Set(
+    facts.facts.filter((fact) => fact.estimate === undefined).flatMap(factNumbers),
+  );
+  const estimated = facts.facts.filter((fact) => fact.estimate !== undefined).flatMap(factNumbers);
+  return new Set(estimated.filter((value) => !plain.has(value)));
+}
+
+function unlabeledEstimateFindings(text: string, facts: FactBank): LintFinding[] {
+  const estimated = estimatedOnlyNumbers(facts);
+  if (estimated.size === 0) return [];
+  const lines = text.split("\n");
+  return locate(text, new RegExp(NUMBER_SOURCE, "gu"))
+    .filter((hit) => estimated.has(normalizeNumber(hit.term)))
+    .filter((hit) => !ESTIMATE_MARKER.test(lines[hit.line - 1] ?? ""))
+    .map((hit) => ({
+      rule: "unlabeled-estimate" as const,
+      term: hit.term,
+      line: hit.line,
+      column: hit.column,
+      message: `estimated number "${hit.term}" at line ${hit.line} has no estimate marker (~, estimated, approx.)`,
+    }));
 }
 
 function repeatedPhraseFindings(text: string): LintFinding[] {
@@ -231,6 +264,7 @@ export function lintCv(
     ...identityLeakFindings(text, ctx.identity ?? []),
     ...repeatedPhraseFindings(text),
     ...numberFindings(text, ctx.facts),
+    ...unlabeledEstimateFindings(text, ctx.facts),
     ...placeholderFindings(text),
   ];
 }
