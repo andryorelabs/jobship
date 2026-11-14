@@ -4,12 +4,13 @@ import type { CommandContext } from "../core/commands.ts";
 import { loadProfile } from "../core/data-dir.ts";
 import { failure, success, type Envelope } from "../core/envelope.ts";
 import { errorMessage, isOneOf } from "../core/narrow.ts";
+import { readContacts } from "../contact/store.ts";
 import { lintDraft } from "./lint.ts";
 import { logOutreach } from "./log.ts";
 import { CHANNELS, type Draft } from "./types.ts";
 
 const USAGE =
-  "usage: outreach lint --channel <linkedin|email> --recipient <name> --company <company> --file <draft> [--addressee <name>] [--draft-company <company>] | outreach log --channel <linkedin|email> --recipient <name> [--key <key>]";
+  "usage: outreach lint --channel <linkedin|email> --recipient <name> --company <company> --file <draft> [--key <lead-key>] [--addressee <name>] [--draft-company <company>] | outreach log --channel <linkedin|email> --recipient <name> [--key <key>]";
 
 function flagValue(argv: readonly string[], flag: string): string | undefined {
   const index = argv.indexOf(flag);
@@ -22,7 +23,7 @@ function usage(message: string): Envelope<never> {
   return failure("usage", `${message}; ${USAGE}`, { recoverable: false });
 }
 
-function lint(argv: readonly string[], ctx: CommandContext): Envelope<unknown> {
+async function lint(argv: readonly string[], ctx: CommandContext): Promise<Envelope<unknown>> {
   const channel = flagValue(argv, "--channel");
   const recipient = flagValue(argv, "--recipient");
   const company = flagValue(argv, "--company");
@@ -45,7 +46,15 @@ function lint(argv: readonly string[], ctx: CommandContext): Envelope<unknown> {
     ...(addressee === undefined ? {} : { addressee }),
     ...(draftCompany === undefined ? {} : { company: draftCompany }),
   };
-  const findings = lintDraft(draft, { recipient: { name: recipient }, company });
+  const key = flagValue(argv, "--key");
+  let contacts: string[] = [];
+  if (key !== undefined) {
+    if (ctx.dataDir === null) return failure("data-dir-not-found", "no data dir resolved");
+    const stored = await readContacts(ctx.dataDir, key);
+    if (!stored.ok) return failure(stored.error.code, stored.error.message);
+    contacts = stored.value.map((contact) => contact.name);
+  }
+  const findings = lintDraft(draft, { recipient: { name: recipient }, company, contacts });
   if (findings.length > 0) {
     return failure(
       "lint-failed",
@@ -75,7 +84,7 @@ async function log(argv: readonly string[], ctx: CommandContext): Promise<Envelo
 
 export function run(argv: string[], ctx: CommandContext): Promise<Envelope<unknown>> {
   const [subcommand, ...rest] = argv;
-  if (subcommand === "lint") return Promise.resolve(lint(rest, ctx));
+  if (subcommand === "lint") return lint(rest, ctx);
   if (subcommand === "log") return log(rest, ctx);
   return Promise.resolve(usage("unknown or missing subcommand"));
 }

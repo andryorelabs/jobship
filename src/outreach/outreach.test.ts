@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { exitCodeFor } from "../core/envelope.ts";
@@ -76,6 +76,47 @@ describe("lintDraft", () => {
         { recipient: { name: "Ada X" }, company: "Acme" },
       ),
     ).toEqual([]);
+  });
+});
+
+describe("wrong-name against Contacts", () => {
+  const contacts = ["Ana Ruiz", "Luis Vega"];
+  const withContacts = { recipient: { name: "Ana Ruiz" }, company: "Acme", contacts };
+
+  test("addressee Ana Ruis is reported against Contact Ana Ruiz", () => {
+    const findings = lintDraft(
+      { channel: "linkedin", body: "Hi Ana, hello.", addressee: "Ana Ruis" },
+      withContacts,
+    );
+    expect(findings.map((finding) => finding.rule)).toEqual(["wrong-name"]);
+  });
+
+  test("any recorded Contact is accepted", () => {
+    expect(
+      lintDraft(
+        { channel: "linkedin", body: "Hi Luis, hello.", addressee: "Luis Vega" },
+        withContacts,
+      ),
+    ).toEqual([]);
+  });
+
+  test("outreach lint --key reads Contacts from the data dir", async () => {
+    const dir = { path: root };
+    const lead = { kind: "lead.created", key: "k1" };
+    writeFileSync(path.join(root, "events.jsonl"), `${JSON.stringify(lead)}\n`);
+    writeFileSync(path.join(root, "draft.txt"), "Hi Ana, hello.");
+    const context = { dataDir: dir, env: {}, cwd: root };
+    const base = ["lint", "--channel", "linkedin", "--recipient", "Ada Example"];
+    const rest = ["--company", "Acme", "--file", "draft.txt", "--key", "k1"];
+    expect(exitCodeFor(await run([...base, ...rest], context))).toBe(1);
+    mkdirSync(path.join(root, "contacts"));
+    writeFileSync(
+      path.join(root, "contacts", "k1.json"),
+      JSON.stringify([
+        { name: "Ana Ruiz", role: "EM", channel: "linkedin", sources: [], recentItems: [] },
+      ]),
+    );
+    expect(exitCodeFor(await run([...base, ...rest], context))).toBe(0);
   });
 });
 
