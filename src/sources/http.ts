@@ -12,9 +12,9 @@ export type BytesOutcome =
   | { readonly ok: true; readonly value: Uint8Array }
   | { readonly ok: false; readonly error: string };
 
-type TextOutcome =
+export type TextOutcome =
   | { readonly ok: true; readonly body: string }
-  | { readonly ok: false; readonly error: string };
+  | { readonly ok: false; readonly error: string; readonly status?: number };
 
 /**
  * Reads a response body without ever holding more than `maxBytes`. It rejects on a declared
@@ -58,7 +58,8 @@ async function requestText(
     return { ok: false, error: `network error for ${url}: ${errorMessage(error)}` };
   }
   if (response.status === 429) return { ok: false, error: `HTTP 429 rate limited by ${url}` };
-  if (!response.ok) return { ok: false, error: `HTTP ${response.status} from ${url}` };
+  if (!response.ok)
+    return { ok: false, error: `HTTP ${response.status} from ${url}`, status: response.status };
   let content: BytesOutcome;
   try {
     content = await readCapped(response, url, MAX_BODY_BYTES);
@@ -87,6 +88,60 @@ export async function getJson(
     headers: { accept: "application/json", ...headers },
   });
   return parseJson(outcome, url);
+}
+
+const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([502, 503, 504]);
+const RETRY_ATTEMPTS = 3;
+const RETRY_BASE_DELAY_MS = 1000;
+
+export type RetryOptions = {
+  readonly headers?: Record<string, string>;
+  readonly sleep?: ((milliseconds: number) => Promise<void>) | undefined;
+};
+
+function defaultSleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function requestTextWithRetry(
+  fetchFunction: FetchFunction,
+  url: string,
+  accept: string,
+  options: RetryOptions,
+  attempt = 1,
+): Promise<TextOutcome> {
+  const outcome = await requestText(fetchFunction, url, {
+    headers: { accept, ...options.headers },
+  });
+  const retryable =
+    !outcome.ok && outcome.status !== undefined && RETRYABLE_STATUSES.has(outcome.status);
+  if (outcome.ok || !retryable || attempt >= RETRY_ATTEMPTS) return outcome;
+  await (options.sleep ?? defaultSleep)(RETRY_BASE_DELAY_MS * 2 ** (attempt - 1));
+  return requestTextWithRetry(fetchFunction, url, accept, options, attempt + 1);
+}
+
+/**
+ * GET that retries 502, 503 and 504 up to 3 attempts with exponential backoff starting at one
+ * second. Other failures return at once.
+ */
+export async function getJsonWithRetry(
+  fetchFunction: FetchFunction,
+  url: string,
+  options: RetryOptions = {},
+): Promise<JsonOutcome> {
+  return parseJson(
+    await requestTextWithRetry(fetchFunction, url, "application/json", options),
+    url,
+  );
+}
+
+/** Like {@link getJsonWithRetry}, returning the raw response text. */
+export async function getTextWithRetry(
+  fetchFunction: FetchFunction,
+  url: string,
+  options: RetryOptions = {},
+): Promise<TextOutcome> {
+  return requestTextWithRetry(fetchFunction, url, "text/plain, */*", options);
 }
 
 /**
