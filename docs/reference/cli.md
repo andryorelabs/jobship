@@ -60,6 +60,10 @@ Prepares the tools `cv build` needs. Downloads the pinned Typst release (checksu
 
 ATS Sources (`greenhouse`, `lever`, `ashby`, `workable`, `smartrecruiters`) only sweep companies saved here. `company add <careers-url>` detects the ATS and slug (Greenhouse, Lever, Ashby, Workable, SmartRecruiters) and stores it. `company list` lists stored companies.
 
+### `jobship discover`
+
+`discover [--limit <n>] [--keyword <text>]` finds companies on the five ATS Sources and saves the ones worth sweeping. It verifies up to `n` candidates (default 200), round-robin across ATS, and skips companies already saved or rejected less than 30 days ago (rejections are kept per data dir and Profile, and a `--keyword` run records none). Raw Common Crawl CDX results and rejected candidates are cached under the jobship cache dir (`JOBSHIP_CACHE_DIR`, else `$XDG_CACHE_HOME/jobship`) in `discover/` for 30 days. A company is kept as `origin: "discovered"` with `checkedAt` when at least one Posting passes the Gates (and contains `--keyword` when given). Discovered companies last checked more than 30 days ago are re-checked and removed when no Posting passes; `manual` companies are never touched. Verification retries 502, 503 and 504 with backoff and caps concurrency per ATS host (5 for Ashby). The report is `{candidates, checked, kept, removed, errors}`. Discovery issues GET requests only.
+
 ### `jobship board`
 
 Boards are the job sites a sweep reads. The catalog lists them with `access` (`feed`, `browser` or `manual`), `regions`, `workModes` and `jobTypes`; custom boards live in `boards.json` in the data dir.
@@ -97,8 +101,14 @@ Lists open Blockers grouped by Application and scope.
 
 ### `jobship outreach`
 
-- `outreach lint --channel linkedin|email --recipient <name> --company <company> --file <draft> [--addressee <name>] [--draft-company <company>]` checks length caps (LinkedIn 300 characters, email 160 words), placeholders, stock phrases and name/company consistency.
+- `outreach lint --channel linkedin|email --recipient <name> --company <company> --file <draft> [--addressee <name>] [--draft-company <company>] [--key <key>]` checks length caps (LinkedIn 300 characters, email 160 words), placeholders, stock phrases and name/company consistency. With `--key`, the names of the Lead's Contacts also count as valid addressees.
 - `outreach log --channel linkedin|email --recipient <name> [--key <key>]` records an outreach and enforces `outreachDailyCap`.
+
+### `jobship contact`
+
+- `contact record --lead <key> --file <json>` validates up to 3 Contacts against `schema/contact.schema.json`, appends one `contact.found` Event per Contact (name, role, channel only) and writes the full detail to `contacts/<key>.json` in the data dir. `emailConfidence` is `published`, `pattern` or `guess`; the Lead must have a `lead.created` Event.
+- `contact list --lead <key>` prints the Lead's Contacts.
+- `contact prune` deletes the `contacts/<key>.json` files of Leads whose Application closed more than 90 days ago and reports the keys it deleted.
 
 ### `jobship interview`
 

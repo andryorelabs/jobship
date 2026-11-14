@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/andryorelabs/jobship/schema/contact.schema.json",
+  "title": "jobship Contacts for one Lead",
+  "type": "array",
+  "maxItems": 3,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["name", "role", "channel", "sources", "recentItems"],
+    "properties": {
+      "name": { "type": "string", "minLength": 1 },
+      "role": { "type": "string", "minLength": 1 },
+      "channel": { "enum": ["linkedin", "email"] },
+      "profileUrl": { "type": "string", "minLength": 1 },
+      "email": { "type": "string", "minLength": 1 },
+      "emailConfidence": { "enum": ["published", "pattern", "guess"] },
+      "sources": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+      "recentItems": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["date", "url", "summary"],
+          "properties": {
+            "date": { "type": "string", "minLength": 1 },
+            "url": { "type": "string", "minLength": 1 },
+            "summary": { "type": "string", "minLength": 1 }
+          }
+        }
+      },
+      "doNotContact": { "type": "boolean" }
+    },
+    "dependentRequired": { "email": ["emailConfidence"], "emailConfidence": ["email"] }
+  }
+}

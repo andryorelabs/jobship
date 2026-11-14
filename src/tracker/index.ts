@@ -58,6 +58,8 @@ function describeEvent(event: HuntEvent): string | null {
       return `email ${event.messageId} classified ${event.classification}`;
     case "outreach.logged":
       return `outreach via ${event.channel} to ${event.recipient}`;
+    case "contact.found":
+      return `contact found ${event.name} (${event.role}) via ${event.channel}`;
     case "note":
       return `note: ${event.text}`;
     case "lead.created":

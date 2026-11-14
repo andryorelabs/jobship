@@ -16,9 +16,9 @@ Both drive your own Chrome through a browser MCP server that speaks CDP, such as
 
 They need the Gmail MCP server ([setup](guide/install.md#gmail-mcp)). Without it, `inbox propose` still works on classified emails you supply as a file.
 
-## `sweep` reports an ATS Source as misconfigured
+## An ATS Source never yields Postings
 
-ATS Sources need saved companies. Run `jobship company add <careers-url>`, for example `jobship company add https://jobs.ashbyhq.com/acme`. Valid Source names are listed in [Sources](guide/install.md#sources).
+ATS Sources read only Saved companies, and with none saved they stay empty. Run `jobship company add <careers-url>`, for example `jobship company add https://jobs.ashbyhq.com/acme`. Valid Source names are listed in [Sources](guide/install.md#sources).
 
 ## The launcher fails or the Guard denies everything
 

@@ -9,7 +9,7 @@ jobship is configured by the data directory and by a few environment variables. 
 | Variable                      | Read by            | Meaning                                                                                                                   |
 | ----------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
 | `JOBSHIP_HOME`                | CLI                | The data directory to use. An explicit `--data` flag or this variable skips the upward search.                            |
-| `JOBSHIP_CACHE_DIR`           | CLI                | Where downloaded tools such as typst are cached. Default `~/.cache/jobship`.                                              |
+| `JOBSHIP_CACHE_DIR`           | CLI                | Where downloaded tools such as typst, the board catalog and Discovery results are cached. Default `~/.cache/jobship`.     |
 | `JOBSHIP_CATALOG_URL`         | CLI                | URL of the board catalog to fetch. Default is the `main` copy on GitHub. `off` skips the fetch and uses the bundled copy. |
 | `JOBSHIP_CLAUDE_PLUGINS_FILE` | CLI (`doctor`)     | Path to the Claude Code installed-plugins file that `doctor` inspects.                                                    |
 | `JOBSHIP_BUILD_VERSION`       | CLI (build define) | The version string compiled into a release binary. Not set at run time.                                                   |

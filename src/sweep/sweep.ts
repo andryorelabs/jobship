@@ -15,6 +15,7 @@ import type {
   SourceResult,
   TrackerAdapter,
 } from "../core/types.ts";
+import { ATS_NAMES } from "../sources/ats.ts";
 import { readCompanies } from "../sources/companies.ts";
 import { resolveBoards, type ResolvedBoard } from "../sources/index.ts";
 import { readEvents } from "../ledger/events.ts";
@@ -30,13 +31,7 @@ import type {
   TrackerSummary,
 } from "./types.ts";
 
-const ATS_SOURCES: ReadonlySet<string> = new Set([
-  "greenhouse",
-  "lever",
-  "ashby",
-  "workable",
-  "smartrecruiters",
-]);
+const ATS_SOURCES: ReadonlySet<string> = new Set(ATS_NAMES);
 
 type Prepared = { readonly dir: DataDir; readonly profile: Profile };
 
@@ -131,6 +126,17 @@ function queriesFor(
     .map((company) => queryFor(company.slug, keywords));
 }
 
+const SEARCH_PARSER = "workable-search";
+
+/** Terms a search board queries with: the sweep keywords, else the Profile stack; absent when both are empty. */
+function searchTermsFor(
+  keywords: readonly string[] | undefined,
+  stack: readonly string[],
+): readonly string[] | undefined {
+  if (keywords !== undefined && keywords.length > 0) return keywords;
+  return stack.length > 0 ? stack : undefined;
+}
+
 async function safeFetch(adapter: SourceAdapter, query: SourceQuery): Promise<SourceResult> {
   try {
     return await adapter.fetch(query);
@@ -153,15 +159,6 @@ async function fetchSource(
       errors: [problem ?? `${source}: unknown source`],
       warnings: [],
       misconfigured: false,
-    };
-  }
-  if (ATS_SOURCES.has(source) && queries.length === 0) {
-    return {
-      source,
-      postings: [],
-      errors: [],
-      warnings: [`${source}: no companies saved; run jobship company add <url>`],
-      misconfigured: true,
     };
   }
   const results = await Promise.all(
@@ -401,18 +398,26 @@ export async function runSweep(
   const runs = readBoardRuns(prepared.value.dir);
   const { due, skipped } = partitionByInterval(selected.value, runs, now);
   const cursors = readBoardCursors(prepared.value.dir);
+  const searchTerms = searchTermsFor(options.keywords, prepared.value.profile.stack.include);
+  const searchable = due.filter(
+    (board) => board.board?.parser !== SEARCH_PARSER || searchTerms !== undefined,
+  );
   const fetched = await Promise.all(
-    due.map((board) =>
+    searchable.map((board) =>
       fetchSource(
         board.id,
         options.adapters?.[board.id] ?? board.adapter,
-        queriesFor(board.id, companies.value, options.keywords),
+        queriesFor(
+          board.id,
+          companies.value,
+          board.board?.parser === SEARCH_PARSER ? searchTerms : options.keywords,
+        ),
         board.problem,
         cursors[intervalKey(board)],
       ),
     ),
   );
-  recordRuns(prepared.value.dir, runs, due, now);
+  recordRuns(prepared.value.dir, runs, searchable, now);
 
   try {
     const collected = await ingestFetched(prepared.value, fetched, 0, {
@@ -420,7 +425,7 @@ export async function runSweep(
       events: [],
       leads: [],
     });
-    await recordCursors(prepared.value.dir, due, fetched);
+    await recordCursors(prepared.value.dir, searchable, fetched);
     const tracker = await projectLeads(
       trackerFor(ctx, prepared.value, options.tracker),
       prepared.value.dir,

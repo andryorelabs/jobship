@@ -1,6 +1,8 @@
+import type { AtsName } from "./ats.ts";
+
 export type AtsRef = { readonly ats: string; readonly slug: string };
 
-const ATS_PATTERNS: readonly { readonly ats: string; readonly pattern: RegExp }[] = [
+const ATS_PATTERNS: readonly { readonly ats: AtsName; readonly pattern: RegExp }[] = [
   {
     ats: "greenhouse",
     pattern:

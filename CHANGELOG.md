@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-14
+
+### Added
+
+- `jobship discover [--limit N] [--keyword K]` finds companies on the ATS Sources from the Common Crawl index and the latest Hacker News "Who is hiring" thread, verifies up to 200 per run against the Profile Gates, and saves the passing ones as `origin: "discovered"`. Discovered companies are re-checked after 30 days and removed when nothing passes; `manual` companies are never touched ([ADR-0014](docs/adr/0014-companies-are-discovered-not-curated.md)).
+- The `workable-search` board searches Workable by the sweep `--keyword`, else the Profile `stack.include`.
+- `jobship contact record|list|prune` records up to 3 Contacts per Lead: a `contact.found` Event with name, role and channel, and the full detail in `contacts/<key>.json`. `prune` deletes the files of Leads whose Application closed more than 90 days ago.
+- The `contact` skill researches Contacts in the human's browser (Posting, LinkedIn people search, team page, GitHub org), labels Email confidence `published`, `pattern` or `guess`, and never probes SMTP ([ADR-0015](docs/adr/0015-contacts-are-researched-in-the-users-browser.md)).
+
+### Changed
+
+- `sweep` adds the ATS adapters of every Saved company to the boards it resolves, and an ATS Source with no Saved company sweeps nothing without a warning.
+- `companies.json` entries gain `origin` (`manual` or `discovered`) and `checkedAt`; older entries read as `manual`.
+- `outreach lint --key <key>` accepts the Lead's Contact names in the `wrong-name` check, and a full-name addressee must now match a full name. The `outreach` skill reads `jobship contact list` first.
+- Discovery GETs retry 502, 503 and 504 with backoff. Common Crawl results and rejected candidates are cached under `JOBSHIP_CACHE_DIR` for 30 days.
+
 ## [0.5.3] - 2026-11-14
 
 ### Fixed
@@ -109,7 +125,8 @@ First tagged release.
 
 - `cv lint` is Spanish-safe, and doctor validates CV data.
 
-[Unreleased]: https://github.com/andryorelabs/jobship/compare/v0.5.3...HEAD
+[Unreleased]: https://github.com/andryorelabs/jobship/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/andryorelabs/jobship/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/andryorelabs/jobship/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/andryorelabs/jobship/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/andryorelabs/jobship/compare/v0.5.0...v0.5.1

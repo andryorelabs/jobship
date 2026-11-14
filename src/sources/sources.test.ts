@@ -178,7 +178,7 @@ describe("board adapters", () => {
     });
   }
 
-  test("registers all nine adapters", () => {
+  test("registers all ten adapters", () => {
     expect(Object.keys(createSources(throwingFetch)).toSorted()).toEqual([
       "ashby",
       "getonboard",
@@ -189,6 +189,7 @@ describe("board adapters", () => {
       "remoteok",
       "smartrecruiters",
       "workable",
+      "workable-search",
     ]);
   });
 });
@@ -241,16 +242,18 @@ describe("company command", () => {
     expect(first.code).toBe(0);
     expect(first.envelope["data"]).toEqual({
       added: true,
-      company: { ats: "ashby", slug: "acme" },
+      company: { ats: "ashby", slug: "acme", origin: "manual" },
     });
     expect(JSON.parse(readFileSync(path.join(dataDir, "companies.json"), "utf8"))).toEqual({
-      companies: [{ ats: "ashby", slug: "acme" }],
+      companies: [{ ats: "ashby", slug: "acme", origin: "manual" }],
     });
     const again = spawn(["company", "add", "https://jobs.ashbyhq.com/acme"]);
     const againData = again.envelope["data"];
     expect(isObject(againData) ? againData["added"] : undefined).toBe(false);
     const listed = spawn(["company", "list"]);
-    expect(listed.envelope["data"]).toEqual({ companies: [{ ats: "ashby", slug: "acme" }] });
+    expect(listed.envelope["data"]).toEqual({
+      companies: [{ ats: "ashby", slug: "acme", origin: "manual" }],
+    });
   });
 
   test("an unsupported url exits 1 with an error envelope", () => {

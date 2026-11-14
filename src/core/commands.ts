@@ -30,6 +30,8 @@ export const COMMANDS: Record<string, string> = {
   migrate: "src/migrate/command.ts",
   guard: "src/guard/command.ts",
   dossier: "src/dossier/command.ts",
+  contact: "src/contact/command.ts",
+  discover: "src/sources/discover/command.ts",
 };
 
 /** Flags each command accepts besides the global `--data`. */
@@ -72,6 +74,8 @@ export const COMMAND_FLAGS: Record<string, readonly string[]> = {
   migrate: ["--project", "--team"],
   guard: ["--record", "--self-test"],
   dossier: ["--file"],
+  contact: ["--lead", "--file"],
+  discover: ["--limit", "--keyword"],
 };
 
 /** Returns the first undeclared flag in `argv` for `command`, or null. */

@@ -30,6 +30,8 @@ const MODULE_LOADERS: Readonly<Record<string, () => Promise<CommandModule>>> = {
   "src/migrate/command.ts": () => import("./migrate/command.ts"),
   "src/guard/command.ts": () => import("./guard/command.ts"),
   "src/dossier/command.ts": () => import("./dossier/command.ts"),
+  "src/contact/command.ts": () => import("./contact/command.ts"),
+  "src/sources/discover/command.ts": () => import("./sources/discover/command.ts"),
 };
 
 export const MODULE_FILES: readonly string[] = Object.keys(MODULE_LOADERS);

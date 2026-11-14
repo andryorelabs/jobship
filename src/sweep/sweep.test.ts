@@ -498,8 +498,49 @@ describe("command", () => {
   });
 });
 
+describe("workable-search sweep", () => {
+  const searchFixture = readFileSync(
+    path.join(import.meta.dir, "../sources/fixtures/workable-search.json"),
+    "utf8",
+  );
+
+  async function sweepSearch(
+    include: string[],
+    keywords?: string[],
+  ): Promise<{ requested: string[]; names: string[] }> {
+    writeProfile(["workable-search"], { kind: "local" }, { stack: { include, exclude: [] } });
+    const requested: string[] = [];
+    const result = await runSweep(makeContext(), {
+      ...(keywords === undefined ? {} : { keywords }),
+      fetch: (input) => {
+        requested.push(input);
+        return Promise.resolve(new Response(searchFixture));
+      },
+    });
+    if (!result.ok) throw new Error(result.error.message);
+    return { requested, names: result.value.sources.map((entry) => entry.source) };
+  }
+
+  test("queries with the Profile stack when no keyword is given", async () => {
+    const outcome = await sweepSearch(["typescript"]);
+    expect(outcome.requested).toEqual(["https://jobs.workable.com/api/v1/jobs?query=typescript"]);
+    expect(outcome.names).toEqual(["workable-search"]);
+  });
+
+  test("the sweep keyword wins over the Profile stack", async () => {
+    const outcome = await sweepSearch(["typescript"], ["rust"]);
+    expect(outcome.requested).toEqual(["https://jobs.workable.com/api/v1/jobs?query=rust"]);
+  });
+
+  test("is skipped silently without keyword or stack", async () => {
+    const outcome = await sweepSearch([]);
+    expect(outcome.requested).toEqual([]);
+    expect(outcome.names).toEqual([]);
+  });
+});
+
 describe("sweep configuration", () => {
-  test("an ATS Source with no saved companies is misconfigured, not empty", async () => {
+  test("an ATS Source with no saved companies is empty, without a warning", async () => {
     writeProfile(["greenhouse"]);
     const result = await runSweep(makeContext(), {
       adapters: { greenhouse: staticAdapter("greenhouse", []) },
@@ -507,11 +548,32 @@ describe("sweep configuration", () => {
     if (!result.ok) throw new Error(result.error.message);
     expect(result.value.sources[0]).toMatchObject({
       source: "greenhouse",
-      status: "misconfigured",
+      status: "empty",
+      warnings: [],
     });
-    expect(result.value.sources[0]?.warnings.join(" ")).toContain("jobship company add");
-    expect(result.value.empty).toEqual([]);
-    expect(result.value.misconfigured).toEqual(["greenhouse"]);
+    expect(result.value.misconfigured).toEqual([]);
+  });
+
+  test("empty sources sweep each saved company with its slug", async () => {
+    writeProfile([]);
+    writeFileSync(
+      path.join(root, "companies.json"),
+      JSON.stringify({ companies: [{ ats: "greenhouse", slug: "acme" }] }),
+    );
+    const slugs: (string | undefined)[] = [];
+    const greenhouse: SourceAdapter = {
+      name: "greenhouse",
+      fetch: (query) => {
+        slugs.push(query.slug);
+        return Promise.resolve({ postings: [], errors: [], warnings: [] });
+      },
+    };
+    const result = await runSweep(makeContext(), {
+      adapters: { greenhouse },
+      fetch: () => Promise.reject(new Error("offline")),
+    });
+    if (!result.ok) throw new Error(result.error.message);
+    expect(slugs).toEqual(["acme"]);
   });
 
   test("--source naming a Source outside the Profile is a usage failure", async () => {
