@@ -131,4 +131,21 @@ describe("shipped plugin", () => {
       "workday.md",
     ]);
   });
+
+  test("the contact skill keeps its research limits", () => {
+    const skill = readFileSync(path.join(root, "skills/contact/SKILL.md"), "utf8");
+    expect(skill).toContain("At most 3 Contacts per Lead");
+    expect(skill).toContain("Never probe SMTP");
+    for (const label of ["`published`", "`pattern`", "`guess`"]) expect(skill).toContain(label);
+    for (const step of [
+      "Posting text",
+      "LinkedIn people search",
+      "team or about page",
+      "GitHub org",
+    ]) {
+      expect(skill).toContain(step);
+    }
+    expect(skill).toContain("jobship contact record");
+    expect(skill).toContain("jobship contact prune");
+  });
 });
