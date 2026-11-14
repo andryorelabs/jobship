@@ -54,6 +54,7 @@ type LintRule =
   | "identity-leak"
   | "repeated-phrase"
   | "unbacked-number"
+  | "unlabeled-estimate"
   | "placeholder";
 
 export type LintFinding = {
