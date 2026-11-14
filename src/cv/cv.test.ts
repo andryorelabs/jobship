@@ -311,7 +311,7 @@ const BULLET_SENTENCE =
   "and documenting the result so the next team could repeat the approach without help.";
 const LONG_BULLET_FILLER = `${BULLET_SENTENCE} ${BULLET_SENTENCE}`;
 
-function writeThreeEntryFixture(): string[] {
+function writeThreeEntryFixture(bulletCount = 3): string[] {
   const entries = ["alpha", "beta", "gamma"];
   const factLines = entries.flatMap((entry) => [
     `  - id: f-${entry}`,
@@ -339,7 +339,7 @@ function writeThreeEntryFixture(): string[] {
     ].join("\n"),
   );
   const bulletLines = entries.flatMap((entry) =>
-    [1, 2, 3].flatMap((index) => [
+    Array.from({ length: bulletCount }, (_, offset) => offset + 1).flatMap((index) => [
       `  - id: b-${entry}-${index}`,
       `    text: MARK${entry.toUpperCase()}${index} ${LONG_BULLET_FILLER}`,
       "    tags: [bulk]",
@@ -369,6 +369,24 @@ describe("real typst layout", () => {
         );
         expect(new Set(holding).size).toBe(1);
         expect(markers.every((marker) => pages[holding[0] ?? 0]?.includes(marker))).toBe(true);
+      }
+    },
+  );
+
+  test.skipIf(!hasTypst)(
+    "keeps a long Entry header on the same page as its first bullet",
+    async () => {
+      const entries = writeThreeEntryFixture(6);
+      const result = await buildCv(dir, { runner: systemRunner });
+      expect(result.ok ? "ok" : result.error.message).toBe("ok");
+      if (!result.ok) return;
+      const pages = readFileSync(result.value.text, "utf8").split("\f");
+      expect(result.value.pages).toBeGreaterThanOrEqual(3);
+      for (const entry of entries) {
+        const headerPage = pages.findIndex((page) => page.includes(`Entry${entry} Corp`));
+        const firstBulletPage = pages.findIndex((page) => page.includes(`MARK${entry}1 `));
+        expect(headerPage).toBeGreaterThanOrEqual(0);
+        expect(firstBulletPage).toBe(headerPage);
       }
     },
   );
