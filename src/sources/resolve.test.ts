@@ -5,6 +5,8 @@ import path from "node:path";
 import type { Profile } from "../core/types.ts";
 import type { Board } from "./catalog.ts";
 import { readCustomBoards, writeCustomBoards } from "./custom-boards.ts";
+import { ATS_NAMES } from "./ats.ts";
+import { detectAts } from "./detect.ts";
 import { resolveBoards } from "./resolve.ts";
 
 const OFF = { JOBSHIP_CATALOG_URL: "off" };
@@ -191,6 +193,37 @@ describe("resolveBoards", () => {
     writeFileSync(path.join(root, "boards.json"), "{");
     const resolved = await resolveBoards(profileWith({}), { path: root }, { env: OFF });
     expect(resolved).toMatchObject({ ok: false, error: { code: "custom-boards-invalid" } });
+  });
+});
+
+function saveGreenhouse(): void {
+  writeFileSync(
+    path.join(root, "companies.json"),
+    JSON.stringify({ companies: [{ ats: "greenhouse", slug: "acme" }] }),
+  );
+}
+
+describe("saved companies", () => {
+  test("empty sources include the ATS adapter of a saved company", async () => {
+    saveGreenhouse();
+    expect(await resolveIds({})).toContain("greenhouse");
+    expect(await resolveIds({})).not.toContain("lever");
+  });
+
+  test("an explicit sources list is used as given", async () => {
+    saveGreenhouse();
+    expect(await resolveIds({ sources: ["remoteok"] })).toEqual(["remoteok"]);
+  });
+
+  test("detectAts recognises exactly the shared ATS names", () => {
+    const urls = [
+      "https://boards.greenhouse.io/a",
+      "https://jobs.lever.co/a",
+      "https://jobs.ashbyhq.com/a",
+      "https://apply.workable.com/a",
+      "https://jobs.smartrecruiters.com/a",
+    ];
+    expect(urls.map((url) => detectAts(url)?.ats)).toEqual([...ATS_NAMES]);
   });
 });
 

@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import type { CommandContext } from "../core/commands.ts";
 import { run } from "./command.ts";
+import { readCompanies, writeCompanies } from "./companies.ts";
 
 const CAREERS_URL = "https://boards.greenhouse.io/acme";
 
@@ -34,10 +35,10 @@ describe("company add", () => {
     const result = await run(["add", CAREERS_URL], context());
     expect(result).toEqual({
       ok: true,
-      data: { added: true, company: { ats: "greenhouse", slug: "acme" } },
+      data: { added: true, company: { ats: "greenhouse", slug: "acme", origin: "manual" } },
     });
     const stored: unknown = JSON.parse(readFileSync(path.join(root, "companies.json"), "utf8"));
-    expect(stored).toEqual({ companies: [{ ats: "greenhouse", slug: "acme" }] });
+    expect(stored).toEqual({ companies: [{ ats: "greenhouse", slug: "acme", origin: "manual" }] });
   });
 
   test("does not store the same company twice", async () => {
@@ -45,12 +46,12 @@ describe("company add", () => {
     const second = await run(["add", CAREERS_URL], context());
     expect(second).toEqual({
       ok: true,
-      data: { added: false, company: { ats: "greenhouse", slug: "acme" } },
+      data: { added: false, company: { ats: "greenhouse", slug: "acme", origin: "manual" } },
     });
     const listed = await run(["list"], context());
     expect(listed).toEqual({
       ok: true,
-      data: { companies: [{ ats: "greenhouse", slug: "acme" }] },
+      data: { companies: [{ ats: "greenhouse", slug: "acme", origin: "manual" }] },
     });
   });
 
@@ -80,7 +81,34 @@ describe("company add", () => {
   });
 });
 
+describe("writeCompanies", () => {
+  test("round-trips discovered entries with checkedAt", async () => {
+    const saved = [
+      { ats: "lever", slug: "x", origin: "manual" as const },
+      { ats: "ashby", slug: "y", origin: "discovered" as const, checkedAt: "2026-01-01" },
+    ];
+    expect(await writeCompanies({ path: root }, saved)).toEqual({ ok: true, value: undefined });
+    expect(readCompanies({ path: root })).toEqual({ ok: true, value: saved });
+  });
+});
+
 describe("company list", () => {
+  test("entries without origin read as manual", async () => {
+    writeFileSync(
+      path.join(root, "companies.json"),
+      '{"companies":[{"ats":"lever","slug":"x"},{"ats":"ashby","slug":"y","origin":"discovered","checkedAt":"2026-01-01"}]}',
+    );
+    expect(await run(["list"], context())).toEqual({
+      ok: true,
+      data: {
+        companies: [
+          { ats: "lever", slug: "x", origin: "manual" },
+          { ats: "ashby", slug: "y", origin: "discovered", checkedAt: "2026-01-01" },
+        ],
+      },
+    });
+  });
+
   test("lists nothing when no company was added", async () => {
     expect(await run(["list"], context())).toEqual({ ok: true, data: { companies: [] } });
   });
