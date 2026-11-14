@@ -60,6 +60,10 @@ Prepares the tools `cv build` needs. Downloads the pinned Typst release (checksu
 
 ATS Sources (`greenhouse`, `lever`, `ashby`, `workable`, `smartrecruiters`) only sweep companies saved here. `company add <careers-url>` detects the ATS and slug (Greenhouse, Lever, Ashby, Workable, SmartRecruiters) and stores it. `company list` lists stored companies.
 
+### `jobship discover`
+
+`discover [--limit <n>] [--keyword <text>]` finds companies on the five ATS Sources and saves the ones worth sweeping. It verifies up to `n` candidates (default 200), round-robin across ATS, and skips companies already saved. A company is kept as `origin: "discovered"` with `checkedAt` when at least one Posting passes the Gates (and contains `--keyword` when given). Discovered companies last checked more than 30 days ago are re-checked and removed when no Posting passes; `manual` companies are never touched. Verification caps concurrency per ATS host (5 for Ashby). The report is `{candidates, checked, kept, removed, errors}`. Discovery issues GET requests only.
+
 ### `jobship board`
 
 Boards are the job sites a sweep reads. The catalog lists them with `access` (`feed`, `browser` or `manual`), `regions`, `workModes` and `jobTypes`; custom boards live in `boards.json` in the data dir.
