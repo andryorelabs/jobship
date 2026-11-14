@@ -1,3 +1,5 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { loadProfile } from "../../core/data-dir.ts";
 import { errorMessage } from "../../core/narrow.ts";
 import type { DataDir, Posting, Profile, Result, SourceAdapter } from "../../core/types.ts";
@@ -7,6 +9,7 @@ import { ATS_NAMES, createAtsAdapters } from "../ats.ts";
 import { readCompanies, updateCompanies, type SavedCompany } from "../companies.ts";
 import type { AtsRef } from "../detect.ts";
 import type { FetchFunction } from "../http.ts";
+import { discoverCacheDirectory } from "./finders.ts";
 
 export const DEFAULT_LIMIT = 200;
 const RECHECK_DAYS = 30;
@@ -25,7 +28,7 @@ export type DiscoverDeps = {
   readonly findCandidates: FindCandidates;
   readonly fetch: FetchFunction;
   readonly now: Date;
-  readonly env?: Record<string, string | undefined>;
+  readonly env: Record<string, string | undefined>;
 };
 
 export type DiscoverOptions = {
@@ -148,10 +151,64 @@ function applyVerdicts(
   return next;
 }
 
+type RejectedChecks = Map<string, string>;
+
+function rejectedFile(env: Record<string, string | undefined>): string {
+  return path.join(discoverCacheDirectory(env), "rejected.json");
+}
+
+function readRejected(file: string, errors: string[]): RejectedChecks {
+  if (!existsSync(file)) return new Map();
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      errors.push("rejected-candidates cache ignored: not a JSON object");
+      return new Map();
+    }
+    return new Map(
+      Object.entries(parsed).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
+      ),
+    );
+  } catch (error) {
+    errors.push(`rejected-candidates cache ignored: ${errorMessage(error)}`);
+    return new Map();
+  }
+}
+
+function checkedRecently(checkedAt: string | undefined, now: Date): boolean {
+  if (checkedAt === undefined) return false;
+  const checked = Date.parse(checkedAt);
+  return !Number.isNaN(checked) && now.getTime() - checked <= RECHECK_DAYS * DAY_MS;
+}
+
+function nextRejected(
+  previous: RejectedChecks,
+  verdicts: readonly Verdict[],
+  now: Date,
+): RejectedChecks {
+  const next = new Map([...previous].filter(([, checkedAt]) => checkedRecently(checkedAt, now)));
+  for (const { target, passes } of verdicts) {
+    if (passes) next.delete(companyKey(target));
+    else next.set(companyKey(target), now.toISOString());
+  }
+  return next;
+}
+
+function writeRejected(file: string, rejected: RejectedChecks, errors: string[]): void {
+  try {
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, `${JSON.stringify(Object.fromEntries(rejected), null, 2)}\n`);
+  } catch (error) {
+    errors.push(`rejected-candidates cache not written: ${errorMessage(error)}`);
+  }
+}
+
 /**
  * Verifies candidate companies and stale discovered ones against the Profile Gates, saves the
  * passing ones as discovered and drops discovered ones that no longer pass. Manual companies are
- * never touched, and a company whose check errored is left as it was.
+ * never touched, and a company whose check errored is left as it was. Candidates that fail are
+ * remembered in the Discovery cache and not verified again for 30 days.
  */
 export async function runDiscover(
   dir: DataDir,
@@ -164,15 +221,18 @@ export async function runDiscover(
   if (!saved.ok) return saved;
   const found = await deps.findCandidates({
     fetch: deps.fetch,
-    env: deps.env ?? {},
+    env: deps.env,
     now: deps.now,
   });
   const errors = [...found.errors];
+  const rejectedPath = rejectedFile(deps.env);
+  const rejected = readRejected(rejectedPath, errors);
   const known = new Set(saved.value.map(companyKey));
   const fresh = new Map<string, AtsRef>();
   for (const candidate of found.candidates) {
     const supported = ATS_NAMES.some((name) => name === candidate.ats);
-    if (supported && !known.has(companyKey(candidate))) {
+    const key = companyKey(candidate);
+    if (supported && !known.has(key) && !checkedRecently(rejected.get(key), deps.now)) {
       fresh.set(companyKey(candidate), { ats: candidate.ats, slug: candidate.slug });
     }
   }
@@ -190,6 +250,7 @@ export async function runDiscover(
     return next;
   });
   if (!updated.ok) return updated;
+  writeRejected(rejectedPath, nextRejected(rejected, verdicts, deps.now), errors);
   return {
     ok: true,
     value: {

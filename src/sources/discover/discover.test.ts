@@ -34,6 +34,10 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
+function cacheEnv(): Record<string, string> {
+  return { JOBSHIP_CACHE_DIR: path.join(root, "cache") };
+}
+
 function finder(candidates: AtsRef[]): FindCandidates {
   return () => Promise.resolve({ candidates, errors: [] });
 }
@@ -79,6 +83,7 @@ describe("runDiscover", () => {
         ]),
         fetch: fakeFetch({ good: "Backend Engineer", empty: null }),
         now: NOW,
+        env: cacheEnv(),
       },
     );
     expect(result).toEqual({
@@ -105,6 +110,7 @@ describe("runDiscover", () => {
         ]),
         fetch: fakeFetch({ a: "Designer", b: "Designer" }, seen),
         now: NOW,
+        env: cacheEnv(),
       },
       { limit: 1, keyword: "rust" },
     );
@@ -137,6 +143,7 @@ describe("runDiscover", () => {
         findCandidates: finder([{ ats: "greenhouse", slug: "manual-one" }]),
         fetch: fakeFetch({ "stale-ok": "Engineer", "stale-gone": null }, seen),
         now: NOW,
+        env: cacheEnv(),
       },
     );
     expect(result).toEqual({
@@ -165,12 +172,51 @@ describe("runDiscover", () => {
         findCandidates: finder([]),
         fetch: () => Promise.resolve(new Response("nope", { status: 500 })),
         now: NOW,
+        env: cacheEnv(),
       },
     );
     expect(result.ok && result.value.removed).toBe(0);
     expect(result.ok && result.value.errors).toHaveLength(1);
     const saved = readCompanies({ path: root });
     expect(saved.ok && saved.value).toHaveLength(1);
+  });
+
+  test("does not verify a rejected candidate again within 30 days", async () => {
+    const candidates = [{ ats: "greenhouse", slug: "empty" }];
+    const seen: string[] = [];
+    const first = await runDiscover(
+      { path: root },
+      {
+        findCandidates: finder(candidates),
+        fetch: fakeFetch({ empty: null }, seen),
+        now: NOW,
+        env: cacheEnv(),
+      },
+    );
+    expect(first.ok && first.value.checked).toBe(1);
+    const soon = new Date(NOW.getTime() + 29 * 86_400_000);
+    const second = await runDiscover(
+      { path: root },
+      {
+        findCandidates: finder(candidates),
+        fetch: fakeFetch({ empty: null }, seen),
+        now: soon,
+        env: cacheEnv(),
+      },
+    );
+    expect(second.ok && second.value.checked).toBe(0);
+    const later = new Date(NOW.getTime() + 31 * 86_400_000);
+    const third = await runDiscover(
+      { path: root },
+      {
+        findCandidates: finder(candidates),
+        fetch: fakeFetch({ empty: null }, seen),
+        now: later,
+        env: cacheEnv(),
+      },
+    );
+    expect(third.ok && third.value.checked).toBe(1);
+    expect(seen).toHaveLength(2);
   });
 
   test("never has more than 5 ashby verifications in flight", async () => {
@@ -191,7 +237,7 @@ describe("runDiscover", () => {
     }));
     const result = await runDiscover(
       { path: root },
-      { findCandidates: finder(candidates), fetch: slow, now: NOW },
+      { findCandidates: finder(candidates), fetch: slow, now: NOW, env: cacheEnv() },
     );
     expect(result.ok && result.value.checked).toBe(12);
     expect(peak).toBe(5);
@@ -201,13 +247,13 @@ describe("runDiscover", () => {
     writeFileSync(path.join(root, "companies.json"), "{not json");
     const malformed = await runDiscover(
       { path: root },
-      { findCandidates: finder([]), fetch: fakeFetch({}), now: NOW },
+      { findCandidates: finder([]), fetch: fakeFetch({}), now: NOW, env: cacheEnv() },
     );
     expect(malformed.ok ? null : malformed.error.code).toBe("companies-malformed");
     const empty = mkdtempSync(path.join(os.tmpdir(), "jobship-discover-empty-"));
     const missing = await runDiscover(
       { path: empty },
-      { findCandidates: finder([]), fetch: fakeFetch({}), now: NOW },
+      { findCandidates: finder([]), fetch: fakeFetch({}), now: NOW, env: cacheEnv() },
     );
     rmSync(empty, { recursive: true, force: true });
     expect(missing.ok ? null : missing.error.code).toBe("profile-missing");

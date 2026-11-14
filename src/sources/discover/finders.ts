@@ -53,7 +53,8 @@ const NON_BOARD_SLUGS: ReadonlySet<string> = new Set([
   "widget",
 ]);
 
-function cacheDirectory(env: FinderEnv): string {
+/** Returns the directory where Discovery keeps its caches. */
+export function discoverCacheDirectory(env: FinderEnv): string {
   const override = settingValue(env, "CACHE_DIR");
   if (override !== undefined) return path.join(override, "discover");
   const xdg = env["XDG_CACHE_HOME"];
@@ -116,7 +117,7 @@ async function fetchCdxHost(
   api: () => Promise<string | { error: string }>,
   errors: string[],
 ): Promise<string[]> {
-  const file = path.join(cacheDirectory(options.env), `cdx-${host.host}.ndjson`);
+  const file = path.join(discoverCacheDirectory(options.env), `cdx-${host.host}.ndjson`);
   const now = (options.now ?? new Date()).getTime();
   const cached = readFreshCache(file, now);
   if (cached !== undefined) return cdxUrls(cached);

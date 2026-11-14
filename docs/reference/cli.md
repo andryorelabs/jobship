@@ -62,7 +62,7 @@ ATS Sources (`greenhouse`, `lever`, `ashby`, `workable`, `smartrecruiters`) only
 
 ### `jobship discover`
 
-`discover [--limit <n>] [--keyword <text>]` finds companies on the five ATS Sources and saves the ones worth sweeping. It verifies up to `n` candidates (default 200), round-robin across ATS, and skips companies already saved. A company is kept as `origin: "discovered"` with `checkedAt` when at least one Posting passes the Gates (and contains `--keyword` when given). Discovered companies last checked more than 30 days ago are re-checked and removed when no Posting passes; `manual` companies are never touched. Verification caps concurrency per ATS host (5 for Ashby). The report is `{candidates, checked, kept, removed, errors}`. Discovery issues GET requests only.
+`discover [--limit <n>] [--keyword <text>]` finds companies on the five ATS Sources and saves the ones worth sweeping. It verifies up to `n` candidates (default 200), round-robin across ATS, and skips companies already saved or rejected less than 30 days ago. Raw Common Crawl CDX results and rejected candidates are cached under the jobship cache dir (`JOBSHIP_CACHE_DIR`, else `$XDG_CACHE_HOME/jobship`) in `discover/` for 30 days. A company is kept as `origin: "discovered"` with `checkedAt` when at least one Posting passes the Gates (and contains `--keyword` when given). Discovered companies last checked more than 30 days ago are re-checked and removed when no Posting passes; `manual` companies are never touched. Verification caps concurrency per ATS host (5 for Ashby). The report is `{candidates, checked, kept, removed, errors}`. Discovery issues GET requests only.
 
 ### `jobship board`
 
