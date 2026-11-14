@@ -4,6 +4,7 @@ import path from "node:path";
 import type { SourceAdapter } from "../core/types.ts";
 import { createApiBoardAdapters, type ApiBoardName } from "./boards-api.ts";
 import type { FetchFunction } from "./http.ts";
+import { createSources } from "./index.ts";
 
 function fixture(name: string): string {
   return readFileSync(path.join(import.meta.dir, "fixtures", "api", name), "utf8");
@@ -226,5 +227,36 @@ describe("api board adapters", () => {
     const huge = `{"jobs":[],"pad":"${"x".repeat(8_100_000)}"}`;
     const result = await adapterFor("jobicy", recordingFetch({ jobicy: huge })).fetch({});
     expect(result.errors[0]).toContain("too large");
+  });
+});
+
+function searchAdapter(fetchFunction: FetchFunction): SourceAdapter {
+  const found = createSources(fetchFunction)["workable-search"];
+  if (found === undefined) throw new Error("missing adapter workable-search");
+  return found;
+}
+
+describe("workable-search board", () => {
+  test("queries with the keywords and parses the fixture", async () => {
+    const calls: Call[] = [];
+    const body = readFileSync(
+      path.join(import.meta.dir, "fixtures", "workable-search.json"),
+      "utf8",
+    );
+    const result = await searchAdapter(recordingFetch({ "jobs.workable.com": body }, calls)).fetch({
+      keywords: ["typescript"],
+    });
+    expect(calls[0]?.url).toBe("https://jobs.workable.com/api/v1/jobs?query=typescript");
+    expect(result.errors).toEqual([]);
+    expect(result.postings.map((posting) => posting.id)).toEqual([
+      "workable-search:wk-1001",
+      "workable-search:wk-1002",
+    ]);
+    expect(result.postings[0]).toMatchObject({
+      company: "Acme",
+      location: "Lisbon, Portugal",
+      remote: true,
+      description: "Build TypeScript services",
+    });
   });
 });

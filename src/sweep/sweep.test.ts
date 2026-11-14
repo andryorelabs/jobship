@@ -498,6 +498,47 @@ describe("command", () => {
   });
 });
 
+describe("workable-search sweep", () => {
+  const searchFixture = readFileSync(
+    path.join(import.meta.dir, "../sources/fixtures/workable-search.json"),
+    "utf8",
+  );
+
+  async function sweepSearch(
+    include: string[],
+    keywords?: string[],
+  ): Promise<{ requested: string[]; names: string[] }> {
+    writeProfile(["workable-search"], { kind: "local" }, { stack: { include, exclude: [] } });
+    const requested: string[] = [];
+    const result = await runSweep(makeContext(), {
+      ...(keywords === undefined ? {} : { keywords }),
+      fetch: (input) => {
+        requested.push(input);
+        return Promise.resolve(new Response(searchFixture));
+      },
+    });
+    if (!result.ok) throw new Error(result.error.message);
+    return { requested, names: result.value.sources.map((entry) => entry.source) };
+  }
+
+  test("queries with the Profile stack when no keyword is given", async () => {
+    const outcome = await sweepSearch(["typescript"]);
+    expect(outcome.requested).toEqual(["https://jobs.workable.com/api/v1/jobs?query=typescript"]);
+    expect(outcome.names).toEqual(["workable-search"]);
+  });
+
+  test("the sweep keyword wins over the Profile stack", async () => {
+    const outcome = await sweepSearch(["typescript"], ["rust"]);
+    expect(outcome.requested).toEqual(["https://jobs.workable.com/api/v1/jobs?query=rust"]);
+  });
+
+  test("is skipped silently without keyword or stack", async () => {
+    const outcome = await sweepSearch([]);
+    expect(outcome.requested).toEqual([]);
+    expect(outcome.names).toEqual([]);
+  });
+});
+
 describe("sweep configuration", () => {
   test("an ATS Source with no saved companies is empty, without a warning", async () => {
     writeProfile(["greenhouse"]);
