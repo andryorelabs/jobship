@@ -162,7 +162,37 @@ export type HuntEvent =
       readonly channel: string;
       readonly recipient: string;
     })
+  | (EventBase & {
+      readonly kind: "contact.found";
+      readonly name: string;
+      readonly role: string;
+      readonly channel: ContactChannel;
+    })
   | (EventBase & { readonly kind: "note"; readonly text: string });
+
+export const CONTACT_CHANNELS = ["linkedin", "email"] as const;
+type ContactChannel = (typeof CONTACT_CHANNELS)[number];
+
+export const EMAIL_CONFIDENCES = ["published", "pattern", "guess"] as const;
+type EmailConfidence = (typeof EMAIL_CONFIDENCES)[number];
+
+export type ContactRecentItem = {
+  readonly date: string;
+  readonly url: string;
+  readonly summary: string;
+};
+
+export type ContactDetail = {
+  readonly name: string;
+  readonly role: string;
+  readonly channel: ContactChannel;
+  readonly profileUrl?: string;
+  readonly email?: string;
+  readonly emailConfidence?: EmailConfidence;
+  readonly sources: readonly string[];
+  readonly recentItems: readonly ContactRecentItem[];
+  readonly doNotContact?: boolean;
+};
 
 export type TrackerConfig = {
   readonly kind: TrackerKind;
