@@ -110,7 +110,7 @@ The `inbox` and `outreach` skills use the Gmail connector for Claude Code (tools
 
 Add a board the catalog lacks with `jobship board add <feed-url> --name <name> [--region <region>]... [--work-mode remote|hybrid|onsite]...`. It must serve valid RSS or Atom with at least one item. `jobship board remove <id>` deletes a custom board. The catalog refreshes from GitHub at most once a day and falls back to the bundled copy; set `JOBSHIP_CATALOG_URL` to `off` to skip the fetch (see [configuration](../configuration.md)).
 
-Auto selection never includes ATS Sources. To sweep the companies you save with `jobship company add <careers-url>`, list the ATS names in `sources` together with the board ids you want, since a non-empty list turns auto selection off. An ATS Source with no saved companies is reported as misconfigured. An unknown name is reported as `unknown source`.
+Auto selection also sweeps your Saved companies: the ATS boards you add with `jobship company add <careers-url>`. With an explicit list, name the ATS Sources you want swept, since a non-empty list turns auto selection off. An ATS Source with no Saved companies is simply empty. An unknown name is reported as `unknown source`.
 
 The `nav` board (NAV Arbeidsplassen, Norway) reads a feed that is walked forward. Its first sweep only records where the feed stands and yields no Postings; Postings fill in from the second sweep on. The position is stored in `board-cursors.json` in the data dir, next to `board-runs.json`. A failed fetch keeps the old position, and deleting the file restarts the board from the latest page.
 

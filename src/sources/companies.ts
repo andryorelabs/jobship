@@ -7,14 +7,21 @@ import type { AtsRef } from "./detect.ts";
 
 const COMPANIES_FILE = "companies.json";
 
-export function readCompanies(dir: DataDir): Result<AtsRef[]> {
+type CompanyOrigin = "manual" | "discovered";
+
+export type SavedCompany = AtsRef & {
+  readonly origin: CompanyOrigin;
+  readonly checkedAt?: string;
+};
+
+export function readCompanies(dir: DataDir): Result<SavedCompany[]> {
   const file = path.join(dir.path, COMPANIES_FILE);
   if (!existsSync(file)) return { ok: true, value: [] };
   try {
     const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
     const list = isObject(parsed) ? parsed["companies"] : undefined;
     if (!Array.isArray(list)) throw new Error("expected an object with a companies array");
-    const entries: AtsRef[] = [];
+    const entries: SavedCompany[] = [];
     for (const entry of list) {
       if (
         !isObject(entry) ||
@@ -23,7 +30,20 @@ export function readCompanies(dir: DataDir): Result<AtsRef[]> {
       ) {
         throw new Error("every company needs string ats and slug fields");
       }
-      entries.push({ ats: entry["ats"], slug: entry["slug"] });
+      const origin = entry["origin"];
+      if (origin !== undefined && origin !== "manual" && origin !== "discovered") {
+        throw new Error("company origin must be manual or discovered");
+      }
+      const checkedAt = entry["checkedAt"];
+      if (checkedAt !== undefined && typeof checkedAt !== "string") {
+        throw new Error("company checkedAt must be a string");
+      }
+      entries.push({
+        ats: entry["ats"],
+        slug: entry["slug"],
+        origin: origin ?? "manual",
+        ...(checkedAt === undefined ? {} : { checkedAt }),
+      });
     }
     return { ok: true, value: entries };
   } catch (error) {
@@ -37,9 +57,27 @@ export function readCompanies(dir: DataDir): Result<AtsRef[]> {
   }
 }
 
-export type AddOutcome = { readonly added: boolean; readonly company: AtsRef };
+export type AddOutcome = { readonly added: boolean; readonly company: SavedCompany };
+
+/**
+ * Replaces the Saved companies with what `update` derives from the current list, reading and
+ * writing inside one lock so a concurrent `company add` is never lost.
+ */
+export async function updateCompanies(
+  dir: DataDir,
+  update: (current: readonly SavedCompany[]) => SavedCompany[],
+): Promise<Result<SavedCompany[]>> {
+  return withLock<Result<SavedCompany[]>>(dir.path, () => {
+    const current = readCompanies(dir);
+    if (!current.ok) return Promise.resolve(current);
+    const companies = update(current.value);
+    writeAtomic(path.join(dir.path, COMPANIES_FILE), `${JSON.stringify({ companies }, null, 2)}\n`);
+    return Promise.resolve({ ok: true as const, value: companies });
+  });
+}
 
 export async function addCompany(dir: DataDir, company: AtsRef): Promise<Result<AddOutcome>> {
+  const saved: SavedCompany = { ats: company.ats, slug: company.slug, origin: "manual" };
   return withLock<Result<AddOutcome>>(dir.path, () => {
     const current = readCompanies(dir);
     if (!current.ok) return Promise.resolve(current);
@@ -47,12 +85,12 @@ export async function addCompany(dir: DataDir, company: AtsRef): Promise<Result<
       (entry) => entry.ats === company.ats && entry.slug === company.slug,
     );
     if (!known) {
-      const next = [...current.value, company];
+      const next = [...current.value, saved];
       writeAtomic(
         path.join(dir.path, COMPANIES_FILE),
         `${JSON.stringify({ companies: next }, null, 2)}\n`,
       );
     }
-    return Promise.resolve({ ok: true as const, value: { added: !known, company } });
+    return Promise.resolve({ ok: true as const, value: { added: !known, company: saved } });
   });
 }

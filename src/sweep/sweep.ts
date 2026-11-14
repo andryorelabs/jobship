@@ -15,6 +15,7 @@ import type {
   SourceResult,
   TrackerAdapter,
 } from "../core/types.ts";
+import { ATS_NAMES } from "../sources/ats.ts";
 import { readCompanies } from "../sources/companies.ts";
 import { resolveBoards, type ResolvedBoard } from "../sources/index.ts";
 import { readEvents } from "../ledger/events.ts";
@@ -30,13 +31,7 @@ import type {
   TrackerSummary,
 } from "./types.ts";
 
-const ATS_SOURCES: ReadonlySet<string> = new Set([
-  "greenhouse",
-  "lever",
-  "ashby",
-  "workable",
-  "smartrecruiters",
-]);
+const ATS_SOURCES: ReadonlySet<string> = new Set(ATS_NAMES);
 
 type Prepared = { readonly dir: DataDir; readonly profile: Profile };
 
@@ -153,15 +148,6 @@ async function fetchSource(
       errors: [problem ?? `${source}: unknown source`],
       warnings: [],
       misconfigured: false,
-    };
-  }
-  if (ATS_SOURCES.has(source) && queries.length === 0) {
-    return {
-      source,
-      postings: [],
-      errors: [],
-      warnings: [`${source}: no companies saved; run jobship company add <url>`],
-      misconfigured: true,
     };
   }
   const results = await Promise.all(

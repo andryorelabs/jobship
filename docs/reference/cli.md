@@ -100,6 +100,12 @@ Lists open Blockers grouped by Application and scope.
 - `outreach lint --channel linkedin|email --recipient <name> --company <company> --file <draft> [--addressee <name>] [--draft-company <company>]` checks length caps (LinkedIn 300 characters, email 160 words), placeholders, stock phrases and name/company consistency.
 - `outreach log --channel linkedin|email --recipient <name> [--key <key>]` records an outreach and enforces `outreachDailyCap`.
 
+### `jobship contact`
+
+- `contact record --lead <key> --file <json>` validates up to 3 Contacts against `schema/contact.schema.json`, appends one `contact.found` Event per Contact (name, role, channel only) and writes the full detail to `contacts/<key>.json` in the data dir. `emailConfidence` is `published`, `pattern` or `guess`; the Lead must have a `lead.created` Event.
+- `contact list --lead <key>` prints the Lead's Contacts.
+- `contact prune` deletes the `contacts/<key>.json` files of Leads whose Application closed more than 90 days ago and reports the keys it deleted.
+
 ### `jobship interview`
 
 `interview pack <key>` scaffolds a Prep pack with Stories linked to fact ids. `interview check <key>` validates it.

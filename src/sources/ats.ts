@@ -10,6 +10,10 @@ import {
   type FetchFunction,
 } from "./http.ts";
 
+export const ATS_NAMES = ["greenhouse", "lever", "ashby", "workable", "smartrecruiters"] as const;
+
+export type AtsName = (typeof ATS_NAMES)[number];
+
 function joined(...parts: (string | undefined)[]): string | undefined {
   const present = parts.filter((part) => part !== undefined);
   return present.length === 0 ? undefined : present.join(", ");

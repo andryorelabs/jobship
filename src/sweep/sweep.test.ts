@@ -499,7 +499,7 @@ describe("command", () => {
 });
 
 describe("sweep configuration", () => {
-  test("an ATS Source with no saved companies is misconfigured, not empty", async () => {
+  test("an ATS Source with no saved companies is empty, without a warning", async () => {
     writeProfile(["greenhouse"]);
     const result = await runSweep(makeContext(), {
       adapters: { greenhouse: staticAdapter("greenhouse", []) },
@@ -507,11 +507,32 @@ describe("sweep configuration", () => {
     if (!result.ok) throw new Error(result.error.message);
     expect(result.value.sources[0]).toMatchObject({
       source: "greenhouse",
-      status: "misconfigured",
+      status: "empty",
+      warnings: [],
     });
-    expect(result.value.sources[0]?.warnings.join(" ")).toContain("jobship company add");
-    expect(result.value.empty).toEqual([]);
-    expect(result.value.misconfigured).toEqual(["greenhouse"]);
+    expect(result.value.misconfigured).toEqual([]);
+  });
+
+  test("empty sources sweep each saved company with its slug", async () => {
+    writeProfile([]);
+    writeFileSync(
+      path.join(root, "companies.json"),
+      JSON.stringify({ companies: [{ ats: "greenhouse", slug: "acme" }] }),
+    );
+    const slugs: (string | undefined)[] = [];
+    const greenhouse: SourceAdapter = {
+      name: "greenhouse",
+      fetch: (query) => {
+        slugs.push(query.slug);
+        return Promise.resolve({ postings: [], errors: [], warnings: [] });
+      },
+    };
+    const result = await runSweep(makeContext(), {
+      adapters: { greenhouse },
+      fetch: () => Promise.reject(new Error("offline")),
+    });
+    if (!result.ok) throw new Error(result.error.message);
+    expect(slugs).toEqual(["acme"]);
   });
 
   test("--source naming a Source outside the Profile is a usage failure", async () => {
