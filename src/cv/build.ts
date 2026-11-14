@@ -125,10 +125,20 @@ function groupEntries(entries: readonly Entry[], selected: readonly Bullet[]) {
   });
 }
 
+/**
+ * Counts the pages in `pdftotext -layout` output: pages are form-feed separated,
+ * a trailing form feed adds no page, and text without a form feed is one page.
+ */
+export function countPages(text: string): number {
+  const pages = text.split("\f");
+  if (pages.length > 1 && pages[pages.length - 1]?.trim() === "") pages.pop();
+  return Math.max(pages.length, 1);
+}
+
 export async function buildCv(
   dir: DataDir,
   options: BuildOptions,
-): Promise<Result<{ pdf: string; text: string }>> {
+): Promise<Result<{ pdf: string; text: string; pages: number }>> {
   const facts = loadFactBank(dir);
   if (!facts.ok) return facts;
   const bullets = loadBullets(dir);
@@ -251,7 +261,10 @@ export async function buildCv(
   } catch (error) {
     return { ok: false, error: { code: "cv-write-failed", message: errorMessage(error) } };
   }
-  return { ok: true, value: { pdf: paths.pdf, text: paths.text } };
+  return {
+    ok: true,
+    value: { pdf: paths.pdf, text: paths.text, pages: countPages(extracted.value) },
+  };
 }
 
 export function readCvText(file: string): Result<string> {
