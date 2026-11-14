@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { loadProfile } from "../../core/data-dir.ts";
@@ -8,7 +9,7 @@ import { matchesKeywords } from "../adapter.ts";
 import { ATS_NAMES, createAtsAdapters } from "../ats.ts";
 import { readCompanies, updateCompanies, type SavedCompany } from "../companies.ts";
 import type { AtsRef } from "../detect.ts";
-import type { FetchFunction } from "../http.ts";
+import { withRetry, type FetchFunction } from "../http.ts";
 import { discoverCacheDirectory } from "./finders.ts";
 
 export const DEFAULT_LIMIT = 200;
@@ -29,6 +30,7 @@ export type DiscoverDeps = {
   readonly fetch: FetchFunction;
   readonly now: Date;
   readonly env: Record<string, string | undefined>;
+  readonly sleep?: (milliseconds: number) => Promise<void>;
 };
 
 export type DiscoverOptions = {
@@ -153,8 +155,20 @@ function applyVerdicts(
 
 type RejectedChecks = Map<string, string>;
 
-function rejectedFile(env: Record<string, string | undefined>): string {
-  return path.join(discoverCacheDirectory(env), "rejected.json");
+/**
+ * Rejections depend on the data dir and its Profile Gates, so the file is keyed by both: a Profile
+ * change or another data dir starts from an empty list.
+ */
+function rejectedFile(
+  env: Record<string, string | undefined>,
+  dir: DataDir,
+  profile: Profile,
+): string {
+  const scope = createHash("sha256")
+    .update(JSON.stringify([path.resolve(dir.path), profile]))
+    .digest("hex")
+    .slice(0, 16);
+  return path.join(discoverCacheDirectory(env), `rejected-${scope}.json`);
 }
 
 function readRejected(file: string, errors: string[]): RejectedChecks {
@@ -208,7 +222,8 @@ function writeRejected(file: string, rejected: RejectedChecks, errors: string[])
  * Verifies candidate companies and stale discovered ones against the Profile Gates, saves the
  * passing ones as discovered and drops discovered ones that no longer pass. Manual companies are
  * never touched, and a company whose check errored is left as it was. Candidates that fail are
- * remembered in the Discovery cache and not verified again for 30 days.
+ * remembered in the Discovery cache, per data dir and Profile, and not verified again for 30 days;
+ * a run with a keyword records no rejections.
  */
 export async function runDiscover(
   dir: DataDir,
@@ -225,7 +240,7 @@ export async function runDiscover(
     now: deps.now,
   });
   const errors = [...found.errors];
-  const rejectedPath = rejectedFile(deps.env);
+  const rejectedPath = rejectedFile(deps.env, dir, profile.value);
   const rejected = readRejected(rejectedPath, errors);
   const known = new Set(saved.value.map(companyKey));
   const fresh = new Map<string, AtsRef>();
@@ -240,7 +255,9 @@ export async function runDiscover(
     .filter((company) => isStale(company, deps.now))
     .map(({ ats, slug }) => ({ ats, slug }));
   const queue = roundRobin([...stale, ...fresh.values()], options.limit ?? DEFAULT_LIMIT);
-  const adapters = new Map(createAtsAdapters(deps.fetch).map((adapter) => [adapter.name, adapter]));
+  const adapters = new Map(
+    createAtsAdapters(withRetry(deps.fetch, deps.sleep)).map((adapter) => [adapter.name, adapter]),
+  );
   const verdicts = await verify(queue, profile.value, options.keyword, adapters, errors);
   let removed = 0;
   const updated = await updateCompanies(dir, (current) => {
@@ -250,7 +267,9 @@ export async function runDiscover(
     return next;
   });
   if (!updated.ok) return updated;
-  writeRejected(rejectedPath, nextRejected(rejected, verdicts, deps.now), errors);
+  if (options.keyword === undefined) {
+    writeRejected(rejectedPath, nextRejected(rejected, verdicts, deps.now), errors);
+  }
   return {
     ok: true,
     value: {

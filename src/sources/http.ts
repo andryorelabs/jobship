@@ -121,6 +121,29 @@ async function requestTextWithRetry(
 }
 
 /**
+ * Wraps a fetch so a GET answered with 502, 503 or 504 is retried up to 3 attempts with
+ * exponential backoff starting at one second. Other methods and responses pass through.
+ */
+export function withRetry(
+  fetchFunction: FetchFunction,
+  sleep: (milliseconds: number) => Promise<void> = defaultSleep,
+): FetchFunction {
+  const attemptFetch = async (
+    input: string,
+    init: RequestInit | undefined,
+    attempt: number,
+  ): Promise<Response> => {
+    const response = await fetchFunction(input, init);
+    const method = (init?.method ?? "GET").toUpperCase();
+    const retryable = method === "GET" && RETRYABLE_STATUSES.has(response.status);
+    if (!retryable || attempt >= RETRY_ATTEMPTS) return response;
+    await sleep(RETRY_BASE_DELAY_MS * 2 ** (attempt - 1));
+    return attemptFetch(input, init, attempt + 1);
+  };
+  return (input, init) => attemptFetch(input, init, 1);
+}
+
+/**
  * GET that retries 502, 503 and 504 up to 3 attempts with exponential backoff starting at one
  * second. Other failures return at once.
  */

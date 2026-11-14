@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { run } from "./command.ts";
@@ -217,6 +217,64 @@ describe("runDiscover", () => {
     );
     expect(third.ok && third.value.checked).toBe(1);
     expect(seen).toHaveLength(2);
+  });
+
+  test("retries a verification answered with 503 before counting it as checked", async () => {
+    let calls = 0;
+    const flaky = (input: string): Promise<Response> => {
+      calls += 1;
+      if (calls <= 2) return Promise.resolve(new Response("busy", { status: 503 }));
+      return fakeFetch({ good: "Backend Engineer" })(input);
+    };
+    const delays: number[] = [];
+    const result = await runDiscover(
+      { path: root },
+      {
+        findCandidates: finder([{ ats: "greenhouse", slug: "good" }]),
+        fetch: flaky,
+        now: NOW,
+        env: cacheEnv(),
+        sleep: (milliseconds) => {
+          delays.push(milliseconds);
+          return Promise.resolve();
+        },
+      },
+    );
+    expect(result.ok && result.value).toMatchObject({ checked: 1, kept: 1, errors: [] });
+    expect(calls).toBe(3);
+    expect(delays).toEqual([1000, 2000]);
+  });
+
+  test("records no rejection from a keyword run and drops rejections when the Profile changes", async () => {
+    const candidates = [{ ats: "greenhouse", slug: "good" }];
+    const deps = () => ({
+      findCandidates: finder(candidates),
+      fetch: fakeFetch({ good: "Backend Engineer" }),
+      now: NOW,
+      env: cacheEnv(),
+    });
+    const keyword = await runDiscover({ path: root }, deps(), { keyword: "haskell" });
+    expect(keyword.ok && keyword.value).toMatchObject({ checked: 1, kept: 0 });
+    const plain = await runDiscover({ path: root }, deps());
+    expect(plain.ok && plain.value).toMatchObject({ checked: 1, kept: 1 });
+
+    const empty = {
+      findCandidates: finder([{ ats: "greenhouse", slug: "empty" }]),
+      fetch: fakeFetch({ empty: null }),
+      now: NOW,
+      env: cacheEnv(),
+    };
+    const first = await runDiscover({ path: root }, empty);
+    expect(first.ok && first.value.checked).toBe(1);
+    const repeat = await runDiscover({ path: root }, empty);
+    expect(repeat.ok && repeat.value.checked).toBe(0);
+    const profilePath = path.join(root, "profile.yaml");
+    writeFileSync(
+      profilePath,
+      readFileSync(profilePath, "utf8").replace("outreachDailyCap: 5", "outreachDailyCap: 6"),
+    );
+    const changed = await runDiscover({ path: root }, empty);
+    expect(changed.ok && changed.value.checked).toBe(1);
   });
 
   test("never has more than 5 ashby verifications in flight", async () => {
