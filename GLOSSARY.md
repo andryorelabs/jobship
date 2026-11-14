@@ -35,6 +35,14 @@ _Avoid_: Seen list, cache
 An immutable fact about an Application; an Application's status is derived from its Events.
 _Avoid_: Log entry, update
 
+**Discovery**:
+An automatic search for companies that publish Postings on a public ATS board.
+_Avoid_: Crawl, scraping
+
+**Saved company**:
+An ATS board the Sweep reads, either discovered or added by the human.
+_Avoid_: Target company, watchlist
+
 ### Filtering and scoring
 
 **Profile**:
@@ -124,6 +132,14 @@ A STAR+R interview story built from Fact bank facts.
 **Draft**:
 An outreach message the human sends.
 
+**Contact**:
+A person at a Lead's company the human may reach out to, such as the hiring manager.
+_Avoid_: Prospect, lead
+
+**Email confidence**:
+How a Contact's email was obtained: published, pattern or guess.
+_Avoid_: Verified
+
 ## Relationships
 
 - A **Source** publishes **Postings**; a **Sweep** turns new Postings into **Leads**.
@@ -142,6 +158,8 @@ An outreach message the human sends.
 - A **Tracker adapter** projects Applications into a tracker.
 - A **Prep pack** holds interview material for one company and role; a **Story** is built from Fact bank facts.
 - A **Draft** is an outreach message the human sends.
+- **Discovery** finds **Saved companies**; a **Sweep** reads them as Sources.
+- A **Lead** has up to three **Contacts**; a **Draft** is addressed to one Contact, whose email carries an **Email confidence**.
 
 ## Flagged ambiguities
 
@@ -149,3 +167,4 @@ An outreach message the human sends.
 - "Inbox" is avoided for the **Needs-you queue**: the queue holds open Blockers, not mail.
 - **Profile** is not "Settings" or "Preferences", and the **Fact bank** is not "Profile data": the Profile holds search criteria, the Fact bank holds verified facts.
 - The Dossier's search section is not the **Profile**: it holds what the user wants in their own words, and the Profile is derived from it. "Portal" is avoided for the accounts the user holds on job platforms; call them platform accounts.
+- "Contact" is a noun for a person, never a verb for sending: the human sends every Draft.
