@@ -3,19 +3,14 @@ import path from "node:path";
 import { withLock } from "../core/fs.ts";
 import { isObject } from "../core/narrow.ts";
 import type { DataDir, Posting, RejectionReason } from "../core/types.ts";
+import { ATS_NAMES } from "../sources/ats.ts";
 import { discardUncommittedTail, eventsPath, readJsonLines } from "./events.ts";
 
 const LEDGER_FILE = "ledger.jsonl";
 const FUZZY_WINDOW_DAYS = 60;
 const TITLE_SIMILARITY = 0.8;
 const MS_PER_DAY = 86_400_000;
-const CANONICAL_ID_SOURCES: ReadonlySet<string> = new Set([
-  "greenhouse",
-  "lever",
-  "ashby",
-  "workable",
-  "smartrecruiters",
-]);
+const CANONICAL_ID_SOURCES: ReadonlySet<string> = new Set(ATS_NAMES);
 const NOISE_TOKENS: ReadonlySet<string> = new Set([
   "remote",
   "m",

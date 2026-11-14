@@ -1,4 +1,5 @@
 import type { DataDir, Profile, Result, SourceAdapter } from "../core/types.ts";
+import { readCompanies } from "./companies.ts";
 import { createAtsAdapters } from "./ats.ts";
 import { createApiBoardAdapters, type ApiBoardName, type ApiEndpoints } from "./boards-api.ts";
 import { createBoardAdapters, type BoardEndpoints } from "./boards.ts";
@@ -193,7 +194,7 @@ function resolveExplicit(
 /**
  * Resolves the Profile `sources` into the Sources a sweep runs. An empty list selects every
  * catalog `feed` board that matches the Profile `regions` and `remote`, plus every custom
- * board in the data dir. An explicit list is used as given: each entry is a board id, an
+ * board in the data dir and the ATS adapter of every saved company. An explicit list is used as given: each entry is a board id, an
  * `id:option` pair or an existing Source name such as `greenhouse`. Names that cannot be
  * resolved come back with a `problem` instead of failing the whole set.
  */
@@ -212,6 +213,14 @@ export async function resolveBoards(
   if (!custom.ok) return custom;
   const registered = registeredAdapters(fetchFunction);
   if (profile.sources.length === 0) {
+    const companies = readCompanies(dir);
+    const saved = companies.ok ? companies.value : [];
+    const savedAts = [...new Set(saved.map((company) => company.ats))];
+    const atsBoards: ResolvedBoard[] = [];
+    for (const name of savedAts) {
+      const adapter = registered.get(name);
+      if (adapter !== undefined) atsBoards.push({ id: name, adapter });
+    }
     const selected = [
       ...catalog.value.boards.filter(
         (board) => board.access === "feed" && matchesProfile(board, profile),
@@ -222,7 +231,10 @@ export async function resolveBoards(
     ];
     return {
       ok: true,
-      value: selected.map((board) => build(board, undefined, fetchFunction, registered)),
+      value: [
+        ...selected.map((board) => build(board, undefined, fetchFunction, registered)),
+        ...atsBoards,
+      ],
     };
   }
   const known = new Map(

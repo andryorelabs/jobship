@@ -499,7 +499,7 @@ describe("command", () => {
 });
 
 describe("sweep configuration", () => {
-  test("an ATS Source with no saved companies is misconfigured, not empty", async () => {
+  test("an ATS Source with no saved companies is empty, without a warning", async () => {
     writeProfile(["greenhouse"]);
     const result = await runSweep(makeContext(), {
       adapters: { greenhouse: staticAdapter("greenhouse", []) },
@@ -507,11 +507,10 @@ describe("sweep configuration", () => {
     if (!result.ok) throw new Error(result.error.message);
     expect(result.value.sources[0]).toMatchObject({
       source: "greenhouse",
-      status: "misconfigured",
+      status: "empty",
+      warnings: [],
     });
-    expect(result.value.sources[0]?.warnings.join(" ")).toContain("jobship company add");
-    expect(result.value.empty).toEqual([]);
-    expect(result.value.misconfigured).toEqual(["greenhouse"]);
+    expect(result.value.misconfigured).toEqual([]);
   });
 
   test("--source naming a Source outside the Profile is a usage failure", async () => {
