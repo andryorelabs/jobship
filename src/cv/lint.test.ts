@@ -160,3 +160,52 @@ describe("unlabeled-estimate rule", () => {
     expect(rulesFor("Ran 12 reviews", "Ran 12 reviews")).toEqual([]);
   });
 });
+
+describe("structured CV data backing", () => {
+  const structured: FactBank = {
+    facts: [{ id: "f1", text: "Built a thing", tags: [] }],
+    profile: { name: "Ana 2nd Test", contact: { phone: "+34 600 111 222" } },
+    experience: [
+      {
+        id: "example-systems",
+        name: "Example Systems",
+        role: "Engineer 3",
+        dates: "2021-2025",
+        metadata: { team: "12 engineers" },
+      },
+    ],
+    projects: [{ id: "p", name: "Project 7", dates: "2019", metadata: {} }],
+    skills: [{ name: "Cloud 9", items: ["Python 3", "S3"] }],
+  };
+  const unbacked = (cv: string, facts: FactBank = structured): string[] =>
+    lintCv(cv, { facts, neverClaim: [] })
+      .filter((finding) => finding.rule === "unbacked-number")
+      .map((finding) => finding.term);
+
+  test("Entry dates, role, metadata, header and skills are backed", () => {
+    expect(unbacked("Example Systems (2021-2025)")).toEqual([]);
+    expect(unbacked("Engineer 3 with 12 engineers")).toEqual([]);
+    expect(unbacked("Project 7 2019, Cloud 9, Python 3")).toEqual([]);
+    expect(unbacked("Ana 2nd Test +34 600 111 222")).toEqual([]);
+  });
+
+  test("a number found nowhere is still unbacked", () => {
+    expect(unbacked("Example Systems (2021-2025) 99 servers")).toEqual(["99"]);
+  });
+
+  test("an Entry date number counts as plain for unlabeled-estimate", () => {
+    const bank: FactBank = {
+      ...structured,
+      facts: [{ id: "e", text: "Saved 2021 hours", tags: [], estimate: "2021 x 1" }],
+    };
+    const rules = lintCv("Example Systems 2021", { facts: bank, neverClaim: [] }).map(
+      (finding) => finding.rule,
+    );
+    expect(rules).not.toContain("unlabeled-estimate");
+    expect(rules).not.toContain("unbacked-number");
+  });
+
+  test("a bank without structured data behaves as before", () => {
+    expect(unbacked("In 2021", bankWith("Built a thing"))).toEqual(["2021"]);
+  });
+});

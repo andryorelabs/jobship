@@ -98,12 +98,15 @@ describe("dossier derive and apply", () => {
   test("derive then apply writes the derived files and a re-derive is empty", () => {
     const first = derive();
     expect(first.code).toBe(0);
-    expect(dataOf(first)["count"]).toBe(6);
+    expect(dataOf(first)["count"]).toBe(9);
     expect(existsSync(batchOf(first))).toBe(true);
     expect(batchOf(first)).toContain(path.join("dossier", "batches", "batch-"));
     const applied = runCli(["dossier", "apply", batchOf(first)]);
     expect(applied.code).toBe(0);
-    expect(dataOf(applied)["applied"]).toBe(6);
+    expect(dataOf(applied)["applied"]).toBe(9);
+    const doctor = runCli(["doctor"]);
+    expect(errorCode(doctor)).toBeUndefined();
+    expect(doctor.code).toBe(0);
     const afterFirst = snapshot();
     expect(afterFirst["facts.yaml"]).toContain("checkout-latency");
     expect(afterFirst["answers.json"]).toContain("sponsorship");
@@ -182,14 +185,16 @@ describe("dossier derive and apply", () => {
   test("re-derive after a manual edit proposes only the diff and keeps unmentioned facts", () => {
     runCli(["dossier", "apply", batchOf(derive())]);
     const factsPath = path.join(dataDir, "facts.yaml");
-    const edited = readFileSync(factsPath, "utf8").replace(
-      "Built the CI pipeline for 12 services with GitHub Actions",
-      "Built the CI pipeline for 12 services",
-    );
-    writeFileSync(
-      factsPath,
-      `${edited}  - id: manual-fact\n    text: Hand-written fact\n    tags: []\n`,
-    );
+    const edited = readFileSync(factsPath, "utf8")
+      .replace(
+        "Built the CI pipeline for 12 services with GitHub Actions",
+        "Built the CI pipeline for 12 services",
+      )
+      .replace(
+        "facts:\n",
+        "facts:\n  - id: manual-fact\n    text: Hand-written fact\n    tags: []\n",
+      );
+    writeFileSync(factsPath, edited);
     const rederived = derive();
     expect(dataOf(rederived)["items"]).toEqual([
       { file: "facts.yaml", op: "update", id: "ci-pipeline" },

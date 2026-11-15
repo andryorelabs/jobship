@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { Document, isMap, isSeq, parseDocument, type YAMLSeq } from "yaml";
+import { Document, isMap, isScalar, isSeq, parseDocument, type YAMLMap, type YAMLSeq } from "yaml";
 import { listAnswers, type StoredAnswer } from "../apply/answers.ts";
 import { approvalHash, batchKey, IdempotencyMap, lookupBatchHash } from "../core/approval.ts";
 import type { CommandContext } from "../core/commands.ts";
@@ -10,7 +10,12 @@ import type { DataDir, Result } from "../core/types.ts";
 import { loadBullets, loadFactBank, loadNeverClaim } from "../cv/facts.ts";
 import type { Bullet } from "../cv/types.ts";
 import { DOSSIER_SOURCES } from "./dossier.ts";
-import { validateProposal, type DossierProposal, type FactProposal } from "./proposal.ts";
+import {
+  validateProposal,
+  type DossierProposal,
+  type FactProposal,
+  type StoredEntryIds,
+} from "./proposal.ts";
 
 const DERIVED_FILES = [
   "facts.yaml",
@@ -24,13 +29,22 @@ type DerivedFile = (typeof DERIVED_FILES)[number];
 const OPERATIONS = ["add", "update", "remove"] as const;
 type Operation = (typeof OPERATIONS)[number];
 
-/** One difference between a proposal and the current derived files. */
+const SECTIONS = ["facts", "experience", "projects", "skills", "header"] as const;
+type Section = (typeof SECTIONS)[number];
+
+/**
+ * One difference between a proposal and the current derived files. `section` names the
+ * part of facts.yaml a change targets; its absence means `facts`.
+ */
 type DerivedChange = {
   readonly file: DerivedFile;
+  readonly section?: Section;
   readonly op: Operation;
   readonly id: string;
   readonly value: unknown;
 };
+
+const HEADER_ID = "header";
 
 const BATCH_DIRECTORY = "dossier/batches";
 const BATCH_HASHES_FILE = "dossier-batches.json";
@@ -122,6 +136,94 @@ function diffFacts(dir: DataDir, proposal: DossierProposal): DerivedChange[] {
   return changes;
 }
 
+function sortedMap(value: unknown): [string, unknown][] {
+  return isObject(value) ? Object.entries(value).toSorted(([a], [b]) => a.localeCompare(b)) : [];
+}
+
+function listOrEmpty(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function entryKey(row: Record<string, unknown>): string {
+  return canonical([
+    row["id"],
+    row["name"],
+    row["role"] ?? null,
+    row["dates"] ?? null,
+    sortedMap(row["metadata"]),
+    listOrEmpty(row["cites"]),
+  ]);
+}
+
+function skillKey(row: Record<string, unknown>): string {
+  return canonical([row["name"], listOrEmpty(row["items"]), listOrEmpty(row["cites"])]);
+}
+
+function headerKey(row: Record<string, unknown>): string {
+  return canonical([row["name"], sortedMap(row["contact"]), listOrEmpty(row["cites"])]);
+}
+
+function diffRows<T extends { readonly cites: readonly string[] }>(
+  section: Section,
+  stored: Map<unknown, Record<string, unknown>>,
+  proposed: readonly T[],
+  idOf: (row: T) => string,
+  keyOfStored: (row: Record<string, unknown>) => string,
+  keyOfProposed: (row: T) => string,
+  removed: readonly string[],
+): DerivedChange[] {
+  const changes: DerivedChange[] = [];
+  for (const row of proposed) {
+    const id = idOf(row);
+    const current = stored.get(id);
+    const base = { file: "facts.yaml" as const, section, id, value: row };
+    if (current === undefined) changes.push({ ...base, op: "add" });
+    else if (keyOfStored(current) !== keyOfProposed(row)) changes.push({ ...base, op: "update" });
+  }
+  for (const id of removed) {
+    if (stored.has(id)) {
+      changes.push({ file: "facts.yaml", section, op: "remove", id, value: null });
+    }
+  }
+  return changes;
+}
+
+function diffCvData(dir: DataDir, proposal: DossierProposal): DerivedChange[] {
+  const document = readYamlMapping(dir, "facts.yaml");
+  const byKey = (key: string, idKey: string): Map<unknown, Record<string, unknown>> =>
+    new Map(rowsOf(document, key).map((row) => [row[idKey], row]));
+  const entryDiff = (section: "experience" | "projects"): DerivedChange[] =>
+    diffRows(
+      section,
+      byKey(section, "id"),
+      proposal[section] ?? [],
+      (entry) => entry.id,
+      entryKey,
+      (entry) => entryKey({ ...entry }),
+      proposal.removals?.[section] ?? [],
+    );
+  const skills = diffRows(
+    "skills",
+    byKey("skills", "name"),
+    proposal.skills ?? [],
+    (group) => group.name,
+    skillKey,
+    (group) => skillKey({ ...group }),
+    proposal.removals?.skills ?? [],
+  );
+  const stored = document["profile"];
+  const header = proposal.header;
+  const headerChanges: DerivedChange[] = [];
+  if (header !== undefined) {
+    const base = { file: "facts.yaml" as const, section: "header" as const, id: HEADER_ID };
+    if (!isObject(stored)) headerChanges.push({ ...base, op: "add", value: header });
+    else if (headerKey(stored) !== headerKey({ ...header })) {
+      headerChanges.push({ ...base, op: "update", value: header });
+    }
+  }
+  return [...entryDiff("experience"), ...entryDiff("projects"), ...skills, ...headerChanges];
+}
+
 function diffBullets(proposal: DossierProposal, current: Bullet[]): DerivedChange[] {
   const stored = new Map(current.map((bullet) => [bullet.id, bullet]));
   const changes: DerivedChange[] = [];
@@ -182,6 +284,25 @@ function currentFactIds(dir: DataDir): Result<string[]> {
   return bank.ok ? { ok: true, value: bank.value.facts.map((fact) => fact.id) } : bank;
 }
 
+function idsOf(entries: readonly { id: string }[] | undefined): string[] {
+  return (entries ?? []).map((entry) => entry.id);
+}
+
+function currentEntryIds(dir: DataDir): Result<StoredEntryIds> {
+  if (!existsSync(path.join(dir.path, "facts.yaml"))) {
+    return { ok: true, value: { experience: [], projects: [] } };
+  }
+  const bank = loadFactBank(dir);
+  if (!bank.ok) return bank;
+  return {
+    ok: true,
+    value: {
+      experience: idsOf(bank.value.experience),
+      projects: idsOf(bank.value.projects),
+    },
+  };
+}
+
 function currentBullets(dir: DataDir): Result<Bullet[]> {
   return existsSync(path.join(dir.path, "bullets.yaml"))
     ? loadBullets(dir)
@@ -224,10 +345,13 @@ function deriveSync(ctx: CommandContext, proposal: DossierProposal): Result<Deri
     if (!bullets.ok) return bullets;
     const neverClaim = currentNeverClaim(dir);
     if (!neverClaim.ok) return neverClaim;
-    const valid = validateProposal(dir, proposal, factIds.value, bullets.value);
+    const entryIds = currentEntryIds(dir);
+    if (!entryIds.ok) return entryIds;
+    const valid = validateProposal(dir, proposal, factIds.value, bullets.value, entryIds.value);
     if (!valid.ok) return valid;
     const items = [
       ...diffFacts(dir, proposal),
+      ...diffCvData(dir, proposal),
       ...diffBullets(proposal, bullets.value),
       ...diffProfile(dir, proposal),
       ...diffNeverClaim(proposal, neverClaim.value),
@@ -252,7 +376,10 @@ function parseChange(value: unknown): DerivedChange | null {
   const { file, op, id } = value;
   if (!isOneOf(DERIVED_FILES, file) || !isOneOf(OPERATIONS, op) || typeof id !== "string")
     return null;
-  return { file, op, id, value: value["value"] };
+  const section = value["section"];
+  if (section === undefined) return { file, op, id, value: value["value"] };
+  if (!isOneOf(SECTIONS, section) || file !== "facts.yaml") return null;
+  return { file, section, op, id, value: value["value"] };
 }
 
 function parseBatch(content: string): DerivedChange[] | null {
@@ -294,8 +421,8 @@ function sequenceAt(document: Document, key: string): YAMLSeq {
   return created;
 }
 
-function findRowIndex(sequence: YAMLSeq, id: string): number {
-  return sequence.items.findIndex((item) => isMap(item) && item.get("id") === id);
+function findRowIndex(sequence: YAMLSeq, id: string, idKey: string): number {
+  return sequence.items.findIndex((item) => isMap(item) && item.get(idKey) === id);
 }
 
 /**
@@ -308,8 +435,9 @@ function upsertRow(
   change: DerivedChange,
   row: Record<string, unknown>,
   clearable: readonly string[],
+  idKey: string,
 ): boolean {
-  const index = findRowIndex(sequence, change.id);
+  const index = findRowIndex(sequence, change.id, idKey);
   if (change.op === "remove") {
     if (index === -1) return false;
     sequence.items.splice(index, 1);
@@ -335,20 +463,90 @@ function serialize(document: Document): string {
   return document.toString({ lineWidth: 0 });
 }
 
-function renderRowFile(
-  dir: DataDir,
-  file: "facts.yaml" | "bullets.yaml",
-  key: "facts" | "bullets",
+type RowShape = {
+  readonly toRow: (value: unknown) => Record<string, unknown>;
+  readonly clearable: readonly string[];
+  readonly idKey: string;
+};
+
+function applyRows(
+  document: Document,
+  key: string,
   changes: readonly DerivedChange[],
-  toRow: (value: unknown) => Record<string, unknown>,
-  clearable: readonly string[] = [],
-): Rendered {
-  const document = loadDocument(dir, file);
+  shape: RowShape,
+): number {
   const sequence = sequenceAt(document, key);
   let applied = 0;
   for (const change of changes) {
-    const row = change.op === "remove" ? {} : toRow(change.value);
-    if (upsertRow(document, sequence, change, row, clearable)) applied += 1;
+    const row = change.op === "remove" ? {} : shape.toRow(change.value);
+    if (upsertRow(document, sequence, change, row, shape.clearable, shape.idKey)) applied += 1;
+  }
+  return applied;
+}
+
+function renderBullets(dir: DataDir, changes: readonly DerivedChange[]): Rendered {
+  const document = loadDocument(dir, "bullets.yaml");
+  const applied = applyRows(document, "bullets", changes, {
+    toRow: toBulletRow,
+    clearable: [],
+    idKey: "id",
+  });
+  return { content: serialize(document), applied };
+}
+
+function applyHeader(document: Document, changes: readonly DerivedChange[]): number {
+  let applied = 0;
+  for (const change of changes) {
+    if (change.op === "remove") continue;
+    const row = toHeaderRow(change.value);
+    const current: unknown = document.get("profile", true);
+    const currentValue: unknown = isMap(current) ? current.toJS(document) : undefined;
+    if (canonical(currentValue) === canonical(row)) continue;
+    if (isMap(current)) mergeMapInPlace(document, current, row);
+    else document.set("profile", document.createNode(row));
+    applied += 1;
+  }
+  return applied;
+}
+
+/**
+ * Makes `map` hold exactly `row`, changing only the keys whose value differs and
+ * recursing into nested mappings, so comments on untouched keys survive.
+ */
+function mergeMapInPlace(document: Document, map: YAMLMap, row: Record<string, unknown>): void {
+  for (const [key, value] of Object.entries(row)) {
+    const existing: unknown = map.get(key, true);
+    if (isObject(value) && isMap(existing)) {
+      mergeMapInPlace(document, existing, value);
+      continue;
+    }
+    const existingValue: unknown =
+      isMap(existing) || isSeq(existing) ? existing.toJS(document) : map.get(key);
+    if (canonical(existingValue) !== canonical(value)) map.set(key, document.createNode(value));
+  }
+  const stale = map.items
+    .map((item): unknown => (isScalar(item.key) ? item.key.value : item.key))
+    .filter((key): key is string => typeof key === "string" && !Object.hasOwn(row, key));
+  for (const key of stale) map.delete(key);
+}
+
+const FACT_SECTIONS: Record<Exclude<Section, "header">, RowShape & { readonly key: string }> = {
+  facts: { key: "facts", toRow: toFactRow, clearable: ["estimate"], idKey: "id" },
+  experience: { key: "experience", toRow: toEntryRow, clearable: ["role", "dates"], idKey: "id" },
+  projects: { key: "projects", toRow: toEntryRow, clearable: ["role", "dates"], idKey: "id" },
+  skills: { key: "skills", toRow: toSkillRow, clearable: [], idKey: "name" },
+};
+
+function renderFacts(dir: DataDir, changes: readonly DerivedChange[]): Rendered {
+  const document = loadDocument(dir, "facts.yaml");
+  let applied = 0;
+  for (const section of SECTIONS) {
+    const sectionChanges = changes.filter((change) => (change.section ?? "facts") === section);
+    if (sectionChanges.length === 0) continue;
+    applied +=
+      section === "header"
+        ? applyHeader(document, sectionChanges)
+        : applyRows(document, FACT_SECTIONS[section].key, sectionChanges, FACT_SECTIONS[section]);
   }
   return { content: serialize(document), applied };
 }
@@ -428,6 +626,49 @@ function toFactRow(value: unknown): Record<string, unknown> {
   };
 }
 
+function stringEntries(value: unknown): Record<string, string> {
+  if (!isObject(value)) return {};
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, String(item)]));
+}
+
+function toEntryRow(value: unknown): Record<string, unknown> {
+  if (
+    !isObject(value) ||
+    typeof value["id"] !== "string" ||
+    typeof value["name"] !== "string" ||
+    !Array.isArray(value["cites"])
+  ) {
+    throw new TypeError("entry item is malformed");
+  }
+  return {
+    id: value["id"],
+    name: value["name"],
+    ...(typeof value["role"] === "string" ? { role: value["role"] } : {}),
+    ...(typeof value["dates"] === "string" ? { dates: value["dates"] } : {}),
+    metadata: stringEntries(value["metadata"]),
+    cites: value["cites"],
+  };
+}
+
+function toSkillRow(value: unknown): Record<string, unknown> {
+  if (
+    !isObject(value) ||
+    typeof value["name"] !== "string" ||
+    !Array.isArray(value["items"]) ||
+    !Array.isArray(value["cites"])
+  ) {
+    throw new TypeError("skills item is malformed");
+  }
+  return { name: value["name"], items: value["items"].map(String), cites: value["cites"] };
+}
+
+function toHeaderRow(value: unknown): Record<string, unknown> {
+  if (!isObject(value) || typeof value["name"] !== "string" || !Array.isArray(value["cites"])) {
+    throw new TypeError("header item is malformed");
+  }
+  return { name: value["name"], contact: stringEntries(value["contact"]), cites: value["cites"] };
+}
+
 function toBulletRow(value: unknown): Record<string, unknown> {
   if (!isObject(value) || typeof value["id"] !== "string" || !Array.isArray(value["factIds"])) {
     throw new TypeError("bullet item is malformed");
@@ -447,10 +688,8 @@ function renderAll(dir: DataDir, items: readonly DerivedChange[]): Map<DerivedFi
   for (const file of DERIVED_FILES) {
     const changes = items.filter((item) => item.file === file);
     if (changes.length === 0) continue;
-    if (file === "facts.yaml")
-      rendered.set(file, renderRowFile(dir, file, "facts", changes, toFactRow, ["estimate"]));
-    else if (file === "bullets.yaml")
-      rendered.set(file, renderRowFile(dir, file, "bullets", changes, toBulletRow));
+    if (file === "facts.yaml") rendered.set(file, renderFacts(dir, changes));
+    else if (file === "bullets.yaml") rendered.set(file, renderBullets(dir, changes));
     else if (file === "profile.yaml") rendered.set(file, renderProfile(dir, changes));
     else if (file === "never-claim.yaml") rendered.set(file, renderNeverClaim(dir, changes));
     else rendered.set(file, renderAnswers(dir, changes));
