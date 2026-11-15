@@ -361,6 +361,35 @@ describe("doctor onboarding checks", () => {
     }
   });
 
+  test("a Bullet whose Entry is not defined fails cv-data-invalid", async () => {
+    const ctx = writeDataDir({ kind: "local" });
+    writeFileSync(
+      dataFile(ctx, "bullets.yaml"),
+      "bullets:\n  - id: b1\n    text: Built a thing\n    facts: [f1]\n    entry: ghost\n",
+    );
+    const result = await runDoctor(ctx);
+    expect(result.ok ? "" : result.error.code).toBe("cv-data-invalid");
+    expect(result.ok ? "" : result.error.message).toContain(
+      "bullets.yaml: bullet b1 references missing Entry ghost",
+    );
+  });
+
+  test("a Bullet whose Entry is in experience or projects passes", async () => {
+    const ctx = writeDataDir({ kind: "local" });
+    writeFileSync(
+      dataFile(ctx, "facts.yaml"),
+      "facts:\n  - id: f1\n    text: Built a thing\nexperience:\n  - id: acme\n    name: Acme\n" +
+        "projects:\n  - id: side\n    name: Side\n",
+    );
+    writeFileSync(
+      dataFile(ctx, "bullets.yaml"),
+      "bullets:\n  - id: b1\n    text: Built a thing\n    facts: [f1]\n    entry: acme\n" +
+        "  - id: b2\n    text: Built a thing\n    facts: [f1]\n    entry: side\n",
+    );
+    const result = await runDoctor(ctx);
+    expect(result.ok).toBe(true);
+  });
+
   test("a complete Dossier and derived files report ok", async () => {
     const result = await runDoctor(writeDataDir({ kind: "local" }));
     expect(result.ok).toBe(true);

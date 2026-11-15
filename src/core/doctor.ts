@@ -43,7 +43,12 @@ function cvDataProblems(dir: DataDir): string[] {
   }
   if (facts?.ok === true && bullets?.ok === true) {
     const known = new Set(facts.value.facts.map((fact) => fact.id));
+    const entries = new Set(
+      [...(facts.value.experience ?? []), ...(facts.value.projects ?? [])].map((entry) => entry.id),
+    );
     for (const bullet of bullets.value) {
+      if (bullet.entry !== undefined && !entries.has(bullet.entry))
+        problems.push(`bullets.yaml: bullet ${bullet.id} references missing Entry ${bullet.entry}`);
       for (const factId of bullet.factIds) {
         if (!known.has(factId))
           problems.push(`bullets.yaml: bullet ${bullet.id} cites missing fact ${factId}`);
