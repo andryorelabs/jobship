@@ -6,7 +6,7 @@ import { errorMessage, isObject, isOneOf } from "../core/narrow.ts";
 import { validateProfile } from "../core/profile.ts";
 import type { DataDir, Profile, Result } from "../core/types.ts";
 import { findIdentityLeaks } from "../cv/lint.ts";
-import type { Bullet, Fact } from "../cv/types.ts";
+import type { Bullet, Entry, Fact, SkillGroup } from "../cv/types.ts";
 import { DOSSIER_SOURCES, dossierLineExists, type DossierSource } from "./dossier.ts";
 import { loadIdentityIfPresent } from "./identity-guard.ts";
 
@@ -15,13 +15,35 @@ export type FactProposal = Fact & {
   readonly cites: readonly string[];
 };
 
+type EntryProposal = Entry & { readonly cites: readonly string[] };
+
+type SkillProposal = SkillGroup & { readonly cites: readonly string[] };
+
+type HeaderProposal = {
+  readonly name: string;
+  readonly contact: Readonly<Record<string, string>>;
+  readonly cites: readonly string[];
+};
+
+type Removals = {
+  readonly facts: string[];
+  readonly bullets: string[];
+  readonly experience?: string[];
+  readonly projects?: string[];
+  readonly skills?: string[];
+};
+
 export type DossierProposal = {
   readonly facts: FactProposal[];
   readonly bullets: Bullet[];
   readonly profile: Partial<Profile>;
   readonly neverClaim: string[];
   readonly answers: StoredAnswer[];
-  readonly removals?: { readonly facts: string[]; readonly bullets: string[] };
+  readonly experience?: EntryProposal[];
+  readonly projects?: EntryProposal[];
+  readonly skills?: SkillProposal[];
+  readonly header?: HeaderProposal;
+  readonly removals?: Removals;
 };
 
 const PROFILE_FILE = "profile.yaml";
@@ -117,6 +139,91 @@ function parseBullets(value: unknown): Result<Bullet[]> {
   return { ok: true, value: bullets };
 }
 
+function stringMap(value: unknown): Record<string, string> | null {
+  if (value === undefined) return {};
+  if (!isObject(value)) return null;
+  const map: Record<string, string> = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (typeof item !== "string") return null;
+    map[key] = item;
+  }
+  return map;
+}
+
+function requiredCites(value: unknown, label: string): Result<string[]> {
+  const cites = stringList(value);
+  if (cites === null || cites.length === 0) {
+    return invalid(`${label}: cites must list at least one dossier/<section>.md:<line>`);
+  }
+  return { ok: true, value: cites };
+}
+
+function optionalString(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === "string";
+}
+
+function parseEntries(value: unknown, field: string): Result<EntryProposal[]> {
+  const rows = objectList(value, field);
+  if (!rows.ok) return rows;
+  const entries: EntryProposal[] = [];
+  for (const [index, row] of rows.value.entries()) {
+    const { id, name, role, dates } = row;
+    if (typeof id !== "string" || id === "" || typeof name !== "string" || name.trim() === "") {
+      return invalid(`${field}[${index}] needs a non-empty string id and name`);
+    }
+    if (!optionalString(role) || !optionalString(dates)) {
+      return invalid(`${field} entry ${id}: role and dates must be strings`);
+    }
+    const metadata = stringMap(row["metadata"]);
+    if (metadata === null) {
+      return invalid(`${field} entry ${id}: metadata must map names to strings`);
+    }
+    const cites = requiredCites(row["cites"], `${field} entry ${id}`);
+    if (!cites.ok) return cites;
+    entries.push({
+      id,
+      name,
+      ...(role === undefined ? {} : { role }),
+      ...(dates === undefined ? {} : { dates }),
+      metadata,
+      cites: cites.value,
+    });
+  }
+  return { ok: true, value: entries };
+}
+
+function parseSkills(value: unknown): Result<SkillProposal[]> {
+  const rows = objectList(value, "skills");
+  if (!rows.ok) return rows;
+  const groups: SkillProposal[] = [];
+  for (const [index, row] of rows.value.entries()) {
+    const { name } = row;
+    if (typeof name !== "string" || name.trim() === "") {
+      return invalid(`skills[${index}] needs a non-empty string name`);
+    }
+    const items = stringList(row["items"]);
+    if (items === null) return invalid(`skills group ${name}: items must be a list of strings`);
+    const cites = requiredCites(row["cites"], `skills group ${name}`);
+    if (!cites.ok) return cites;
+    groups.push({ name, items, cites: cites.value });
+  }
+  return { ok: true, value: groups };
+}
+
+function parseHeader(value: unknown): Result<HeaderProposal | undefined> {
+  if (value === undefined) return { ok: true, value: undefined };
+  if (!isObject(value)) return invalid("header must be an object");
+  const { name } = value;
+  if (typeof name !== "string" || name.trim() === "") {
+    return invalid("header needs a non-empty string name");
+  }
+  const contact = stringMap(value["contact"]);
+  if (contact === null) return invalid("header contact must map names to strings");
+  const cites = requiredCites(value["cites"], "header");
+  if (!cites.ok) return cites;
+  return { ok: true, value: { name, contact, cites: cites.value } };
+}
+
 function parseAnswers(value: unknown): Result<StoredAnswer[]> {
   const rows = objectList(value, "answers");
   if (!rows.ok) return rows;
@@ -157,8 +264,28 @@ function parseRemovals(value: unknown): Result<DossierProposal["removals"]> {
   if (!isObject(value)) return invalid("removals must be an object");
   const facts = stringList(value["facts"]);
   const bullets = stringList(value["bullets"]);
-  if (facts === null || bullets === null) return invalid("removals lists must hold id strings");
-  return { ok: true, value: { facts, bullets } };
+  const experience = stringList(value["experience"]);
+  const projects = stringList(value["projects"]);
+  const skills = stringList(value["skills"]);
+  if (
+    facts === null ||
+    bullets === null ||
+    experience === null ||
+    projects === null ||
+    skills === null
+  ) {
+    return invalid("removals lists must hold id strings");
+  }
+  return {
+    ok: true,
+    value: {
+      facts,
+      bullets,
+      ...(value["experience"] === undefined ? {} : { experience }),
+      ...(value["projects"] === undefined ? {} : { projects }),
+      ...(value["skills"] === undefined ? {} : { skills }),
+    },
+  };
 }
 
 /** Parses the structure of a proposal JSON document; semantic checks live in validateProposal. */
@@ -174,6 +301,14 @@ export function parseProposal(raw: unknown): Result<DossierProposal> {
   if (neverClaim === null) return invalid("neverClaim must be a list of strings");
   const answers = parseAnswers(raw["answers"]);
   if (!answers.ok) return answers;
+  const experience = parseEntries(raw["experience"], "experience");
+  if (!experience.ok) return experience;
+  const projects = parseEntries(raw["projects"], "projects");
+  if (!projects.ok) return projects;
+  const skills = parseSkills(raw["skills"]);
+  if (!skills.ok) return skills;
+  const header = parseHeader(raw["header"]);
+  if (!header.ok) return header;
   const removals = parseRemovals(raw["removals"]);
   if (!removals.ok) return removals;
   return {
@@ -184,6 +319,10 @@ export function parseProposal(raw: unknown): Result<DossierProposal> {
       profile: profile.value,
       neverClaim,
       answers: answers.value,
+      ...(raw["experience"] === undefined ? {} : { experience: experience.value }),
+      ...(raw["projects"] === undefined ? {} : { projects: projects.value }),
+      ...(raw["skills"] === undefined ? {} : { skills: skills.value }),
+      ...(header.value === undefined ? {} : { header: header.value }),
       ...(removals.value === undefined ? {} : { removals: removals.value }),
     },
   };
@@ -232,6 +371,94 @@ function orphanedCitation(
   return undefined;
 }
 
+function proposedEntries(proposal: DossierProposal): EntryProposal[] {
+  return [...(proposal.experience ?? []), ...(proposal.projects ?? [])];
+}
+
+/**
+ * Finds a bullet whose Entry would be missing once the proposal is applied: stored
+ * Entries not removed plus proposed ones, against stored and proposed bullets that remain.
+ */
+function missingEntry(
+  proposal: DossierProposal,
+  storedBullets: readonly Bullet[],
+  storedEntryIds: readonly string[],
+): { bullet: string; entry: string } | undefined {
+  const removedEntries = new Set([
+    ...(proposal.removals?.experience ?? []),
+    ...(proposal.removals?.projects ?? []),
+  ]);
+  const entries = new Set([
+    ...storedEntryIds.filter((id) => !removedEntries.has(id)),
+    ...proposedEntries(proposal).map((entry) => entry.id),
+  ]);
+  const removedBullets = new Set(proposal.removals?.bullets ?? []);
+  const proposedIds = new Set(proposal.bullets.map((bullet) => bullet.id));
+  const resulting = [
+    ...storedBullets.filter(
+      (bullet) => !removedBullets.has(bullet.id) && !proposedIds.has(bullet.id),
+    ),
+    ...proposal.bullets.filter((bullet) => !removedBullets.has(bullet.id)),
+  ];
+  for (const bullet of resulting) {
+    if (bullet.entry !== undefined && !entries.has(bullet.entry)) {
+      return { bullet: bullet.id, entry: bullet.entry };
+    }
+  }
+  return undefined;
+}
+
+function cvDataTexts(proposal: DossierProposal): { label: string; text: string }[] {
+  const texts = proposedEntries(proposal).flatMap((entry) => {
+    const label = `entry ${entry.id}`;
+    const values = [
+      entry.name,
+      entry.role ?? "",
+      entry.dates ?? "",
+      ...Object.values(entry.metadata),
+    ];
+    return values.filter((text) => text !== "").map((text) => ({ label, text }));
+  });
+  for (const group of proposal.skills ?? []) {
+    const label = `skills group ${group.name}`;
+    texts.push({ label, text: group.name }, ...group.items.map((text) => ({ label, text })));
+  }
+  if (proposal.header !== undefined) {
+    texts.push(
+      { label: "header", text: proposal.header.name },
+      ...Object.values(proposal.header.contact).map((text) => ({ label: "header", text })),
+    );
+  }
+  return texts;
+}
+
+function checkCvData(dir: DataDir, proposal: DossierProposal): Result<void> {
+  const repeatedEntry = duplicate(proposedEntries(proposal).map((entry) => entry.id));
+  if (repeatedEntry !== undefined) return invalid(`entry id "${repeatedEntry}" is proposed twice`);
+  const repeatedGroup = duplicate((proposal.skills ?? []).map((group) => group.name));
+  if (repeatedGroup !== undefined) {
+    return invalid(`skills group "${repeatedGroup}" is proposed twice`);
+  }
+  const cited: { label: string; cites: readonly string[] }[] = [
+    ...proposedEntries(proposal).map((entry) => ({
+      label: `entry ${entry.id}`,
+      cites: entry.cites,
+    })),
+    ...(proposal.skills ?? []).map((group) => ({
+      label: `skills group ${group.name}`,
+      cites: group.cites,
+    })),
+    ...(proposal.header === undefined ? [] : [{ label: "header", cites: proposal.header.cites }]),
+  ];
+  for (const { label, cites } of cited) {
+    const missing = cites.find((ref) => !dossierLineExists(dir, ref));
+    if (missing !== undefined) {
+      return invalid(`${label}: citation ${missing} does not name a Dossier line`);
+    }
+  }
+  return { ok: true, value: undefined };
+}
+
 /**
  * Checks citations, identity values, Fact bank references, Answer keys and the merged
  * Profile. A tier B, C or D identity value in a fact or bullet fails `identity-leak`.
@@ -241,6 +468,7 @@ export function validateProposal(
   proposal: DossierProposal,
   knownFactIds: readonly string[],
   storedBullets: readonly Bullet[] = [],
+  storedEntryIds: readonly string[] = [],
 ): Result<void> {
   const repeatedFact = duplicate(proposal.facts.map((fact) => fact.id));
   if (repeatedFact !== undefined) return invalid(`fact id "${repeatedFact}" is proposed twice`);
@@ -264,9 +492,18 @@ export function validateProposal(
       `bullet ${orphaned.bullet} still cites removed fact "${orphaned.fact}"; remove or update the bullet too`,
     );
   }
+  const cvData = checkCvData(dir, proposal);
+  if (!cvData.ok) return cvData;
+  const absent = missingEntry(proposal, storedBullets, storedEntryIds);
+  if (absent !== undefined) {
+    return invalid(
+      `bullet ${absent.bullet} points at missing Entry "${absent.entry}"; propose the Entry or update the bullet`,
+    );
+  }
   const identity = loadIdentityIfPresent(dir);
   if (!identity.ok) return identity;
   const texts = [
+    ...cvDataTexts(proposal),
     ...proposal.facts.map((fact) => ({ label: `fact ${fact.id}`, text: fact.text })),
     ...proposal.bullets.map((bullet) => ({ label: `bullet ${bullet.id}`, text: bullet.text })),
   ];

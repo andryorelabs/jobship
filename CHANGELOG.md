@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- `dossier derive` and `dossier apply` now carry Entries (`experience`, `projects`), `skills` groups and the CV `header` from the Dossier into `facts.yaml`, as `add`, `update` and `remove` items with `cites`. Derive refuses a proposal that leaves a Bullet pointing at a missing Entry (`proposal-invalid`). Batch files written before this change still apply.
+
+### Fixed
+
+- `cv lint` no longer flags numbers that come from the header, Entries and `skills` in `facts.yaml` as `unbacked-number`, and treats them as plain numbers for `unlabeled-estimate`.
+- `doctor` reports a Bullet whose Entry is missing from `facts.yaml` as `cv-data-invalid`.
+
 ## [0.7.0] - 2026-11-15
 
 ### Added

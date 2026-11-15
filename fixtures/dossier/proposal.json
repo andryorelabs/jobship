@@ -3,39 +3,93 @@
     {
       "id": "checkout-latency",
       "text": "Cut p95 latency of the checkout API from 900 ms to 300 ms by adding a read-through cache",
-      "tags": ["backend", "performance"],
+      "tags": [
+        "backend",
+        "performance"
+      ],
       "source": "cv",
-      "cites": ["dossier/career.md:10"]
+      "cites": [
+        "dossier/career.md:10"
+      ]
     },
     {
       "id": "ci-pipeline",
       "text": "Built the CI pipeline for 12 services with GitHub Actions",
-      "tags": ["devops"],
+      "tags": [
+        "devops"
+      ],
       "source": "cv",
-      "cites": ["dossier/career.md:11"]
+      "cites": [
+        "dossier/career.md:11"
+      ]
     }
   ],
   "bullets": [
     {
       "id": "b-checkout-latency",
       "text": "Cut checkout API p95 latency from 900 ms to 300 ms with a read-through cache",
-      "tags": ["backend"],
-      "factIds": ["checkout-latency"],
+      "tags": [
+        "backend"
+      ],
+      "factIds": [
+        "checkout-latency"
+      ],
       "entry": "example-systems",
       "order": 1
     }
   ],
   "profile": {
-    "regions": ["EU"],
+    "regions": [
+      "EU"
+    ],
     "remote": "remote-only"
   },
-  "neverClaim": ["Kubernetes certified"],
+  "neverClaim": [
+    "Kubernetes certified"
+  ],
   "answers": [
     {
       "answerKey": "sponsorship",
       "scope": "global",
       "text": "No",
       "provenance": "dossier/search.md"
+    }
+  ],
+  "header": {
+    "name": "Jane Example",
+    "contact": {
+      "email": "jane@mail.example",
+      "location": "Lisbon, Portugal"
+    },
+    "cites": [
+      "dossier/identity.md:8",
+      "dossier/identity.md:9",
+      "dossier/identity.md:10"
+    ]
+  },
+  "experience": [
+    {
+      "id": "example-systems",
+      "name": "Example Systems",
+      "role": "Senior Backend Engineer",
+      "dates": "2021-2025",
+      "metadata": {},
+      "cites": [
+        "dossier/career.md:8"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "name": "Delivery",
+      "items": [
+        "GitHub Actions",
+        "Read-through caching"
+      ],
+      "cites": [
+        "dossier/career.md:10",
+        "dossier/career.md:11"
+      ]
     }
   ]
 }
