@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-15
+
+### Added
+
+- The `impact-framing` skill rewrites a task-style CV outcome-first from real facts the human confirms one by one: it audits the CV, interviews each Entry about outcomes, gathers consented Evidence, and applies the result through an Approval batch. It never invents companies, figures or tools and never changes dates ([ADR-0016](docs/adr/0016-impact-framing-is-a-consented-reframing-of-real-facts.md)).
+- Facts take an optional `estimate` with the arithmetic behind a calculated figure. `dossier apply` validates it, diffs an estimate-only change as an update, and removes it when a proposal drops it. The Dossier marks it as `(source: interview; estimate: …)`.
+- `cv lint` reports `unlabeled-estimate` when a CV line uses a figure that only an estimated fact backs without a marker such as `~`, "estimated" or "aprox.". `unbacked-number` accepts numbers found in `estimate`.
+- `cv build` returns the PDF's `pages`.
+
+### Changed
+
+- The CV template has more line, list and heading spacing, and never splits an Entry header from its first bullet, or a short Entry (3 bullets or fewer) across pages.
+- The `onboard` skill asks for outcomes, client-naming consent and estimates in the `career` step; `tailor-cv` hands reframing requests to `impact-framing`.
+
 ## [0.6.0] - 2026-11-14
 
 ### Added
@@ -125,7 +139,8 @@ First tagged release.
 
 - `cv lint` is Spanish-safe, and doctor validates CV data.
 
-[Unreleased]: https://github.com/andryorelabs/jobship/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/andryorelabs/jobship/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/andryorelabs/jobship/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/andryorelabs/jobship/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/andryorelabs/jobship/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/andryorelabs/jobship/compare/v0.5.1...v0.5.2
