@@ -104,6 +104,9 @@ describe("dossier derive and apply", () => {
     const applied = runCli(["dossier", "apply", batchOf(first)]);
     expect(applied.code).toBe(0);
     expect(dataOf(applied)["applied"]).toBe(9);
+    const doctor = runCli(["doctor"]);
+    expect(errorCode(doctor)).toBeUndefined();
+    expect(doctor.code).toBe(0);
     const afterFirst = snapshot();
     expect(afterFirst["facts.yaml"]).toContain("checkout-latency");
     expect(afterFirst["answers.json"]).toContain("sponsorship");

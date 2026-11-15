@@ -375,6 +375,35 @@ function proposedEntries(proposal: DossierProposal): EntryProposal[] {
   return [...(proposal.experience ?? []), ...(proposal.projects ?? [])];
 }
 
+/** Entry ids stored in facts.yaml, per section. */
+export type StoredEntryIds = {
+  readonly experience: readonly string[];
+  readonly projects: readonly string[];
+};
+
+const NO_STORED_ENTRIES: StoredEntryIds = { experience: [], projects: [] };
+
+/**
+ * Finds an Entry id proposed in one section while it stays stored in the other, which
+ * would leave the same Entry id under both `experience` and `projects`.
+ */
+function crossSectionEntry(
+  proposal: DossierProposal,
+  storedEntryIds: StoredEntryIds,
+): string | undefined {
+  const sections = [
+    { proposed: proposal.experience ?? [], other: "projects" },
+    { proposed: proposal.projects ?? [], other: "experience" },
+  ] as const;
+  for (const { proposed, other } of sections) {
+    const removed = new Set(proposal.removals?.[other] ?? []);
+    const stored = new Set(storedEntryIds[other].filter((id) => !removed.has(id)));
+    const clash = proposed.find((entry) => stored.has(entry.id));
+    if (clash !== undefined) return clash.id;
+  }
+  return undefined;
+}
+
 /**
  * Finds a bullet whose Entry would be missing once the proposal is applied: stored
  * Entries not removed plus proposed ones, against stored and proposed bullets that remain.
@@ -382,14 +411,16 @@ function proposedEntries(proposal: DossierProposal): EntryProposal[] {
 function missingEntry(
   proposal: DossierProposal,
   storedBullets: readonly Bullet[],
-  storedEntryIds: readonly string[],
+  storedEntryIds: StoredEntryIds,
 ): { bullet: string; entry: string } | undefined {
   const removedEntries = new Set([
     ...(proposal.removals?.experience ?? []),
     ...(proposal.removals?.projects ?? []),
   ]);
   const entries = new Set([
-    ...storedEntryIds.filter((id) => !removedEntries.has(id)),
+    ...[...storedEntryIds.experience, ...storedEntryIds.projects].filter(
+      (id) => !removedEntries.has(id),
+    ),
     ...proposedEntries(proposal).map((entry) => entry.id),
   ]);
   const removedBullets = new Set(proposal.removals?.bullets ?? []);
@@ -468,7 +499,7 @@ export function validateProposal(
   proposal: DossierProposal,
   knownFactIds: readonly string[],
   storedBullets: readonly Bullet[] = [],
-  storedEntryIds: readonly string[] = [],
+  storedEntryIds: StoredEntryIds = NO_STORED_ENTRIES,
 ): Result<void> {
   const repeatedFact = duplicate(proposal.facts.map((fact) => fact.id));
   if (repeatedFact !== undefined) return invalid(`fact id "${repeatedFact}" is proposed twice`);
@@ -494,6 +525,12 @@ export function validateProposal(
   }
   const cvData = checkCvData(dir, proposal);
   if (!cvData.ok) return cvData;
+  const clash = crossSectionEntry(proposal, storedEntryIds);
+  if (clash !== undefined) {
+    return invalid(
+      `entry id "${clash}" is already stored in the other section; remove it there in the same proposal`,
+    );
+  }
   const absent = missingEntry(proposal, storedBullets, storedEntryIds);
   if (absent !== undefined) {
     return invalid(

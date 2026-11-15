@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { Document, isMap, isSeq, parseDocument, type YAMLSeq } from "yaml";
+import { Document, isMap, isScalar, isSeq, parseDocument, type YAMLMap, type YAMLSeq } from "yaml";
 import { listAnswers, type StoredAnswer } from "../apply/answers.ts";
 import { approvalHash, batchKey, IdempotencyMap, lookupBatchHash } from "../core/approval.ts";
 import type { CommandContext } from "../core/commands.ts";
@@ -10,7 +10,12 @@ import type { DataDir, Result } from "../core/types.ts";
 import { loadBullets, loadFactBank, loadNeverClaim } from "../cv/facts.ts";
 import type { Bullet } from "../cv/types.ts";
 import { DOSSIER_SOURCES } from "./dossier.ts";
-import { validateProposal, type DossierProposal, type FactProposal } from "./proposal.ts";
+import {
+  validateProposal,
+  type DossierProposal,
+  type FactProposal,
+  type StoredEntryIds,
+} from "./proposal.ts";
 
 const DERIVED_FILES = [
   "facts.yaml",
@@ -279,12 +284,23 @@ function currentFactIds(dir: DataDir): Result<string[]> {
   return bank.ok ? { ok: true, value: bank.value.facts.map((fact) => fact.id) } : bank;
 }
 
-function currentEntryIds(dir: DataDir): Result<string[]> {
-  if (!existsSync(path.join(dir.path, "facts.yaml"))) return { ok: true, value: [] };
+function idsOf(entries: readonly { id: string }[] | undefined): string[] {
+  return (entries ?? []).map((entry) => entry.id);
+}
+
+function currentEntryIds(dir: DataDir): Result<StoredEntryIds> {
+  if (!existsSync(path.join(dir.path, "facts.yaml"))) {
+    return { ok: true, value: { experience: [], projects: [] } };
+  }
   const bank = loadFactBank(dir);
   if (!bank.ok) return bank;
-  const entries = [...(bank.value.experience ?? []), ...(bank.value.projects ?? [])];
-  return { ok: true, value: entries.map((entry) => entry.id) };
+  return {
+    ok: true,
+    value: {
+      experience: idsOf(bank.value.experience),
+      projects: idsOf(bank.value.projects),
+    },
+  };
 }
 
 function currentBullets(dir: DataDir): Result<Bullet[]> {
@@ -486,10 +502,32 @@ function applyHeader(document: Document, changes: readonly DerivedChange[]): num
     const current: unknown = document.get("profile", true);
     const currentValue: unknown = isMap(current) ? current.toJS(document) : undefined;
     if (canonical(currentValue) === canonical(row)) continue;
-    document.set("profile", document.createNode(row));
+    if (isMap(current)) mergeMapInPlace(document, current, row);
+    else document.set("profile", document.createNode(row));
     applied += 1;
   }
   return applied;
+}
+
+/**
+ * Makes `map` hold exactly `row`, changing only the keys whose value differs and
+ * recursing into nested mappings, so comments on untouched keys survive.
+ */
+function mergeMapInPlace(document: Document, map: YAMLMap, row: Record<string, unknown>): void {
+  for (const [key, value] of Object.entries(row)) {
+    const existing: unknown = map.get(key, true);
+    if (isObject(value) && isMap(existing)) {
+      mergeMapInPlace(document, existing, value);
+      continue;
+    }
+    const existingValue: unknown =
+      isMap(existing) || isSeq(existing) ? existing.toJS(document) : map.get(key);
+    if (canonical(existingValue) !== canonical(value)) map.set(key, document.createNode(value));
+  }
+  const stale = map.items
+    .map((item): unknown => (isScalar(item.key) ? item.key.value : item.key))
+    .filter((key): key is string => typeof key === "string" && !Object.hasOwn(row, key));
+  for (const key of stale) map.delete(key);
 }
 
 const FACT_SECTIONS: Record<Exclude<Section, "header">, RowShape & { readonly key: string }> = {

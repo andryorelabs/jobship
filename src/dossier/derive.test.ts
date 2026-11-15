@@ -480,7 +480,10 @@ describe("Entry references", () => {
     const stored = [{ id: "b-keep", text: "t", tags: [], factIds: [], entry: "old" }];
     const proposal = parseProposal({ removals: { facts: [], bullets: [], experience: ["old"] } });
     if (!proposal.ok) throw new Error("proposal should parse");
-    const checked = validateProposal({ path: dataDir }, proposal.value, [], stored, ["old"]);
+    const checked = validateProposal({ path: dataDir }, proposal.value, [], stored, {
+      experience: ["old"],
+      projects: [],
+    });
     expect(checked.ok).toBe(false);
     if (!checked.ok) {
       expect(checked.error.message).toContain("b-keep");
@@ -494,7 +497,10 @@ describe("Entry references", () => {
       removals: { facts: [], bullets: ["b-gone"], experience: ["old"] },
     });
     if (!proposal.ok) throw new Error("proposal should parse");
-    const checked = validateProposal({ path: dataDir }, proposal.value, [], stored, ["old"]);
+    const checked = validateProposal({ path: dataDir }, proposal.value, [], stored, {
+      experience: ["old"],
+      projects: [],
+    });
     expect(checked.ok).toBe(true);
   });
 });
@@ -566,6 +572,62 @@ describe("CV data derive and apply", () => {
     expect(text).toContain("dates: 2021-2025");
     const [stored] = listOf("facts.yaml", "experience");
     expect(isObject(stored) && stored["role"]).toBe("Senior Backend Engineer");
+  });
+
+  test("an Entry stored under experience cannot be proposed under projects", async () => {
+    await applyProposal(loadBaseProposal());
+    const derived = await deriveRaw({ projects: [entryProposal()] });
+    expect(derived.ok).toBe(false);
+    if (!derived.ok) {
+      expect(derived.error.code).toBe("proposal-invalid");
+      expect(derived.error.message).toContain("example-systems");
+    }
+  });
+
+  test("moving an Entry to projects with its experience removal is accepted", async () => {
+    await applyProposal(loadBaseProposal());
+    const derived = await deriveRaw({
+      projects: [entryProposal()],
+      removals: { facts: [], bullets: [], experience: ["example-systems"] },
+    });
+    if (!derived.ok) throw new Error(derived.error.message);
+    await applyDossierBatch(context(), derived.value.batchPath);
+    expect(listOf("facts.yaml", "experience")).toEqual([]);
+    expect(listOf("facts.yaml", "projects")).toHaveLength(1);
+  });
+
+  test("a header update keeps comments inside the stored header", async () => {
+    writeFileSync(
+      path.join(dataDir, "facts.yaml"),
+      [
+        "facts: []",
+        "profile:",
+        "  name: Jane Example",
+        "  contact:",
+        "    # how recruiters reach me",
+        "    email: old@mail.example",
+        "    city: Lisbon",
+        "  cites:",
+        "    - dossier/identity.md:8",
+        "",
+      ].join("\n"),
+    );
+    const derived = await deriveRaw({
+      header: {
+        name: "Jane Example",
+        contact: { email: "jane@mail.example", city: "Lisbon" },
+        cites: ["dossier/identity.md:8"],
+      },
+    });
+    if (!derived.ok) throw new Error(derived.error.message);
+    expect(await applyDossierBatch(context(), derived.value.batchPath)).toEqual({
+      ok: true,
+      value: { applied: 1 },
+    });
+    const text = readDataFile("facts.yaml");
+    expect(text).toContain("# how recruiters reach me");
+    expect(text).toContain("email: jane@mail.example");
+    expect(text).not.toContain("old@mail.example");
   });
 
   test("removals delete an Entry and a skills group", async () => {
