@@ -1,5 +1,5 @@
 import type { IdentityField } from "../dossier/dossier.ts";
-import type { Fact, FactBank, LintFinding } from "./types.ts";
+import type { Entry, Fact, FactBank, LintFinding } from "./types.ts";
 
 const PHRASE_WORDS = 4;
 const TODO_SOURCE = "TODO(?:\\([^)]*\\)|:)";
@@ -175,8 +175,33 @@ function factNumbers(fact: Fact): string[] {
   return [...numbersIn(fact.text), ...numbersIn(fact.estimate ?? "")];
 }
 
+function entryNumbers(entry: Entry): string[] {
+  return [
+    entry.name,
+    entry.role ?? "",
+    entry.dates ?? "",
+    ...Object.values(entry.metadata),
+  ].flatMap(numbersIn);
+}
+
+/**
+ * Numbers in the structured CV data: the header, every Entry and every skill group.
+ */
+function structuredNumbers(facts: FactBank): string[] {
+  const profile = facts.profile;
+  const header =
+    profile === undefined
+      ? []
+      : [profile.name, ...Object.values(profile.contact)].flatMap(numbersIn);
+  const entries = [...(facts.experience ?? []), ...(facts.projects ?? [])].flatMap(entryNumbers);
+  const skills = (facts.skills ?? []).flatMap((group) =>
+    [group.name, ...group.items].flatMap(numbersIn),
+  );
+  return [...header, ...entries, ...skills];
+}
+
 function numberFindings(text: string, facts: FactBank): LintFinding[] {
-  const known = new Set(facts.facts.flatMap(factNumbers));
+  const known = new Set([...facts.facts.flatMap(factNumbers), ...structuredNumbers(facts)]);
   const findings: LintFinding[] = [];
   for (const hit of locate(text, new RegExp(NUMBER_SOURCE, "gu"))) {
     if (known.has(normalizeNumber(hit.term))) continue;
@@ -196,9 +221,10 @@ function numberFindings(text: string, facts: FactBank): LintFinding[] {
  * CV line holding one must carry an estimate marker.
  */
 function estimatedOnlyNumbers(facts: FactBank): Set<string> {
-  const plain = new Set(
-    facts.facts.filter((fact) => fact.estimate === undefined).flatMap(factNumbers),
-  );
+  const plain = new Set([
+    ...facts.facts.filter((fact) => fact.estimate === undefined).flatMap(factNumbers),
+    ...structuredNumbers(facts),
+  ]);
   const estimated = facts.facts.filter((fact) => fact.estimate !== undefined).flatMap(factNumbers);
   return new Set(estimated.filter((value) => !plain.has(value)));
 }
