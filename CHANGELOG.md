@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-15
+
 ### Added
 
 - `dossier derive` and `dossier apply` now carry Entries (`experience`, `projects`), `skills` groups and the CV `header` from the Dossier into `facts.yaml`, as `add`, `update` and `remove` items with `cites`. Derive refuses a proposal that leaves a Bullet pointing at a missing Entry (`proposal-invalid`). Batch files written before this change still apply.
@@ -148,7 +150,8 @@ First tagged release.
 
 - `cv lint` is Spanish-safe, and doctor validates CV data.
 
-[Unreleased]: https://github.com/andryorelabs/jobship/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/andryorelabs/jobship/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/andryorelabs/jobship/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/andryorelabs/jobship/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/andryorelabs/jobship/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/andryorelabs/jobship/compare/v0.5.2...v0.5.3
