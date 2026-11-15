@@ -2,6 +2,8 @@ export type Fact = {
   readonly id: string;
   readonly text: string;
   readonly tags: readonly string[];
+  /** The arithmetic and assumptions behind an estimated figure in `text`. */
+  readonly estimate?: string;
 };
 
 export type Profile = {
@@ -52,6 +54,7 @@ type LintRule =
   | "identity-leak"
   | "repeated-phrase"
   | "unbacked-number"
+  | "unlabeled-estimate"
   | "placeholder";
 
 export type LintFinding = {
