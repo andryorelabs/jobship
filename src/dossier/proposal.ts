@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+
 import { ANSWER_KEYS, isTierDKey } from "../apply/answer-keys.ts";
 import type { StoredAnswer } from "../apply/answers.ts";
 import { errorMessage, isObject, isOneOf } from "../core/narrow.ts";

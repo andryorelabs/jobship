@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+
 import { COMMANDS } from "../core/commands.ts";
 
 const REPO_ROOT = path.resolve(import.meta.dir, "../..");

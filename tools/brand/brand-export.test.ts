@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
 import sharp from "sharp";
 
-import { exportMarks, exportOg, type PageCapture, type PageRenderer } from "./brand-export.ts";
 import {
   assertRaster,
   ICO_TARGET,
@@ -14,6 +14,7 @@ import {
   readIcoEntries,
   readPngSize,
 } from "./brand-export-spec.ts";
+import { exportMarks, exportOg, type PageCapture, type PageRenderer } from "./brand-export.ts";
 
 const BRAND_DIR = join(import.meta.dir, "..", "..", "docs", "brand");
 const TRUECOLOUR_WITH_ALPHA = 6;

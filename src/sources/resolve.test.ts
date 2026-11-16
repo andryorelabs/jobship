@@ -2,10 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import type { Profile } from "../core/types.ts";
+import { ATS_NAMES } from "./ats.ts";
 import type { Board } from "./catalog.ts";
 import { readCustomBoards, writeCustomBoards } from "./custom-boards.ts";
-import { ATS_NAMES } from "./ats.ts";
 import { detectAts } from "./detect.ts";
 import { resolveBoards } from "./resolve.ts";
 

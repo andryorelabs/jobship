@@ -1,15 +1,16 @@
 import { existsSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { loadBullets, loadFactBank, loadNeverClaim } from "../cv/facts.ts";
 import { DOSSIER_SECTION_NAMES, loadDossier } from "../dossier/dossier.ts";
 import { runGuardSelfTest, SELF_TEST_HOOKS } from "../guard/self-test.ts";
-import { checkLinearConnection } from "../tracker/check.ts";
-import { DEFAULT_LINEAR_MAPPING, type FetchLike, type LinearMapping } from "../tracker/linear.ts";
-import type { CommandContext } from "./commands.ts";
 import { readCompanies } from "../sources/companies.ts";
 import { resolveBoards, sources as registeredSources } from "../sources/index.ts";
 import type { ResolvedBoard } from "../sources/index.ts";
+import { checkLinearConnection } from "../tracker/check.ts";
+import { DEFAULT_LINEAR_MAPPING, type FetchLike, type LinearMapping } from "../tracker/linear.ts";
+import type { CommandContext } from "./commands.ts";
 import { CONFIG_FILE, loadProfileWithWarnings } from "./data-dir.ts";
 import { PRODUCT_NAME, settingValue } from "./env.ts";
 import { failure, success, type Envelope } from "./envelope.ts";

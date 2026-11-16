@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+
 import { contrastRatio, readTokens } from "./palette.ts";
 
 describe("contrastRatio", () => {

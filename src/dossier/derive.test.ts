@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import type { CommandContext } from "../core/commands.ts";
 import { isObject } from "../core/narrow.ts";
 import { loadFactBank } from "../cv/facts.ts";

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+
 import { readOnlyViolations, validateDocument } from "./contract.ts";
 
 const root = path.join(import.meta.dir, "../..");

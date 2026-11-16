@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+
 import { errorMessage, isObject } from "../core/narrow.ts";
 import type { DataDir, Result } from "../core/types.ts";
 import type { Bullet, Entry, Fact, FactBank, Profile, SkillGroup, Variant } from "./types.ts";

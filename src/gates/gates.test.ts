@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+
 import type { Dimension, Eligibility, Posting, Profile } from "../core/types.ts";
 import { evaluateGates } from "./gates.ts";
 

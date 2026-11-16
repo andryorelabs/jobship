@@ -1,6 +1,8 @@
 import path from "node:path";
+
 import type { CommandContext } from "../core/commands.ts";
 import { failure, success, type Envelope } from "../core/envelope.ts";
+import { loadIdentityIfPresent } from "../dossier/identity-guard.ts";
 import {
   buildCv,
   isSafeVariantName,
@@ -9,7 +11,6 @@ import {
   systemRunner,
   type TypstRunner,
 } from "./build.ts";
-import { loadIdentityIfPresent } from "../dossier/identity-guard.ts";
 import { loadFactBank, loadNeverClaim } from "./facts.ts";
 import { lintCv } from "./lint.ts";
 import { requirementCoverage } from "./select.ts";

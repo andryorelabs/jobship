@@ -1,12 +1,13 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import bundledCatalog from "../../catalog/boards.json" with { type: "json" };
 import { PRODUCT_NAME, settingValue } from "../core/env.ts";
-import { errorMessage } from "../core/narrow.ts";
-import { readCapped } from "./http.ts";
 import { writeAtomic } from "../core/fs.ts";
+import { errorMessage } from "../core/narrow.ts";
 import type { Profile, Result } from "../core/types.ts";
+import { readCapped } from "./http.ts";
 
 const BOARD_ACCESS = ["feed", "browser", "manual"] as const;
 type BoardAccess = (typeof BOARD_ACCESS)[number];

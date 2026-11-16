@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
+
 import type { DataDir, Result } from "../core/types.ts";
 import { loadIdentityFields, type IdentityField } from "./dossier.ts";
 

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+
 import type { SourceAdapter } from "../core/types.ts";
 import { createApiBoardAdapters, type ApiBoardName } from "./boards-api.ts";
 import type { FetchFunction } from "./http.ts";

@@ -1,9 +1,10 @@
 import path from "node:path";
+
 import { withLock } from "../core/fs.ts";
+import type { DataDir, Eligibility, HuntEvent, Posting, Profile } from "../core/types.ts";
 import { evaluateGates } from "../gates/gates.ts";
 import { dedupKey, findDuplicate, ledgerRecord } from "../ledger/dedup.ts";
 import { appendEvent } from "../ledger/events.ts";
-import type { DataDir, Eligibility, HuntEvent, Posting, Profile } from "../core/types.ts";
 import type { SourceCounts } from "./types.ts";
 
 export type BatchOutcome = {

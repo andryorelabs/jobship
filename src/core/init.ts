@@ -1,12 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+
 import answersTemplate from "../../templates/answers.json.tmpl" with { type: "text" };
 import bulletsTemplate from "../../templates/bullets.yaml" with { type: "text" };
-import configTemplate from "../../templates/jobship.json.tmpl" with { type: "text" };
+import cvTemplate from "../../templates/cv-template.typ" with { type: "text" };
 import factsTemplate from "../../templates/facts.yaml" with { type: "text" };
+import configTemplate from "../../templates/jobship.json.tmpl" with { type: "text" };
 import neverClaimTemplate from "../../templates/never-claim.yaml" with { type: "text" };
 import profileTemplate from "../../templates/profile.yaml" with { type: "text" };
-import cvTemplate from "../../templates/cv-template.typ" with { type: "text" };
 import { DOSSIER_TEMPLATES } from "../dossier/dossier.ts";
 import { CONFIG_FILE } from "./data-dir.ts";
 import { settingValue } from "./env.ts";

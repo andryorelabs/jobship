@@ -1,5 +1,6 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+
 import type { CommandContext } from "../core/commands.ts";
 import type { ApplicationState, Posting } from "../core/types.ts";
 import {
@@ -10,8 +11,8 @@ import {
   type KeyedId,
 } from "./importer.ts";
 import { mapOutcome, mapState, mapVerdict } from "./states.ts";
-import { headersMatch, parseTableBlocks, type TableBlock, type TableRow } from "./table.ts";
 import { leadIdentity, leadPosting, parseSweepLeads } from "./sweep-leads.ts";
+import { headersMatch, parseTableBlocks, type TableBlock, type TableRow } from "./table.ts";
 import { splitCompanyRole } from "./title.ts";
 import type { ImportResult } from "./types.ts";
 

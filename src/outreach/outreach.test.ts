@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+
 import { exitCodeFor } from "../core/envelope.ts";
 import type { Profile } from "../core/types.ts";
 import { readEvents } from "../ledger/events.ts";

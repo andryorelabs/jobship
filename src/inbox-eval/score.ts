@@ -1,5 +1,5 @@
-import { EMAIL_CLASSES } from "../inbox/types.ts";
 import type { EmailClass } from "../core/types.ts";
+import { EMAIL_CLASSES } from "../inbox/types.ts";
 
 export type LabelledEmail = {
   readonly messageId: string;

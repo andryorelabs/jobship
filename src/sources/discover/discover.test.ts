@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { run } from "./command.ts";
+
 import { readCompanies } from "../companies.ts";
 import type { AtsRef } from "../detect.ts";
+import { run } from "./command.ts";
 import { runDiscover, type FindCandidates } from "./discover.ts";
 
 const NOW = new Date("2026-11-14T00:00:00.000Z");

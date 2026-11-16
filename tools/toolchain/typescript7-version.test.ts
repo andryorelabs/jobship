@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { join } from "node:path";
+
 import { readRootManifest, repositoryRoot, stringEntriesOf } from "./package-manifest.ts";
 
 const typescript7CompilerBin = join(repositoryRoot, "node_modules", "typescript7", "bin", "tsc");

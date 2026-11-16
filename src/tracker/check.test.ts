@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+
 import { checkLinearConnection } from "./check.ts";
 import { DEFAULT_LINEAR_MAPPING, type FetchLike } from "./linear.ts";
 

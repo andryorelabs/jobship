@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { compareSettings } from "./compare.ts";
+
 import { readExpectedSettings } from "./check.ts";
+import { compareSettings } from "./compare.ts";
 import { readLiveSettings } from "./live.ts";
 import type { GhApi, GhResult } from "./live.ts";
 

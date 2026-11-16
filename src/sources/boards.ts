@@ -7,6 +7,13 @@ import type {
   SourceResult,
 } from "../core/types.ts";
 import {
+  defineAdapter,
+  mapRows,
+  matchesKeywords,
+  withOptional,
+  type AdapterSpec,
+} from "./adapter.ts";
+import {
   getJson,
   field,
   identifier,
@@ -17,13 +24,6 @@ import {
   text,
   type FetchFunction,
 } from "./http.ts";
-import {
-  defineAdapter,
-  mapRows,
-  matchesKeywords,
-  withOptional,
-  type AdapterSpec,
-} from "./adapter.ts";
 
 function salaryOf(
   min: unknown,

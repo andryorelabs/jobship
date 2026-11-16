@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+
 import { findDirectToolCalls } from "./husky-hooks.ts";
 
 const huskyDirectory = resolve(import.meta.dir, "../../.husky");

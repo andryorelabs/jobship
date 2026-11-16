@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+
 import { listMarkdownFiles } from "../lint-docs.ts";
 
 const REPO_ROOT = path.resolve(import.meta.dir, "..", "..");

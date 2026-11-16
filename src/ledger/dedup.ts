@@ -1,5 +1,6 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
+
 import { withLock } from "../core/fs.ts";
 import { isObject } from "../core/narrow.ts";
 import type { DataDir, Posting, RejectionReason } from "../core/types.ts";

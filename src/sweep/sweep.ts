@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+
 import type { CommandContext } from "../core/commands.ts";
 import { loadProfile } from "../core/data-dir.ts";
 import { withLock, writeAtomic } from "../core/fs.ts";
@@ -15,10 +16,10 @@ import type {
   SourceResult,
   TrackerAdapter,
 } from "../core/types.ts";
+import { readEvents } from "../ledger/events.ts";
 import { ATS_NAMES } from "../sources/ats.ts";
 import { readCompanies } from "../sources/companies.ts";
 import { resolveBoards, type ResolvedBoard } from "../sources/index.ts";
-import { readEvents } from "../ledger/events.ts";
 import { createTracker, projectEvents } from "../tracker/index.ts";
 import { addCounts, EMPTY_COUNTS, processBatch } from "./pipeline.ts";
 import type {

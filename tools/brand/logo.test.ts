@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+
 import { readTokens } from "./palette.ts";
 
 const BRAND_DIR = path.join(import.meta.dir, "..", "..", "docs", "brand");

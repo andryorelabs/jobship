@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
+
+import { readExpectedSettings } from "./check.ts";
 import { compareSettings, formatDifference } from "./compare.ts";
 import type { JsonValue, RepoSettings } from "./compare.ts";
-import { readExpectedSettings } from "./check.ts";
 
 type JsonObject = { [key: string]: JsonValue };
 

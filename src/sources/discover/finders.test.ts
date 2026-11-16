@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import type { FetchFunction } from "../http.ts";
 import { findCandidates } from "./finders.ts";
 
