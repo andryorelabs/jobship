@@ -222,3 +222,20 @@ describe("hook entry", () => {
     expect(result.stdout).toBe("");
   });
 });
+
+describe("decideRm lexer edge cases", () => {
+  test.each([
+    ['rm -rf "build/a\\"b"', "allow"],
+    ['rm -rf "/etc/a\\"b"', "deny"],
+    ["rm -rf build\\", "deny"],
+    ["cat <<-EOF\n\tbody\n\tEOF\nrm -rf build", "allow"],
+    ["cat <<-EOF\nbody\nEOF\nrm -rf /etc", "deny"],
+    ["rm -rf build <<'EOF\nbody\nEOF", "deny"],
+    ["rm -rf build <<'EOF", "deny"],
+    ["cat << EOF\nbody\nEOF\nrm -rf build", "allow"],
+    ["cat <<\\EOF\nbody\nEOF\nrm -rf build", "allow"],
+    ["cat <<\\EOF\nbody\nEOF\nrm -rf /etc", "deny"],
+  ] as const)("%j is %s", (command, expected) => {
+    expect(decideRm(command, repoRoot)).toBe(expected);
+  });
+});
