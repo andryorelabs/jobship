@@ -283,7 +283,7 @@ interface OutcomeMapping {
 
 function applicationOutcome(row: TableRow): OutcomeMapping {
   if ("outcome" in row) {
-    const text = row.outcome ?? "";
+    const text = row.outcome;
     return { ...mapOutcome(text), label: "outcome", text };
   }
   const text = row.state ?? "";
