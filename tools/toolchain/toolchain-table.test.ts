@@ -3,15 +3,16 @@ import { describe, expect, test } from "bun:test";
 import { readRootManifest, stringEntriesOf } from "./package-manifest.ts";
 
 /**
- * The toolchain version table from aokit `docs/standards/tooling.md` (E15),
- * restricted to the rows that apply to jobship. `typescript` 6 and
+ * The toolchain version table, following aokit `docs/standards/tooling.md`
+ * (E15) except where ADR-0017 records jobship running ahead, restricted to
+ * the rows that apply to jobship. `typescript` 6 and
  * `.node-version` are not used here (ADR-0007).
  */
 const toolchainTable: Readonly<Record<string, string>> = {
   oxlint: "1.92.0",
   "@oxlint/plugins": "1.92.0",
-  oxfmt: "0.75.0",
-  "oxlint-tsgolint": "7.0.2005",
+  oxfmt: "0.77.0",
+  "oxlint-tsgolint": "7.0.2006",
   typescript7: "npm:typescript@7.1.0-beta",
   "@types/bun": "1.4.4",
 };
