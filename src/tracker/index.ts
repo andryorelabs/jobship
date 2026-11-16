@@ -120,7 +120,7 @@ async function projectKey(
   events: readonly HuntEvent[],
 ): Promise<Result<{ created: boolean; updated: boolean }>> {
   const seed = events.find((event) => event.kind === "lead.created");
-  if (seed === undefined || seed.kind !== "lead.created") {
+  if (seed === undefined) {
     return { ok: true, value: { created: false, updated: false } };
   }
   const lead: Lead = { key, posting: seed.posting, eligibility: seed.eligibility };

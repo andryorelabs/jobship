@@ -34,6 +34,8 @@
     "format:write": "oxfmt",
     "format:check": "oxfmt --check",
     "fix": "bun run format:write && bun run lint --fix",
+    "lint:fix": "bun run lint --fix",
+    "cache:clear": "bun pm cache rm",
     "knip": "knip",
     "test": "bun tools/coverage/run-tests.ts",
     "test:coverage": "bun run test",
@@ -54,7 +56,7 @@
     "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.2.4",
     "@oxlint/plugins": "1.92.0",
-    "@types/bun": "^1.4.4",
+    "@types/bun": "1.4.4",
     "husky": "^9.1.7",
     "knip": "^6.44.1",
     "lint-staged": "^17.6.0",
@@ -63,7 +65,7 @@
     "oxlint-tsgolint": "7.0.2005",
     "playwright": "^1.65.0",
     "sharp": "^0.35.5",
-    "typescript7": "npm:typescript@7.0.2"
+    "typescript7": "npm:typescript@7.1.0-beta"
   },
   "engines": {
     "bun": "1.4.4"

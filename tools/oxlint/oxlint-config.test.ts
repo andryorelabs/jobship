@@ -79,6 +79,7 @@ describe("oxlint.config.ts", () => {
       "jest/no-focused-tests": "error",
       "jest/no-identical-title": "error",
       "jest/no-disabled-tests": "error",
+      "local/no-unawaited-async-matcher": "error",
     });
   });
 

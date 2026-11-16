@@ -186,7 +186,7 @@ describe("bin/jobship shim", () => {
     expect(result.stdout).toBe("from-source init\n");
   });
 
-  test("defaults to the release URL and reads its checksums first", () => {
+  test("defaults to the release URL and reads its checksums first", async () => {
     const fakeBin = path.join(workDir, "fake-bin");
     mkdirSync(fakeBin, { recursive: true });
     const curlLog = path.join(workDir, "curl.log");
@@ -203,7 +203,8 @@ describe("bin/jobship shim", () => {
       },
     });
     expect(result.exitCode).toBe(1);
-    expect(Bun.file(curlLog).text()).resolves.toContain(
+    const curlArguments = await Bun.file(curlLog).text();
+    expect(curlArguments).toContain(
       `https://github.com/andryorelabs/jobship/releases/download/v${version}/SHA256SUMS\n`,
     );
   });

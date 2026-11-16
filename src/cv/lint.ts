@@ -34,7 +34,7 @@ function locate(text: string, pattern: RegExp): Located[] {
   const found: Located[] = [];
   for (const [lineIndex, line] of text.split("\n").entries()) {
     for (const match of line.matchAll(pattern)) {
-      found.push({ term: match[0], line: lineIndex + 1, column: (match.index ?? 0) + 1 });
+      found.push({ term: match[0], line: lineIndex + 1, column: match.index + 1 });
     }
   }
   return found;
@@ -252,7 +252,7 @@ function repeatedPhraseFindings(text: string): LintFinding[] {
       words.push({
         word: match[0].toLowerCase(),
         line: lineIndex + 1,
-        column: (match.index ?? 0) + 1,
+        column: match.index + 1,
       });
     }
   }

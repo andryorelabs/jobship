@@ -12,5 +12,5 @@ if (verdict.runTypecheck) {
     stdout: "inherit",
     stderr: "inherit",
   });
-  process.exit(result.exitCode ?? 1);
+  process.exit(result.exitCode);
 }
