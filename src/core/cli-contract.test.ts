@@ -284,6 +284,19 @@ describe("TTY and pipe contract", () => {
     expect(Bun.file(path.join(cacheDir, "update-check.json")).size).toBe(0);
   });
 
+  test("SIGINT to a running CLI exits 130", async () => {
+    const child = Bun.spawn([process.execPath, cliPath, "guard"], {
+      env: { PATH: process.env["PATH"] ?? "", ...env },
+      stdin: "pipe",
+      stdout: "ignore",
+      stderr: "ignore",
+    });
+    await Bun.sleep(1500);
+    child.kill("SIGINT");
+    expect(await child.exited).toBe(130);
+    expect(child.signalCode).toBeNull();
+  });
+
   test("cleanup", () => {
     rmSync(home, { recursive: true, force: true });
   });
