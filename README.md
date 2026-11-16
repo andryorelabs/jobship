@@ -39,7 +39,7 @@ Linux and macOS only (x64 and arm64). Windows is unsupported and WSL is untested
 | Linux    | x64, arm64    | `jobship-linux-x64`, `jobship-linux-arm64`   |
 | macOS    | x64, arm64    | `jobship-darwin-x64`, `jobship-darwin-arm64` |
 
-Windows is unsupported and WSL is untested. Each release smoke-runs every binary on its own native runner before it is published.
+Windows is unsupported and WSL is untested. Before a release is published, each target is built and smoke-run on its own native runner; the published binaries are then cross-compiled from the same tagged commit.
 
 ### Verify a release
 

@@ -339,4 +339,24 @@ describe("release.yml", () => {
       expect(publish?.run).toContain(asset);
     }
   });
+
+  test.each(["smoke", "release"])("the %s job verifies the tag before building", (jobId) => {
+    const job = workflow.jobs[jobId];
+    const verifyTag = stepIndex(job, (text) => text.includes("bun tools/release/verify-tag.ts"));
+    const build = stepIndex(job, (text) => text.includes("tools/build-binaries.ts"));
+    expect(verifyTag).toBeGreaterThan(-1);
+    expect(build).toBeGreaterThan(verifyTag);
+  });
+
+  test("verify waits for the smoke run of every binary", () => {
+    expect(neededJobs(verify)).toEqual(["smoke"]);
+    for (const binary of BINARIES) {
+      expect(raw).toContain(`binary: ${binary.replace("dist/", "")}`);
+    }
+  });
+
+  test("publishes the SBOM", () => {
+    const publish = (release?.steps ?? []).find((step) => step.run?.includes("gh release create"));
+    expect(publish?.run).toContain("dist/jobship.sbom.cdx.json");
+  });
 });
