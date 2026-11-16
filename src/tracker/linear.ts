@@ -37,7 +37,10 @@ export interface LinearOptions {
   readonly titleFormat?: TitleFormat;
 }
 
-interface Named { readonly id: string; readonly name: string }
+interface Named {
+  readonly id: string;
+  readonly name: string;
+}
 
 interface TeamMetadata {
   readonly id: string;
@@ -146,9 +149,7 @@ export function createLinearTracker(options: LinearOptions): TrackerAdapter {
     if (Array.isArray(errors) && errors.length > 0) {
       const first: unknown = errors[0];
       const message =
-        isObject(first) && typeof first.message === "string"
-          ? first.message
-          : "unknown error";
+        isObject(first) && typeof first.message === "string" ? first.message : "unknown error";
       return fail("tracker-linear-graphql", message);
     }
     return { ok: true, value: body.data };

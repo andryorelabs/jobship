@@ -21,7 +21,10 @@ function tokenBody(): string {
   return body;
 }
 
-interface Call { readonly url: string; readonly init: RequestInit | undefined }
+interface Call {
+  readonly url: string;
+  readonly init: RequestInit | undefined;
+}
 
 type Route = (url: string) => Response | undefined;
 

@@ -1,8 +1,13 @@
 import type { Posting, SourceAdapter, SourceQuery, SourceResult } from "../core/types.ts";
 import { getJson, type FetchFunction } from "./http.ts";
 
-export interface Parsed { readonly postings: Posting[]; readonly warnings: string[] }
-export interface ParseFailure { readonly error: string }
+export interface Parsed {
+  readonly postings: Posting[];
+  readonly warnings: string[];
+}
+export interface ParseFailure {
+  readonly error: string;
+}
 
 export interface AdapterSpec {
   readonly name: string;

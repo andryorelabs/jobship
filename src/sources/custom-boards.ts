@@ -46,7 +46,10 @@ export async function readCustomBoards(dir: string): Promise<Result<Board[]>> {
 }
 
 /** What an {@link updateCustomBoards} change returns: the new board list and a value for the caller. */
-export interface CustomBoardsChange<T> { readonly boards: readonly Board[]; readonly value: T }
+export interface CustomBoardsChange<T> {
+  readonly boards: readonly Board[];
+  readonly value: T;
+}
 
 /**
  * Reads `<dir>/boards.json`, applies `change` and writes the result, all under one data-dir

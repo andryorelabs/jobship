@@ -91,7 +91,11 @@ function proposedTransition(
   return PROGRESSION.indexOf(target) > currentRank ? target : null;
 }
 
-interface Candidate { readonly key: string; readonly band: MatchBand; readonly reason: MatchReason }
+interface Candidate {
+  readonly key: string;
+  readonly band: MatchBand;
+  readonly reason: MatchReason;
+}
 
 function foldAccents(value: string): string {
   return value

@@ -18,7 +18,10 @@ const DERIVED_FILES = [
 
 let dataDir = "";
 
-interface CliResult { readonly code: number; readonly envelope: Record<string, unknown> }
+interface CliResult {
+  readonly code: number;
+  readonly envelope: Record<string, unknown>;
+}
 
 function runCli(args: string[]): CliResult {
   const result = Bun.spawnSync([process.execPath, CLI_ENTRY, ...args, "--data", dataDir], {
@@ -217,9 +220,7 @@ describe("dossier derive and apply", () => {
     expect(dataOf(derive(proposal)).items).toEqual([]);
     proposal.removals = { facts: ["ci-pipeline"], bullets: [] };
     const result = derive(proposal);
-    expect(dataOf(result).items).toEqual([
-      { file: "facts.yaml", op: "remove", id: "ci-pipeline" },
-    ]);
+    expect(dataOf(result).items).toEqual([{ file: "facts.yaml", op: "remove", id: "ci-pipeline" }]);
     runCli(["dossier", "apply", batchOf(result)]);
     const facts = readFileSync(path.join(dataDir, "facts.yaml"), "utf8");
     expect(facts).not.toContain("ci-pipeline");

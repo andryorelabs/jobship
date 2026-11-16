@@ -2,7 +2,9 @@ export type Result<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: { readonly code: string; readonly message: string } };
 
-export interface DataDir { readonly path: string }
+export interface DataDir {
+  readonly path: string;
+}
 
 export const CONTRACT_TYPES = [
   "full-time",

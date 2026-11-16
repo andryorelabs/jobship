@@ -35,7 +35,10 @@ interface LinearIssue {
   readonly labels: readonly string[];
 }
 
-interface Page { readonly issues: LinearIssue[]; readonly next: string | null }
+interface Page {
+  readonly issues: LinearIssue[];
+  readonly next: string | null;
+}
 
 function fail<T>(code: string, message: string): Result<T> {
   return { ok: false, error: { code, message } };
@@ -55,8 +58,7 @@ function labelNames(value: unknown): string[] {
 }
 
 function toIssue(node: unknown): LinearIssue | null {
-  if (!isObject(node) || typeof node.id !== "string" || typeof node.title !== "string")
-    return null;
+  if (!isObject(node) || typeof node.id !== "string" || typeof node.title !== "string") return null;
   const state = node.state;
   return {
     id: node.id,
@@ -98,10 +100,7 @@ async function fetchPage(
   if (!isObject(body)) return fail("migrate-linear-malformed", "response is not an object");
   if (Array.isArray(body.errors) && body.errors.length > 0) {
     const first: unknown = body.errors[0];
-    return fail(
-      "migrate-linear-graphql",
-      isObject(first) ? text(first.message) : "unknown error",
-    );
+    return fail("migrate-linear-graphql", isObject(first) ? text(first.message) : "unknown error");
   }
   const data = body.data;
   const issues = isObject(data) ? data.issues : undefined;
@@ -113,9 +112,7 @@ async function fetchPage(
     .filter((issue): issue is LinearIssue => issue !== null);
   const pageInfo = issues.pageInfo;
   const next =
-    isObject(pageInfo) &&
-    pageInfo.hasNextPage === true &&
-    typeof pageInfo.endCursor === "string"
+    isObject(pageInfo) && pageInfo.hasNextPage === true && typeof pageInfo.endCursor === "string"
       ? pageInfo.endCursor
       : null;
   return { ok: true, value: { issues: parsed, next } };

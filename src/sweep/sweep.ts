@@ -34,7 +34,10 @@ import type {
 
 const ATS_SOURCES: ReadonlySet<string> = new Set(ATS_NAMES);
 
-interface Prepared { readonly dir: DataDir; readonly profile: Profile }
+interface Prepared {
+  readonly dir: DataDir;
+  readonly profile: Profile;
+}
 
 interface Fetched {
   readonly source: string;

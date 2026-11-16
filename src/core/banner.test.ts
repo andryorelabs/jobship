@@ -80,7 +80,9 @@ describe("writeBanner", () => {
         throw new Error("closed");
       },
     };
-    expect(() =>{  writeBanner(stream, {}); }).not.toThrow();
+    expect(() => {
+      writeBanner(stream, {});
+    }).not.toThrow();
   });
 });
 

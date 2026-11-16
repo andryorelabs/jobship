@@ -206,7 +206,11 @@ describe("command help", () => {
   });
 });
 
-interface Spawned { code: number; stdout: string; stderr: string }
+interface Spawned {
+  code: number;
+  stdout: string;
+  stderr: string;
+}
 
 function runCli(args: string[], env: Record<string, string>): Spawned {
   const result = Bun.spawnSync([process.execPath, cliPath, ...args], {

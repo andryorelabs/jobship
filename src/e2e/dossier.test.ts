@@ -11,7 +11,10 @@ const FIXTURES = path.join(REPO_ROOT, "fixtures/dossier");
 
 let dataDir = "";
 
-interface CliResult { readonly code: number; readonly envelope: Record<string, unknown> }
+interface CliResult {
+  readonly code: number;
+  readonly envelope: Record<string, unknown>;
+}
 
 function runCli(args: string[]): CliResult {
   const result = Bun.spawnSync([process.execPath, CLI_ENTRY, ...args, "--data", dataDir], {

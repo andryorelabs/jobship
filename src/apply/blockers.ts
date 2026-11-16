@@ -24,7 +24,10 @@ export function unansweredDetail(question: string, answerScope: string): string 
     : `no answer for (${answerScope}): ${question}`;
 }
 
-interface Unanswered { readonly question: string; readonly answerScope: string }
+interface Unanswered {
+  readonly question: string;
+  readonly answerScope: string;
+}
 
 function parseUnanswered(detail: string): Unanswered | null {
   const match = UNANSWERED_PATTERN.exec(detail);

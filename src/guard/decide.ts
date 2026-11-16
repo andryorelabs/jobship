@@ -51,7 +51,10 @@ const BENIGN_BROWSER_ACTIONS: ReadonlySet<string> = new Set([
 
 const ALLOW: GuardDecision = { decision: "allow" };
 
-export interface McpToolName { readonly server: string; readonly action: string }
+export interface McpToolName {
+  readonly server: string;
+  readonly action: string;
+}
 
 /**
  * Splits an MCP tool name into its server and action. The action is the last
@@ -178,9 +181,7 @@ function decideUnchecked(input: unknown, lookup: LabelLookup): GuardDecision {
   const toolInput = input.tool_input;
   if (!isRecord(toolInput)) return deny("browser tool call has no readable tool_input");
   const sessionId =
-    typeof input.session_id === "string" && input.session_id !== ""
-      ? input.session_id
-      : null;
+    typeof input.session_id === "string" && input.session_id !== "" ? input.session_id : null;
   return decideBrowser(action, server, toolInput, sessionId, lookup);
 }
 
