@@ -71,8 +71,7 @@ function brokenPinGroups(config: RenovateConfig): string[] {
     .filter(([groupName, members]) => {
       const rule = config.packageRules.find((candidate) => candidate.groupName === groupName);
       return (
-        rule === undefined ||
-        rule.automerge !== false ||
+        rule?.automerge !== false ||
         rule.rangeStrategy !== "pin" ||
         JSON.stringify(rule.matchDepNames) !== JSON.stringify(members)
       );
