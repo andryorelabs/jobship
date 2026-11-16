@@ -68,7 +68,8 @@ function parsePage(body: unknown): Page | undefined {
 }
 
 function itemId(item: Record<string, unknown>): string | undefined {
-  return text(item.id) ?? text(field(item._feed_entry, "uuid"));
+  const { _feed_entry: feedEntry } = item;
+  return text(item.id) ?? text(field(feedEntry, "uuid"));
 }
 
 function parseCursor(cursor: string): Position {
@@ -121,7 +122,10 @@ interface WalkState {
   readonly details: number;
 }
 
-interface Position { readonly pageId: string; readonly after: string | undefined }
+interface Position {
+  readonly pageId: string;
+  readonly after: string | undefined;
+}
 
 type CollectStep =
   | {
