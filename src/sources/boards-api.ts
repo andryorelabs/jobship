@@ -281,7 +281,8 @@ const parseWorkingNomads: ApiParse = (body) =>
 
 function hnCompany(title: string): string {
   const match = /^(.+?)\s+(?:\(.*?\)\s+)?is hiring/i.exec(title);
-  return match?.[1]?.trim() || "unknown";
+  const company = match?.[1]?.trim();
+  return company === undefined || company === "" ? "unknown" : company;
 }
 
 function hnPosting(row: Record<string, unknown>): Posting | undefined {
