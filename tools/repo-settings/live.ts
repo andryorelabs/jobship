@@ -1,5 +1,12 @@
 import { isJsonValue } from "./compare.ts";
-import type { FeatureStatus, JsonValue, RepoSettings, RepositorySettings } from "./compare.ts";
+import type {
+  CodeScanningSetup,
+  FeatureStatus,
+  JsonValue,
+  RepoSettings,
+  RepositorySettings,
+  WorkflowPermissions,
+} from "./compare.ts";
 
 /** The outcome of one `gh api` call. */
 export interface GhResult {
@@ -78,18 +85,41 @@ function readDependabotAlerts(callGh: GhApi, base: string): boolean {
   throw new Error(`gh api ${base}/vulnerability-alerts failed: ${result.stderr.trim()}`);
 }
 
-/** Maps the repository payload and the security endpoints to `RepositorySettings`. */
+/**
+ * Reads the code scanning default setup state. A 404 means code scanning was
+ * never configured; any other failure is unreadable, not "not configured".
+ */
+function readCodeScanningSetup(callGh: GhApi, base: string): CodeScanningSetup {
+  const endpoint = `${base}/code-scanning/default-setup`;
+  const result = callGh(endpoint);
+  if (!result.ok && /\b404\b|Not Found/i.test(result.stderr)) {
+    return "not-configured";
+  }
+  return readObject(() => result, endpoint).state === "configured"
+    ? "configured"
+    : "not-configured";
+}
+
+/** Maps the repository payload and the security and Actions endpoints to `RepositorySettings`. */
 function readRepositorySettings(callGh: GhApi, base: string): RepositorySettings {
   const repo = readObject(callGh, base);
   const reporting = readObject(callGh, `${base}/private-vulnerability-reporting`);
+  const workflow = readObject(callGh, `${base}/actions/permissions/workflow`);
+  const approval = readObject(callGh, `${base}/actions/permissions/fork-pr-contributor-approval`);
+  const permissions: WorkflowPermissions =
+    workflow.default_workflow_permissions === "write" ? "write" : "read";
   return {
+    description: text(repo, "description"),
     homepage: text(repo, "homepage"),
+    default_branch: text(repo, "default_branch"),
     topics: topicsOf(repo),
     allow_squash_merge: flag(repo, "allow_squash_merge"),
     allow_merge_commit: flag(repo, "allow_merge_commit"),
     allow_rebase_merge: flag(repo, "allow_rebase_merge"),
     squash_merge_commit_title: text(repo, "squash_merge_commit_title"),
     squash_merge_commit_message: text(repo, "squash_merge_commit_message"),
+    merge_commit_title: text(repo, "merge_commit_title"),
+    merge_commit_message: text(repo, "merge_commit_message"),
     delete_branch_on_merge: flag(repo, "delete_branch_on_merge"),
     allow_auto_merge: flag(repo, "allow_auto_merge"),
     allow_update_branch: flag(repo, "allow_update_branch"),
@@ -101,6 +131,10 @@ function readRepositorySettings(callGh: GhApi, base: string): RepositorySettings
     dependabot_alerts: readDependabotAlerts(callGh, base),
     dependabot_security_updates: featureStatus(repo, "dependabot_security_updates"),
     private_vulnerability_reporting: flag(reporting, "enabled"),
+    default_workflow_permissions: permissions,
+    can_approve_pull_request_reviews: flag(workflow, "can_approve_pull_request_reviews"),
+    fork_pr_contributor_approval: text(approval, "approval_policy"),
+    code_scanning_default_setup: readCodeScanningSetup(callGh, base),
   };
 }
 

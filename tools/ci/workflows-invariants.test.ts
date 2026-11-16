@@ -7,13 +7,21 @@ import {
   isMinimalPermissions,
   jobsInterpolatingIntoShell,
   jobsPersistingCredentials,
+  isNonBlocking,
+  jobsWithoutHardenRunner,
   jobsWithoutTimeout,
-  lacksPullRequestConcurrency,
+  lacksConcurrency,
+  lacksManualTrigger,
+  lacksPushTo,
+  latestBunJobs,
+  missingPins,
   misroutedJobs,
   neededJobs,
   parseWorkflow,
+  skipsPromotionPullRequest,
   triggerNames,
   unpinnedActions,
+  uploadsWithoutFailureGuard,
   type Workflow,
   type WorkflowJob,
 } from "./workflow-rules.ts";
@@ -32,6 +40,19 @@ const GITHUB_HOSTED_ONLY: Record<string, Record<string, string>> = {
     analysis: "Scorecard only publishes results produced on GitHub-hosted runners",
   },
 };
+
+/**
+ * Jobs that run on each target's native GitHub-hosted runner through `matrix.runner`, keyed by
+ * workflow file, with the reason the routed runner cannot serve them.
+ */
+const NATIVE_RUNNER_MATRIX: Record<string, Record<string, string>> = {
+  "release.yml": {
+    smoke: "smoke-runs each binary on its own OS and architecture, so it needs native runners",
+  },
+};
+
+/** Workflows that must also be startable by hand. */
+const MANUAL_TRIGGER_WORKFLOWS = new Set(["ci.yml", "codeql.yml"]);
 
 const BINARIES = [
   "dist/jobship-linux-x64",
@@ -90,8 +111,20 @@ describe.each(workflows)("$fileName", ({ fileName, raw, workflow }) => {
     expect(isMinimalPermissions(workflow.permissions)).toBe(true);
   });
 
-  test("has a concurrency group when pull requests trigger it", () => {
-    expect(lacksPullRequestConcurrency(workflow)).toBe(false);
+  test("has a concurrency group", () => {
+    expect(lacksConcurrency(workflow)).toBe(false);
+  });
+
+  test("harden-runner in audit mode is the first step of every job", () => {
+    expect(jobsWithoutHardenRunner(workflow)).toEqual([]);
+  });
+
+  test("artifact uploads only run on failure", () => {
+    expect(uploadsWithoutFailureGuard(workflow)).toEqual([]);
+  });
+
+  test.skipIf(!MANUAL_TRIGGER_WORKFLOWS.has(fileName))("has workflow_dispatch", () => {
+    expect(lacksManualTrigger(workflow)).toBe(false);
   });
 
   test("never uses pull_request_target", () => {
@@ -113,13 +146,20 @@ describe.each(workflows)("$fileName", ({ fileName, raw, workflow }) => {
 
   test("Linux jobs use the BLACKSMITH_RUNNER expression", () => {
     const githubHostedOnly = Object.keys(GITHUB_HOSTED_ONLY[fileName] ?? {});
-    expect(misroutedJobs(workflow, githubHostedOnly)).toEqual([]);
+    const nativeMatrix = NATIVE_RUNNER_MATRIX[fileName] ?? {};
+    const misrouted = misroutedJobs(workflow, githubHostedOnly).filter(
+      (id) => !(id in nativeMatrix && workflow.jobs[id]?.["runs-on"] === "${{ matrix.runner }}"),
+    );
+    expect(misrouted).toEqual([]);
   });
 });
 
-describe("GitHub-hosted-only jobs", () => {
+describe.each([
+  ["GitHub-hosted-only jobs", GITHUB_HOSTED_ONLY],
+  ["native-runner matrix jobs", NATIVE_RUNNER_MATRIX],
+])("%s", (_label, exemptions) => {
   test("every exemption names an existing job and carries a reason", () => {
-    const stale = Object.entries(GITHUB_HOSTED_ONLY).flatMap(([fileName, jobs]) =>
+    const stale = Object.entries(exemptions).flatMap(([fileName, jobs]) =>
       Object.entries(jobs)
         .filter(
           ([id, reason]) =>
@@ -159,10 +199,10 @@ describe("ci.yml", () => {
     expect(stepIndex(job, (text) => text.includes("bun run lint:commits"))).toBeGreaterThan(-1);
   });
 
-  test("CI passed needs every other job, commitlint included, and always runs", () => {
+  test("CI passed needs every other job but the Bun canary, commitlint included, and always runs", () => {
     const gate = jobs["ci-passed"];
     const others = Object.keys(jobs)
-      .filter((id) => id !== "ci-passed")
+      .filter((id) => id !== "ci-passed" && id !== "bun-canary")
       .toSorted();
     expect(gate?.name).toBe("CI passed");
     expect(gate?.if).toContain("always()");
@@ -174,6 +214,57 @@ describe("ci.yml", () => {
     expect(raw).toContain('[ "$result" = "failure" ]');
     expect(raw).toContain('[ "$result" = "cancelled" ]');
     expect(raw).not.toContain('!= "success"');
+  });
+});
+
+describe("ci.yml hygiene", () => {
+  const { workflow } = workflowFile(workflows, "ci.yml");
+  const jobs = workflow.jobs;
+
+  test("skips commitlint on the develop to main promotion pull request", () => {
+    expect(skipsPromotionPullRequest(jobs.commitlint)).toBe(true);
+  });
+
+  test("uploads the test report when the test job fails", () => {
+    expect(uploadsWithoutFailureGuard(workflow)).toEqual([]);
+    const uploads = (jobs.test?.steps ?? []).filter((step) =>
+      step.uses?.startsWith("actions/upload-artifact@"),
+    );
+    expect(uploads.map((step) => step.if)).toEqual(["failure()"]);
+  });
+
+  test("runs a non-blocking canary on the latest Bun that the gate ignores", () => {
+    expect(latestBunJobs(workflow)).toEqual(["bun-canary"]);
+    expect(isNonBlocking(jobs["bun-canary"])).toBe(true);
+    expect(neededJobs(jobs["ci-passed"])).not.toContain("bun-canary");
+  });
+});
+
+describe("lint-workflows.yml", () => {
+  const { raw, workflow } = workflowFile(workflows, "lint-workflows.yml");
+
+  test("runs on pushes to main and develop as well as pull requests", () => {
+    expect(lacksPushTo(workflow, "main")).toBe(false);
+    expect(lacksPushTo(workflow, "develop")).toBe(false);
+    expect(triggerNames(workflow)).toContain("pull_request");
+  });
+
+  test("pins actionlint 1.7.12 and zizmor 1.32.0", () => {
+    expect(
+      missingPins(raw, {
+        actionlint: "ACTIONLINT_VERSION: 1.7.12",
+        zizmor: "version: v1.32.0",
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe("dependency-review.yml", () => {
+  const { raw, workflow } = workflowFile(workflows, "dependency-review.yml");
+
+  test("reviews dependencies on pull requests", () => {
+    expect(triggerNames(workflow)).toContain("pull_request");
+    expect(raw).toContain("actions/dependency-review-action@");
   });
 });
 
@@ -247,5 +338,25 @@ describe("release.yml", () => {
     for (const asset of [...BINARIES, "dist/SHA256SUMS", "dist/jobship.intoto.jsonl"]) {
       expect(publish?.run).toContain(asset);
     }
+  });
+
+  test.each(["smoke", "release"])("the %s job verifies the tag before building", (jobId) => {
+    const job = workflow.jobs[jobId];
+    const verifyTag = stepIndex(job, (text) => text.includes("bun tools/release/verify-tag.ts"));
+    const build = stepIndex(job, (text) => text.includes("tools/build-binaries.ts"));
+    expect(verifyTag).toBeGreaterThan(-1);
+    expect(build).toBeGreaterThan(verifyTag);
+  });
+
+  test("verify waits for the smoke run of every binary", () => {
+    expect(neededJobs(verify)).toEqual(["smoke"]);
+    for (const binary of BINARIES) {
+      expect(raw).toContain(`binary: ${binary.replace("dist/", "")}`);
+    }
+  });
+
+  test("publishes the SBOM", () => {
+    const publish = (release?.steps ?? []).find((step) => step.run?.includes("gh release create"));
+    expect(publish?.run).toContain("dist/jobship.sbom.cdx.json");
   });
 });

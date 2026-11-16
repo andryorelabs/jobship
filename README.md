@@ -32,6 +32,27 @@ claude plugin install jobship@jobship-marketplace
 
 Linux and macOS only (x64 and arm64). Windows is unsupported and WSL is untested. The first run downloads a checksum-verified release binary, which needs `curl` and `sha256sum` or `shasum`; `tar` with xz support is needed to unpack Typst. Full details: [install guide](docs/guide/install.md).
 
+### Supported platforms
+
+| Platform | Architectures | Binary                                       |
+| -------- | ------------- | -------------------------------------------- |
+| Linux    | x64, arm64    | `jobship-linux-x64`, `jobship-linux-arm64`   |
+| macOS    | x64, arm64    | `jobship-darwin-x64`, `jobship-darwin-arm64` |
+
+Windows is unsupported and WSL is untested. Before a release is published, each target is built and smoke-run on its own native runner; the published binaries are then cross-compiled from the same tagged commit.
+
+### Verify a release
+
+Every release publishes the four binaries, `SHA256SUMS`, a build provenance attestation (`jobship.intoto.jsonl`) and an SBOM (`jobship.sbom.cdx.json`). The release tag is signed and annotated.
+
+```sh
+gh release download vX.Y.Z --repo andryorelabs/jobship
+sha256sum --check --ignore-missing SHA256SUMS
+gh attestation verify jobship-linux-x64 --repo andryorelabs/jobship
+```
+
+On macOS use `shasum -a 256 --check --ignore-missing SHA256SUMS`.
+
 ## Quickstart
 
 From Claude Code, in an empty directory such as `~/job-search`:
