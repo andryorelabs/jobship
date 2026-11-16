@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
 import { readExpectedSettings } from "./check.ts";
-import { compareSettings, formatDifference, isJsonValue, isRepositorySettings } from "./compare.ts";
+import {
+  compareSettings,
+  formatDifference,
+  isJsonValue,
+  isRepositorySettings,
+  normalizeRuleset,
+} from "./compare.ts";
 import type { JsonValue, RepoSettings } from "./compare.ts";
 
 type JsonObject = Record<string, JsonValue>;
@@ -209,5 +215,36 @@ describe("isJsonValue", () => {
     expect(isJsonValue({ a: [1, "b", null, true] })).toBe(true);
     expect(isJsonValue([undefined])).toBe(false);
     expect(isJsonValue({ a: () => 1 })).toBe(false);
+  });
+});
+
+describe("normalizeRuleset", () => {
+  test("sorts string lists so their order does not count as drift", () => {
+    const fromDisk = normalizeRuleset({ include: ["refs/heads/main", "refs/heads/develop"] });
+    const live = normalizeRuleset({ include: ["refs/heads/develop", "refs/heads/main"] });
+    expect(fromDisk).toEqual(live);
+  });
+
+  test("keeps the order of lists whose entries have no sort key", () => {
+    const value: JsonValue = [{ name: "b" }, { name: "a" }];
+    expect(normalizeRuleset(value)).toEqual(value);
+  });
+
+  test("sorts keyed entries and falls back to the serialized form for a non-string key", () => {
+    const value: JsonValue = [{ type: "pull_request" }, { type: 1 }, { context: "build" }];
+    expect(normalizeRuleset(value)).toEqual([
+      { type: 1 },
+      { context: "build" },
+      { type: "pull_request" },
+    ]);
+  });
+});
+
+describe("list drift", () => {
+  test("reports a live value that is not a list where a list is expected", () => {
+    const live = freshSettings();
+    changeDevelop(live, (main) => ({ ...main, rules: "none" }));
+    const paths = compareSettings(freshSettings(), live).map((difference) => difference.path);
+    expect(paths.some((path) => path.endsWith(".rules"))).toBe(true);
   });
 });
