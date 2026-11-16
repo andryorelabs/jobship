@@ -24,6 +24,7 @@ export type UpdateNoticeDeps = {
   readonly currentVersion: string;
   readonly now: () => number;
   readonly readCacheText: (file: string) => string | null;
+  readonly writeCacheText: (file: string, text: string) => void;
   readonly spawnRefresh: () => void;
 };
 
@@ -102,17 +103,29 @@ export function isCacheStale(cache: UpdateCache | null, now: number): boolean {
 
 /**
  * Returns the one-line update notice for human mode, or `null`. It reads only the cache and,
- * when the cache is stale, starts the detached refresh; it never touches the network itself.
+ * when the cache is stale, stamps the check time and starts the detached refresh; it never
+ * touches the network itself. Stamping first keeps the check to once a day even when the
+ * refresh dies, and a cache that cannot be written skips the refresh entirely.
  */
 export function updateNoticeLine(deps: UpdateNoticeDeps): string | null {
   if (updateCheckDisabled(deps.env)) return null;
   if (versionParts(deps.currentVersion) === null) return null;
   const file = updateCacheFile(deps.env);
   const cache = parseUpdateCache(deps.readCacheText(file));
-  if (isCacheStale(cache, deps.now())) deps.spawnRefresh();
+  if (isCacheStale(cache, deps.now()) && stampCheck(deps, file, cache)) deps.spawnRefresh();
   const latest = cache?.latest ?? null;
   if (latest === null || !isNewerVersion(latest, deps.currentVersion)) return null;
   return `jobship ${latest.replace(/^v/, "")} is available (you have ${deps.currentVersion}): ${RELEASES_PAGE}`;
+}
+
+function stampCheck(deps: UpdateNoticeDeps, file: string, cache: UpdateCache | null): boolean {
+  const stamp: UpdateCache = { checkedAt: deps.now(), latest: cache?.latest ?? null };
+  try {
+    deps.writeCacheText(file, JSON.stringify(stamp));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function fetchLatestTag(deps: RefreshDeps): Promise<string | null> {
@@ -140,7 +153,11 @@ export async function refreshUpdateCache(deps: RefreshDeps): Promise<UpdateCache
   const previous = parseUpdateCache(deps.readCacheText(file));
   const tag = await fetchLatestTag(deps);
   const cache: UpdateCache = { checkedAt: deps.now(), latest: tag ?? previous?.latest ?? null };
-  deps.writeCacheText(file, JSON.stringify(cache));
+  try {
+    deps.writeCacheText(file, JSON.stringify(cache));
+  } catch {
+    return cache;
+  }
   return cache;
 }
 

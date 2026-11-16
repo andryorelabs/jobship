@@ -30,6 +30,7 @@ function noticeDeps(overrides: Partial<UpdateNoticeDeps> & { cacheText?: string 
     currentVersion: "0.8.0",
     now: () => NOW,
     readCacheText: () => overrides.cacheText ?? null,
+    writeCacheText: () => undefined,
     spawnRefresh: () => {
       spawned.count += 1;
     },
@@ -124,6 +125,29 @@ describe("isCacheStale", () => {
 });
 
 describe("updateNoticeLine", () => {
+  test("stamps the check time before starting the refresh, keeping the last known version", () => {
+    const written: string[] = [];
+    const { deps, spawned } = noticeDeps({
+      cacheText: cacheJson(NOW - 2 * UPDATE_CHECK_INTERVAL_MS, "v0.8.5"),
+      writeCacheText: (_file, text) => {
+        written.push(text);
+      },
+    });
+    updateNoticeLine(deps);
+    expect(written).toEqual([cacheJson(NOW, "v0.8.5")]);
+    expect(spawned.count).toBe(1);
+  });
+
+  test("skips the refresh when the cache cannot be written", () => {
+    const { deps, spawned } = noticeDeps({
+      writeCacheText: () => {
+        throw new Error("read-only cache dir");
+      },
+    });
+    expect(updateNoticeLine(deps)).toBeNull();
+    expect(spawned.count).toBe(0);
+  });
+
   test("prints one line when the cached latest is newer", () => {
     const { deps, spawned } = noticeDeps({ cacheText: cacheJson(NOW - 1000, "v0.9.0") });
     const line = updateNoticeLine(deps);
@@ -203,6 +227,19 @@ function refreshDeps(
 }
 
 describe("refreshUpdateCache", () => {
+  test("returns the result when the cache write fails instead of throwing", async () => {
+    const { deps } = refreshDeps(() =>
+      Promise.resolve(Response.json({ tag_name: "v0.9.0" }, { status: 200 })),
+    );
+    const failing = {
+      ...deps,
+      writeCacheText: () => {
+        throw new Error("disk full");
+      },
+    };
+    expect(await refreshUpdateCache(failing)).toEqual({ checkedAt: NOW, latest: "v0.9.0" });
+  });
+
   test("records the latest release tag", async () => {
     const { deps, written } = refreshDeps(() =>
       Promise.resolve(Response.json({ tag_name: "v0.9.0" }, { status: 200 })),

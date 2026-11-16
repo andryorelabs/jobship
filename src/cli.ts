@@ -215,6 +215,7 @@ export async function runMain(args: string[], io: MainIo): Promise<number> {
       currentVersion: io.version,
       now: io.now,
       readCacheText: io.readCacheText,
+      writeCacheText: io.writeCacheText,
       spawnRefresh: io.spawnRefresh,
     });
     if (line !== null) io.stderr.write(`${line}\n`);
