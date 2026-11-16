@@ -219,7 +219,7 @@ function runCli(args: string[], env: Record<string, string>): Spawned {
   };
 }
 
-/** Runs the CLI under `script` for a TTY; BSD `script` echoes EOT and backspace bytes, which are dropped. */
+/** Runs the CLI under `script` for a TTY; BSD `script` echoes `^D` and backspaces, which are dropped. */
 function runOnTty(args: string[], env: Record<string, string>): Spawned | null {
   const script = Bun.which("script");
   if (script === null) return null;
@@ -232,7 +232,11 @@ function runOnTty(args: string[], env: Record<string, string>): Spawned | null {
   });
   return {
     code: result.exitCode,
-    stdout: result.stdout.toString().replaceAll("\u0004", "").replaceAll("\b", ""),
+    stdout: result.stdout
+      .toString()
+      .replaceAll("^D", "")
+      .replaceAll("\u0004", "")
+      .replaceAll("\b", ""),
     stderr: result.stderr.toString(),
   };
 }
