@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = path.join(import.meta.dir, "..");
@@ -102,7 +102,7 @@ describe("manifest identity fields", () => {
   test("plugin.json carries author, homepage, repository and license", () => {
     const manifest = readJson(".claude-plugin/plugin.json");
     expect(manifest["author"], "plugin.json author").toEqual(author);
-    expect(manifest["homepage"], "plugin.json homepage").toBe(repository);
+    expect(manifest["homepage"], "plugin.json homepage").toBe(`${repository}#readme`);
     expect(manifest["repository"], "plugin.json repository").toBe(repository);
     expect(manifest["license"], "plugin.json license").toBe("MIT");
   });
@@ -149,5 +149,72 @@ describe("brand copy on the manifests", () => {
     expect(JSON.stringify(marketplace["metadata"]), "marketplace.json metadata").toContain(
       JSON.stringify(line),
     );
+  });
+});
+
+function frontmatter(file: string): Record<string, string> {
+  const match = /^---\n([\s\S]*?)\n---\n/.exec(readFileSync(file, "utf8"));
+  if (match?.[1] === undefined) throw new Error(`${file} has no frontmatter`);
+  const fields: Record<string, string> = {};
+  for (const line of match[1].split("\n")) {
+    const separator = line.indexOf(":");
+    if (separator > 0) fields[line.slice(0, separator).trim()] = line.slice(separator + 1).trim();
+  }
+  return fields;
+}
+
+function listDirectory(relative: string): string[] {
+  return readdirSync(path.join(root, relative)).toSorted();
+}
+
+describe("plugin contract", () => {
+  test("every skill's name equals its directory and its description says when to use it", () => {
+    const directories = listDirectory("skills").filter((entry) =>
+      existsSync(path.join(root, "skills", entry, "SKILL.md")),
+    );
+    expect(directories.length).toBeGreaterThan(0);
+    for (const directory of directories) {
+      const fields = frontmatter(path.join(root, "skills", directory, "SKILL.md"));
+      expect(fields["name"], `skills/${directory} name`).toBe(directory);
+      expect(fields["description"], `skills/${directory} description`).toContain("Use when");
+    }
+  });
+
+  test("hooks.json registers the Guard on PreToolUse and the recorder on PostToolUse", () => {
+    const hooks = readJson("hooks/hooks.json")["hooks"];
+    if (typeof hooks !== "object" || hooks === null) throw new Error("hooks.json has no hooks");
+    const events = new Map(Object.entries(hooks));
+    const pre = JSON.stringify(events.get("PreToolUse"));
+    const post = JSON.stringify(events.get("PostToolUse"));
+    expect(pre, "PreToolUse").toMatch(/^\[\{"matcher":"mcp__[^"]*","hooks":\[\{"type":"command"/);
+    expect(pre, "PreToolUse").toContain('jobship\\" guard');
+    expect(post, "PostToolUse").toContain('"matcher":"mcp__.*__take_snapshot"');
+    expect(post, "PostToolUse").toContain("guard --record");
+  });
+
+  test("every agent pins model and effort", () => {
+    for (const file of listDirectory("agents").filter((entry) => entry.endsWith(".md"))) {
+      const fields = frontmatter(path.join(root, "agents", file));
+      expect(fields["model"], `agents/${file} model`).toBeTruthy();
+      expect(fields["effort"], `agents/${file} effort`).toBeTruthy();
+    }
+  });
+
+  test("agents that read untrusted input list a restricted tools allowlist", () => {
+    const reader = frontmatter(path.join(root, "agents/posting-reader.md"));
+    expect(reader["tools"], "posting-reader tools").toBe("WebFetch");
+    for (const file of listDirectory("agents").filter((entry) => entry.endsWith(".md"))) {
+      const fields = frontmatter(path.join(root, "agents", file));
+      expect(fields["tools"], `agents/${file} tools`).toBeTruthy();
+      expect(fields["tools"], `agents/${file} tools`).not.toMatch(/Bash|Write|Edit/);
+    }
+  });
+
+  test("plugin.json has bugs and its homepage equals package.json's", () => {
+    const manifest = readJson(".claude-plugin/plugin.json");
+    expect(manifest["bugs"], "plugin.json bugs").toBe(
+      "https://github.com/andryorelabs/jobship/issues",
+    );
+    expect(manifest["homepage"], "plugin.json homepage").toBe(readJson("package.json")["homepage"]);
   });
 });
