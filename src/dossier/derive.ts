@@ -90,14 +90,7 @@ function bulletRow(bullet: Bullet): Record<string, unknown> {
 function storedFactRow(row: Record<string, unknown>): string {
   const tags = Array.isArray(row.tags) ? row.tags : [];
   const cites = Array.isArray(row.cites) ? row.cites : [];
-  return canonical([
-    row.id,
-    row.text,
-    tags,
-    row.source ?? null,
-    cites,
-    row.estimate ?? null,
-  ]);
+  return canonical([row.id, row.text, tags, row.source ?? null, cites, row.estimate ?? null]);
 }
 
 function proposedFactRow(fact: FactProposal): string {
@@ -334,7 +327,11 @@ export function deriveBatch(
   return Promise.resolve(deriveSync(ctx, proposal));
 }
 
-interface DerivedBatch { batchPath: string; hash: string; items: DerivedChange[] }
+interface DerivedBatch {
+  batchPath: string;
+  hash: string;
+  items: DerivedChange[];
+}
 
 function deriveSync(ctx: CommandContext, proposal: DossierProposal): Result<DerivedBatch> {
   const located = requireDataDir(ctx);
@@ -396,7 +393,10 @@ function parseBatch(content: string): DerivedChange[] | null {
   return items;
 }
 
-interface Rendered { readonly content: string; readonly applied: number }
+interface Rendered {
+  readonly content: string;
+  readonly applied: number;
+}
 
 function loadDocument(dir: DataDir, file: string): Document {
   const target = path.join(dir.path, file);
@@ -453,8 +453,11 @@ function upsertRow(
   if (!isMap(existing)) return false;
   const current: unknown = existing.toJS(document);
   const cleared = clearable.filter((name) => !(name in row) && existing.has(name));
-  const merged = { ...(isObject(current) ? current : {}), ...row };
-  for (const name of cleared) delete merged[name];
+  const merged = Object.fromEntries(
+    Object.entries({ ...(isObject(current) ? current : {}), ...row }).filter(
+      ([name]) => !cleared.includes(name),
+    ),
+  );
   if (canonical(merged) === canonical(current)) return false;
   for (const [name, value] of Object.entries(row)) existing.set(name, value);
   for (const name of cleared) existing.delete(name);
@@ -611,11 +614,7 @@ function renderAnswers(dir: DataDir, changes: readonly DerivedChange[]): Rendere
 }
 
 function toFactRow(value: unknown): Record<string, unknown> {
-  if (
-    !isObject(value) ||
-    !Array.isArray(value.cites) ||
-    !isOneOf(DOSSIER_SOURCES, value.source)
-  ) {
+  if (!isObject(value) || !Array.isArray(value.cites) || !isOneOf(DOSSIER_SOURCES, value.source)) {
     throw new TypeError("fact item is malformed");
   }
   return {
