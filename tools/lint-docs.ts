@@ -33,14 +33,23 @@ export function listMarkdownFiles(root: string): string[] {
 }
 
 /**
+ * Removes HTML tags until none are left, then any stray angle bracket, so a nested tag such
+ * as `<<b>b>` cannot leave a tag behind.
+ * @param text Heading text that may contain inline HTML.
+ * @returns The text without tags or angle brackets.
+ */
+function stripHtmlTags(text: string): string {
+  const stripped = text.replace(/<[^<>]*>/g, "");
+  return stripped === text ? text.replace(/[<>]/g, "") : stripHtmlTags(stripped);
+}
+
+/**
  * Turns heading text into a GitHub-style slug, without the duplicate suffix.
  * @param heading The heading text, with inline Markdown.
  * @returns The lowercase slug with spaces as hyphens and punctuation removed.
  */
 export function slugifyHeading(heading: string): string {
-  return heading
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/<[^>]*>/g, "")
+  return stripHtmlTags(heading.replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1"))
     .toLowerCase()
     .replace(SLUG_DISALLOWED, "")
     .replace(/\s/g, "-");
