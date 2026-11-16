@@ -56,14 +56,14 @@
   "devDependencies": {
     "@commitlint/cli": "21.2.4",
     "@commitlint/config-conventional": "21.2.4",
-    "@oxlint/plugins": "1.92.0",
+    "@oxlint/plugins": "1.93.0",
     "@types/bun": "1.4.4",
     "husky": "9.1.7",
     "knip": "6.45.1",
     "lint-staged": "17.6.1",
-    "oxfmt": "0.75.0",
-    "oxlint": "1.92.0",
-    "oxlint-tsgolint": "7.0.2005",
+    "oxfmt": "0.77.0",
+    "oxlint": "1.93.0",
+    "oxlint-tsgolint": "7.0.2006",
     "playwright": "1.65.1",
     "sharp": "0.35.5",
     "typescript7": "npm:typescript@7.1.0-beta"
