@@ -61,10 +61,7 @@ describe("oxlint.config.ts", () => {
     for (const ruleName of rulesCarriedOverFromTheJsonConfig) {
       expect(config.rules?.[ruleName]).toBe("error");
     }
-    expect(config.rules?.["typescript/return-await"]).toEqual([
-      "error",
-      "in-try-catch",
-    ]);
+    expect(config.rules?.["typescript/return-await"]).toEqual(["error", "in-try-catch"]);
   });
 
   test("denies the two local rules", () => {
