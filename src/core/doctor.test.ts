@@ -327,7 +327,11 @@ describe("doctor onboarding checks", () => {
   test("a freshly scaffolded data dir fails dossier-incomplete listing all four sections", async () => {
     const fresh = path.join(workDir, "fresh");
     await runInit(["--data", fresh], workDir);
-    const result = await runDoctor({ dataDir: { path: fresh }, env: {}, cwd: workDir });
+    const result = await runDoctor({
+      dataDir: { path: fresh },
+      env: { HOME: workDir, JOBSHIP_CATALOG_URL: "off" },
+      cwd: workDir,
+    });
     expect(result.ok).toBe(false);
     const error = result.ok ? null : result.error;
     expect(error?.code).toBe("dossier-incomplete");
