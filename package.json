@@ -61,9 +61,9 @@
     "husky": "9.1.7",
     "knip": "6.45.1",
     "lint-staged": "17.6.1",
-    "oxfmt": "0.75.0",
+    "oxfmt": "0.77.0",
     "oxlint": "1.92.0",
-    "oxlint-tsgolint": "7.0.2005",
+    "oxlint-tsgolint": "7.0.2006",
     "playwright": "1.65.1",
     "sharp": "0.35.5",
     "typescript7": "npm:typescript@7.1.0-beta"

@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-11-16
+Revised: 2026-11-16 oxfmt 0.77.0 and oxlint-tsgolint 7.0.2006 adopted ahead of aokit's V21 table; aokit follows.
 
 jobship adopts the cross-repo standard v2 on top of v1, with the not-applicable rules listed below.
 
