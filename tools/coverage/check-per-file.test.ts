@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { checkPerFile, parseFileCoverage } from "./check-per-file.ts";
-import type { CoverageException } from "./coverage-exceptions.ts";
+import { checkPerFile, parseFileCoverage, PER_FILE_FLOOR } from "./check-per-file.ts";
+import { coverageExceptions, type CoverageException } from "./coverage-exceptions.ts";
 
 const table = (rows: readonly (readonly [string, string, string])[]): string =>
   [
@@ -105,5 +105,16 @@ describe("checkPerFile", () => {
   test("checks existence against the working directory by default", () => {
     const result = checkPerFile(table([]), { "src/does-not-exist.ts": justified(1, 1) });
     expect(result.failures[0]).toContain("does not exist");
+  });
+});
+
+describe("recorded coverage exceptions", () => {
+  test("each has a reason and a floor under the per-file floor", () => {
+    for (const exception of Object.values(coverageExceptions)) {
+      expect(exception.reason.trim()).not.toBe("");
+      expect(
+        exception.lines < PER_FILE_FLOOR.lines || exception.functions < PER_FILE_FLOOR.functions,
+      ).toBe(true);
+    }
   });
 });

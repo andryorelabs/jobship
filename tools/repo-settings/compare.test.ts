@@ -92,7 +92,7 @@ describe("compareSettings", () => {
     const live = freshSettings();
     changeDevelop(live, (main) =>
       mapRules(main, (rule) =>
-        isObject(rule.parameters)
+        rule.type === "required_status_checks" && isObject(rule.parameters)
           ? {
               ...rule,
               parameters: { ...rule.parameters, strict_required_status_checks_policy: false },
@@ -102,7 +102,7 @@ describe("compareSettings", () => {
     );
     const differences = compareSettings(freshSettings(), live);
     expect(differences.map((difference) => difference.path)).toEqual([
-      "rulesets.develop.rules[5].parameters.strict_required_status_checks_policy",
+      "rulesets.develop.rules[6].parameters.strict_required_status_checks_policy",
     ]);
   });
 
