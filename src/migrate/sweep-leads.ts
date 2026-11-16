@@ -38,11 +38,16 @@ export function parseSweepLeads(markdown: string): SweepLead[] {
   return leads;
 }
 
+/** The value, or the fallback when the value is missing or empty. */
+function nonEmpty(value: string | undefined, fallback: string): string {
+  return value === undefined || value === "" ? fallback : value;
+}
+
 export function leadIdentity(lead: SweepLead): { company: string; role: string } {
   const split = splitCompanyRole(lead.heading);
   return {
-    company: lead.fields.company || split.company,
-    role: lead.fields.role || (split.company === "" ? "" : split.role),
+    company: nonEmpty(lead.fields.company, split.company),
+    role: nonEmpty(lead.fields.role, split.company === "" ? "" : split.role),
   };
 }
 
