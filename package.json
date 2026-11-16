@@ -66,7 +66,7 @@
     "oxlint-tsgolint": "7.0.2005",
     "playwright": "^1.65.0",
     "sharp": "^0.35.5",
-    "typescript7": "npm:typescript@7.1.0-beta"
+    "typescript7": "npm:typescript@7.1.0-dev.20261109.1"
   },
   "engines": {
     "bun": "1.4.4"
