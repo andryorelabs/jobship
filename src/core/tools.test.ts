@@ -223,12 +223,15 @@ describe("system downloader", () => {
   const { download } = systemInstallDeps();
 
   test("refuses a non-https url without fetching", async () => {
-    const fetchSpy = spyOn(globalThis, "fetch");
-    const result = await download("http://example.invalid/typst");
-    expect(fetchSpy).not.toHaveBeenCalled();
-    fetchSpy.mockRestore();
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.message).toContain("refusing non-https url");
+    const fetchSpy = spyOn(globalThis, "fetch").mockRejectedValue(new Error("network forbidden"));
+    try {
+      const result = await download("http://example.invalid/typst");
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.message).toContain("refusing non-https url");
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   test("returns the response bytes on success", async () => {
