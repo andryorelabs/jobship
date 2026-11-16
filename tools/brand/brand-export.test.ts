@@ -14,7 +14,17 @@ import {
   readIcoEntries,
   readPngSize,
 } from "./brand-export-spec.ts";
-import { exportMarks, exportOg, type PageCapture, type PageRenderer } from "./brand-export.ts";
+import {
+  type ChromiumBrowser,
+  type ChromiumPage,
+  exportBrand,
+  exportMarks,
+  exportOg,
+  findChromium,
+  openChromiumRenderer,
+  type PageCapture,
+  type PageRenderer,
+} from "./brand-export.ts";
 
 const BRAND_DIR = join(import.meta.dir, "..", "..", "docs", "brand");
 const TRUECOLOUR_WITH_ALPHA = 6;
@@ -266,6 +276,13 @@ describe("exportMarks", () => {
     ).toEqual([]);
   });
 
+  test("fails when the favicon exceeds its byte budget", async () => {
+    const root = await markRoot();
+    expect(await failureOf(exportMarks({ root, icoMaxBytes: 1 }))).toContain(
+      "exceeds the 1 byte budget",
+    );
+  });
+
   test("fails when mark-small.svg is missing", async () => {
     const root = await markRoot();
     await rm(join(root, "docs", "brand", "logo", "mark-small.svg"));
@@ -348,5 +365,258 @@ describe("og sources", () => {
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b/i);
     expect(css).not.toMatch(/\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color-mix)\(/i);
     expect(css).not.toMatch(/https?:\/\/|url\(\s*["']?\/\//);
+  });
+});
+
+describe("exportBrand", () => {
+  test("writes the marks, the favicon and the og rasters in one pass", async () => {
+    const root = await ogRoot();
+    await cp(join(BRAND_DIR, "logo"), join(root, "docs", "brand", "logo"), { recursive: true });
+    const { renderer, closed } = fakeRenderer();
+    await exportBrand({ root, openRenderer: () => Promise.resolve(renderer) });
+    expect(closed()).toBe(true);
+    const outputs = [
+      ...MARK_TARGETS.map((target) => target.output),
+      ICO_TARGET.output,
+      ...OG_TARGETS.map((target) => target.output),
+    ];
+    const written = await Promise.all(
+      outputs.map((output) => readFile(join(root, "docs", "brand", output))),
+    );
+    expect(written.every((bytes) => bytes.length > 0)).toBe(true);
+  });
+});
+
+async function fakeChromiumFiles(
+  cache: string,
+  entries: { directory: string; executable: string[] }[],
+): Promise<void> {
+  await Promise.all(
+    entries.map(async ({ directory, executable }) => {
+      const folder = join(cache, directory, ...executable.slice(0, -1));
+      await mkdir(folder, { recursive: true });
+      await writeFile(join(folder, executable.at(-1) ?? ""), "");
+    }),
+  );
+}
+
+describe("findChromium", () => {
+  test("prefers the bundled executable when it exists", async () => {
+    const root = await scratchRoot();
+    const bundledPath = join(root, "bundled-chrome");
+    await writeFile(bundledPath, "");
+    expect(await findChromium({ bundledPath, cacheDir: join(root, "missing") })).toBe(bundledPath);
+  });
+
+  test("picks the newest Chromium or headless shell in the cache", async () => {
+    const cacheDir = await scratchRoot();
+    await fakeChromiumFiles(cacheDir, [
+      { directory: "chromium-100", executable: ["chrome-linux64", "chrome"] },
+      {
+        directory: "chromium_headless_shell-200",
+        executable: ["chrome-headless-shell-linux64", "chrome-headless-shell"],
+      },
+      { directory: "chromium-300", executable: ["chrome-linux64", "chrome"] },
+      { directory: "chromium_headless_shell-400", executable: ["unrelated"] },
+      { directory: "firefox-500", executable: ["firefox"] },
+    ]);
+    expect(await findChromium({ bundledPath: join(cacheDir, "none"), cacheDir })).toBe(
+      join(cacheDir, "chromium-300", "chrome-linux64", "chrome"),
+    );
+  });
+
+  test("prefers a newer headless shell over an older full build", async () => {
+    const cacheDir = await scratchRoot();
+    await fakeChromiumFiles(cacheDir, [
+      { directory: "chromium-100", executable: ["chrome-linux64", "chrome"] },
+      {
+        directory: "chromium_headless_shell-200",
+        executable: ["chrome-headless-shell-linux64", "chrome-headless-shell"],
+      },
+    ]);
+    expect(await findChromium({ bundledPath: join(cacheDir, "none"), cacheDir })).toBe(
+      join(
+        cacheDir,
+        "chromium_headless_shell-200",
+        "chrome-headless-shell-linux64",
+        "chrome-headless-shell",
+      ),
+    );
+  });
+
+  test("fails with install guidance when the cache is missing or empty", async () => {
+    const root = await scratchRoot();
+    const lookup = { bundledPath: join(root, "none"), cacheDir: join(root, "no-cache") };
+    expect(await failureOf(findChromium(lookup))).toContain("bunx playwright install chromium");
+    expect(await failureOf(findChromium({ ...lookup, cacheDir: root }))).toContain(
+      "no Chromium found",
+    );
+  });
+
+  test("resolves the default lookup to an existing browser or a clear failure", async () => {
+    const outcome = await findChromium().then(
+      (path) => path,
+      (error: unknown) => (error instanceof Error ? error.message : String(error)),
+    );
+    expect(outcome.length).toBeGreaterThan(0);
+  });
+});
+
+const neverMatches: (url: URL) => boolean = () => false;
+const ignoreRoute: Parameters<ChromiumPage["route"]>[1] = () => Promise.resolve();
+
+async function lookupWithBrowser(): Promise<{ bundledPath: string; cacheDir: string }> {
+  const root = await scratchRoot();
+  const bundledPath = join(root, "chrome");
+  await writeFile(bundledPath, "");
+  return { bundledPath, cacheDir: root };
+}
+
+interface FakePageScript {
+  fontResult: unknown;
+  requestUrls: string[];
+  failGoto?: boolean;
+}
+
+function fakeBrowser(script: FakePageScript): {
+  browser: ChromiumBrowser;
+  launches: { executablePath: string; args: string[] }[];
+  contexts: unknown[];
+  pagesClosed: () => number;
+  browserClosed: () => boolean;
+  viewports: { width: number; height: number }[];
+} {
+  const launches: { executablePath: string; args: string[] }[] = [];
+  const contexts: unknown[] = [];
+  const viewports: { width: number; height: number }[] = [];
+  let pagesClosed = 0;
+  let browserClosed = false;
+  const browser: ChromiumBrowser = {
+    newContext(options) {
+      contexts.push(options);
+      return Promise.resolve({
+        newPage() {
+          let matcher = neverMatches;
+          let handler = ignoreRoute;
+          const page: ChromiumPage = {
+            route(nextMatcher, nextHandler) {
+              matcher = nextMatcher;
+              handler = nextHandler;
+              return Promise.resolve();
+            },
+            setViewportSize(size) {
+              viewports.push(size);
+              return Promise.resolve();
+            },
+            async goto() {
+              if (script.failGoto === true) {
+                throw new Error("navigation failed");
+              }
+              await Promise.all(
+                script.requestUrls
+                  .filter((requestUrl) => matcher(new URL(requestUrl)))
+                  .map((requestUrl) =>
+                    handler({
+                      request: () => ({ url: () => requestUrl }),
+                      abort: () => Promise.resolve(),
+                    }),
+                  ),
+              );
+            },
+            evaluate: () => Promise.resolve(script.fontResult),
+            screenshot: () => Promise.resolve(new Uint8Array([1, 2, 3])),
+            close() {
+              pagesClosed += 1;
+              return Promise.resolve();
+            },
+          };
+          return Promise.resolve(page);
+        },
+      });
+    },
+    close() {
+      browserClosed = true;
+      return Promise.resolve();
+    },
+  };
+  return {
+    browser,
+    launches,
+    contexts,
+    pagesClosed: () => pagesClosed,
+    browserClosed: () => browserClosed,
+    viewports,
+  };
+}
+
+describe("openChromiumRenderer", () => {
+  test("launches the found executable without a sandbox and captures a page", async () => {
+    const lookup = await lookupWithBrowser();
+    const fake = fakeBrowser({
+      fontResult: [],
+      requestUrls: ["file:///brand/og/og.css", "https://example.com/font.woff2"],
+    });
+    const renderer = await openChromiumRenderer((options) => {
+      fake.launches.push(options);
+      return Promise.resolve(fake.browser);
+    }, lookup);
+    const capture = await renderer.capture("file:///brand/og/cover.html", {
+      width: 10,
+      height: 20,
+    });
+    await renderer.close();
+    expect(fake.launches).toEqual([{ executablePath: lookup.bundledPath, args: ["--no-sandbox"] }]);
+    expect(fake.contexts).toEqual([{ deviceScaleFactor: 1, reducedMotion: "reduce" }]);
+    expect(fake.viewports).toEqual([{ width: 10, height: 20 }]);
+    expect([...capture.png]).toEqual([1, 2, 3]);
+    expect(capture.blockedUrls).toEqual(["https://example.com/font.woff2"]);
+    expect(capture.missingFonts).toEqual([]);
+    expect(fake.pagesClosed()).toBe(1);
+    expect(fake.browserClosed()).toBe(true);
+  });
+
+  test("uses Playwright's launcher by default and fails before launching without a browser", async () => {
+    const root = await scratchRoot();
+    expect(
+      await failureOf(
+        openChromiumRenderer(undefined, { bundledPath: join(root, "none"), cacheDir: root }),
+      ),
+    ).toContain("no Chromium found");
+  });
+
+  test("reports the fonts the page failed to load", async () => {
+    const fake = fakeBrowser({ fontResult: ['700 16px "IBM Plex Sans"'], requestUrls: [] });
+    const renderer = await openChromiumRenderer(
+      () => Promise.resolve(fake.browser),
+      await lookupWithBrowser(),
+    );
+    const capture = await renderer.capture("file:///x.html", { width: 1, height: 1 });
+    expect(capture.missingFonts).toEqual(['700 16px "IBM Plex Sans"']);
+  });
+
+  test("rejects an unexpected font check result and still closes the page", async () => {
+    const lookup = await lookupWithBrowser();
+    await Promise.all(
+      ["nope", [1, 2]].map(async (fontResult) => {
+        const fake = fakeBrowser({ fontResult, requestUrls: [] });
+        const renderer = await openChromiumRenderer(() => Promise.resolve(fake.browser), lookup);
+        expect(
+          await failureOf(renderer.capture("file:///x.html", { width: 1, height: 1 })),
+        ).toContain("unexpected value");
+        expect(fake.pagesClosed()).toBe(1);
+      }),
+    );
+  });
+
+  test("closes the page when navigation fails", async () => {
+    const fake = fakeBrowser({ fontResult: [], requestUrls: [], failGoto: true });
+    const renderer = await openChromiumRenderer(
+      () => Promise.resolve(fake.browser),
+      await lookupWithBrowser(),
+    );
+    expect(await failureOf(renderer.capture("file:///x.html", { width: 1, height: 1 }))).toBe(
+      "navigation failed",
+    );
+    expect(fake.pagesClosed()).toBe(1);
   });
 });
