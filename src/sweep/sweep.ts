@@ -34,16 +34,16 @@ import type {
 
 const ATS_SOURCES: ReadonlySet<string> = new Set(ATS_NAMES);
 
-type Prepared = { readonly dir: DataDir; readonly profile: Profile };
+interface Prepared { readonly dir: DataDir; readonly profile: Profile }
 
-type Fetched = {
+interface Fetched {
   readonly source: string;
   readonly postings: Posting[];
   readonly errors: string[];
   readonly warnings: string[];
   readonly misconfigured: boolean;
   readonly nextCursor?: string;
-};
+}
 
 function fail<T>(code: string, message: string): Result<T> {
   return { ok: false, error: { code, message } };
@@ -65,7 +65,7 @@ function trackerFor(
 ): TrackerAdapter {
   if (injected !== undefined) return injected;
   return createTracker(prepared.profile.tracker, prepared.dir, {
-    apiKey: ctx.env["LINEAR_API_KEY"],
+    apiKey: ctx.env.LINEAR_API_KEY,
   });
 }
 
@@ -187,11 +187,11 @@ function statusOf(
   return counts.seen === 0 ? "empty" : "ok";
 }
 
-type Collected = {
+interface Collected {
   readonly reports: SourceReport[];
   readonly events: HuntEvent[];
   readonly leads: string[];
-};
+}
 
 async function ingestFetched(
   prepared: Prepared,

@@ -125,9 +125,9 @@ function parseContact(value: unknown, index: number): Result<ContactDetail> {
   if (email.value === undefined && emailConfidence !== undefined) {
     return invalid(`${where} has emailConfidence without an email`);
   }
-  const sources = parseSources(value["sources"], where);
+  const sources = parseSources(value.sources, where);
   if (!sources.ok) return sources;
-  const recentItems = parseRecentItems(value["recentItems"], where);
+  const recentItems = parseRecentItems(value.recentItems, where);
   if (!recentItems.ok) return recentItems;
   return {
     ok: true,

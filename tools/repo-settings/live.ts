@@ -50,14 +50,14 @@ function text(source: Record<string, unknown>, key: string): string {
 
 /** Reads `security_and_analysis.<feature>.status`, treating a missing feature as disabled. */
 function featureStatus(repo: Record<string, unknown>, feature: string): FeatureStatus {
-  const analysis = repo["security_and_analysis"];
+  const analysis = repo.security_and_analysis;
   const entry = isRecord(analysis) ? analysis[feature] : undefined;
-  return isRecord(entry) && entry["status"] === "enabled" ? "enabled" : "disabled";
+  return isRecord(entry) && entry.status === "enabled" ? "enabled" : "disabled";
 }
 
 /** Reads the topic list, treating a missing list as empty. */
 function topicsOf(repo: Record<string, unknown>): string[] {
-  const topics = repo["topics"];
+  const topics = repo.topics;
   return Array.isArray(topics)
     ? topics.filter((topic): topic is string => typeof topic === "string")
     : [];
@@ -113,13 +113,13 @@ function readRulesets(callGh: GhApi, base: string): Record<string, JsonValue> {
   }
   const rulesets: Record<string, JsonValue> = {};
   for (const entry of list as unknown[]) {
-    if (!isRecord(entry) || typeof entry["id"] !== "number") {
+    if (!isRecord(entry) || typeof entry.id !== "number") {
       throw new Error(`gh api ${listEndpoint} returned a ruleset without an id`);
     }
-    const detail = readObject(callGh, `${listEndpoint}/${entry["id"]}`);
-    const name = detail["name"];
+    const detail = readObject(callGh, `${listEndpoint}/${entry.id}`);
+    const name = detail.name;
     if (typeof name !== "string") {
-      throw new Error(`ruleset ${entry["id"]} has no name`);
+      throw new Error(`ruleset ${entry.id} has no name`);
     }
     if (!isJsonValue(detail)) {
       throw new Error(`ruleset ${name} is not JSON data`);

@@ -12,7 +12,7 @@ const cliPath = path.join(import.meta.dir, "../cli.ts");
 
 let workDir = "";
 
-type CliResult = { code: number; stdout: string; envelope: Record<string, unknown> };
+interface CliResult { code: number; stdout: string; envelope: Record<string, unknown> }
 
 function runCli(
   args: string[],
@@ -20,7 +20,7 @@ function runCli(
 ): CliResult {
   const result = Bun.spawnSync([process.execPath, cliPath, ...args], {
     cwd: options.cwd ?? workDir,
-    env: { PATH: process.env["PATH"] ?? "", HOME: workDir, ...options.env },
+    env: { PATH: process.env.PATH ?? "", HOME: workDir, ...options.env },
   });
   const stdout = result.stdout.toString();
   const lines = stdout.split("\n").filter((line) => line !== "");
@@ -31,7 +31,7 @@ function runCli(
 }
 
 function errorOf(result: CliResult): { code: string; message: string } {
-  const error = result.envelope["error"];
+  const error = result.envelope.error;
   if (!isObject(error)) throw new Error("no error in envelope");
   const { code, message } = error;
   return { code: String(code), message: String(message) };
@@ -77,7 +77,7 @@ describe("doctor", () => {
     writeValidDataDir(fixture);
     const result = runCli(["doctor", "--data", fixture]);
     expect(result.code).toBe(0);
-    expect(result.envelope["ok"]).toBe(true);
+    expect(result.envelope.ok).toBe(true);
   });
 
   test("JOBSHIP_HOME resolves the data dir", () => {
@@ -237,8 +237,8 @@ describe("shared command modules", () => {
     const ledger = runCli(["ledger", "list", "--data", fixture]);
     expect(events.code).toBe(0);
     expect(ledger.code).toBe(0);
-    expect(events.envelope["data"]).toHaveProperty("events");
-    expect(ledger.envelope["data"]).toHaveProperty("entries");
+    expect(events.envelope.data).toHaveProperty("events");
+    expect(ledger.envelope.data).toHaveProperty("entries");
   });
 
   test("an unknown command exits 2", () => {
@@ -256,7 +256,7 @@ describe("usage", () => {
   test.each([[[]], [["--help"]], [["help"]]])("%j prints usage listing every command", (args) => {
     const result = runCli(args);
     expect(result.code).toBe(0);
-    const text = JSON.stringify(result.envelope["data"]);
+    const text = JSON.stringify(result.envelope.data);
     for (const name of ["init", "setup", "doctor", ...Object.keys(COMMANDS)]) {
       expect(text).toContain(name);
     }
@@ -289,7 +289,7 @@ describe("flag registry", () => {
   });
 
   test("status accepts --set", () => {
-    expect(COMMAND_FLAGS["status"]).toContain("--set");
+    expect(COMMAND_FLAGS.status).toContain("--set");
   });
 });
 
@@ -311,6 +311,6 @@ describe("version", () => {
   test("prints the dev version envelope", () => {
     const result = runCli(["--version"]);
     expect(result.code).toBe(0);
-    expect(result.envelope["data"]).toEqual({ version: "0.0.0-dev" });
+    expect(result.envelope.data).toEqual({ version: "0.0.0-dev" });
   });
 });

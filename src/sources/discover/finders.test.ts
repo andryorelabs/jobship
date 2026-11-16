@@ -18,7 +18,7 @@ const CDX_FIXTURES: Record<string, string> = {
   "jobs.smartrecruiters.com": "cdx-smartrecruiters.ndjson",
 };
 
-type Served = { requested: string[]; failures: Map<string, number> };
+interface Served { requested: string[]; failures: Map<string, number> }
 
 function serving(served: Served): FetchFunction {
   return (input) => {

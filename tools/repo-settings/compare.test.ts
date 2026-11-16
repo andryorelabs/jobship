@@ -4,7 +4,7 @@ import { readExpectedSettings } from "./check.ts";
 import { compareSettings, formatDifference } from "./compare.ts";
 import type { JsonValue, RepoSettings } from "./compare.ts";
 
-type JsonObject = { [key: string]: JsonValue };
+interface JsonObject { [key: string]: JsonValue }
 
 /** Whether `value` is a plain JSON object. */
 function isObject(value: JsonValue | undefined): value is JsonObject {
@@ -18,16 +18,16 @@ function freshSettings(): RepoSettings {
 
 /** Rewrites the `develop` ruleset of `settings` through `change`. */
 function changeDevelop(settings: RepoSettings, change: (main: JsonObject) => JsonObject): void {
-  const main = settings.rulesets["develop"];
+  const main = settings.rulesets.develop;
   if (!isObject(main)) {
     throw new Error("missing develop ruleset");
   }
-  settings.rulesets["develop"] = change(main);
+  settings.rulesets.develop = change(main);
 }
 
 /** Maps every rule of `main`. */
 function mapRules(main: JsonObject, change: (rule: JsonObject) => JsonObject): JsonObject {
-  const rules = main["rules"];
+  const rules = main.rules;
   if (!Array.isArray(rules)) {
     throw new Error("main has no rules");
   }
@@ -43,7 +43,7 @@ describe("compareSettings", () => {
     const live = freshSettings();
     live.repository.topics.reverse();
     changeDevelop(live, (main) => {
-      const rules = main["rules"];
+      const rules = main.rules;
       return {
         ...main,
         id: 42,
@@ -59,8 +59,8 @@ describe("compareSettings", () => {
     const live = freshSettings();
     changeDevelop(live, (main) =>
       mapRules(main, (rule) =>
-        isObject(rule["parameters"])
-          ? { ...rule, parameters: { ...rule["parameters"], required_reviewers: [] } }
+        isObject(rule.parameters)
+          ? { ...rule, parameters: { ...rule.parameters, required_reviewers: [] } }
           : rule,
       ),
     );
@@ -86,10 +86,10 @@ describe("compareSettings", () => {
     const live = freshSettings();
     changeDevelop(live, (main) =>
       mapRules(main, (rule) =>
-        isObject(rule["parameters"])
+        isObject(rule.parameters)
           ? {
               ...rule,
-              parameters: { ...rule["parameters"], strict_required_status_checks_policy: false },
+              parameters: { ...rule.parameters, strict_required_status_checks_policy: false },
             }
           : rule,
       ),
@@ -103,11 +103,11 @@ describe("compareSettings", () => {
   test("reports a dropped rule", () => {
     const live = freshSettings();
     changeDevelop(live, (main) => {
-      const rules = main["rules"];
+      const rules = main.rules;
       return {
         ...main,
         rules: Array.isArray(rules)
-          ? rules.filter((rule) => !isObject(rule) || rule["type"] !== "required_signatures")
+          ? rules.filter((rule) => !isObject(rule) || rule.type !== "required_signatures")
           : [],
       };
     });
@@ -120,8 +120,8 @@ describe("compareSettings", () => {
 
   test("reports a missing and an unexpected ruleset", () => {
     const live = freshSettings();
-    delete live.rulesets["tags"];
-    live.rulesets["extra"] = { name: "extra" };
+    delete live.rulesets.tags;
+    live.rulesets.extra = { name: "extra" };
     const paths = compareSettings(freshSettings(), live).map((difference) => difference.path);
     expect(paths).toEqual(["rulesets.extra", "rulesets.tags"]);
   });

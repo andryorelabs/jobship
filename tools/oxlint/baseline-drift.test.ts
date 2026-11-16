@@ -32,7 +32,7 @@ async function readBaselineRules(): Promise<{
   }
   const { rules, overrides } = baseline;
   const firstOverride: unknown = Array.isArray(overrides) ? overrides[0] : undefined;
-  const testRules = isRuleTable(firstOverride) ? firstOverride["rules"] : undefined;
+  const testRules = isRuleTable(firstOverride) ? firstOverride.rules : undefined;
   if (!isRuleTable(rules) || !isRuleTable(testRules)) {
     throw new Error("baseline oxlintrc.json has no rules");
   }

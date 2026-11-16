@@ -343,7 +343,7 @@ describe("review regressions", () => {
           "--json",
           JSON.stringify({ kind: "note", key: "k", text }),
         ],
-        { env: { PATH: process.env["PATH"] ?? "", HOME: dir.path }, stdout: "pipe" },
+        { env: { PATH: process.env.PATH ?? "", HOME: dir.path }, stdout: "pipe" },
       );
     const children = Array.from({ length: 6 }, (_, index) => spawn(`n${index}`));
     const codes = await Promise.all(children.map((child) => child.exited));

@@ -2,11 +2,11 @@ import { normalizeQuestion } from "./blockers.ts";
 
 export type AnswerKey = string;
 
-type AnswerKeyEntry = {
+interface AnswerKeyEntry {
   readonly key: AnswerKey;
   readonly tier: "A" | "B" | "D";
   readonly phrasings: readonly string[];
-};
+}
 
 /**
  * The fixed catalog of recurring form questions. Tier D keys are identity data

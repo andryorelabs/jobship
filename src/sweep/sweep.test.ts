@@ -83,7 +83,7 @@ function rateLimitedAdapter(name: string): SourceAdapter {
 function queryOf(init: RequestInit): string {
   if (typeof init.body !== "string") throw new Error("expected a string request body");
   const parsed: unknown = JSON.parse(init.body);
-  const query = isObject(parsed) ? parsed["query"] : undefined;
+  const query = isObject(parsed) ? parsed.query : undefined;
   if (typeof query !== "string") throw new Error("request body has no query");
   return query;
 }

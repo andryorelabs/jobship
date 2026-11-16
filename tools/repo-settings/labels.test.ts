@@ -46,7 +46,7 @@ function declaredLabels(): string[] {
   const parsed: unknown = Bun.YAML.parse(readGithubFile("labels.yml"));
   if (!Array.isArray(parsed)) throw new Error("labels.yml must be a list");
   return (parsed as unknown[]).map((entry) => {
-    const name = isRecord(entry) ? entry["name"] : undefined;
+    const name = isRecord(entry) ? entry.name : undefined;
     if (typeof name !== "string") throw new Error("every labels.yml entry needs a string name");
     return name;
   });
@@ -55,7 +55,7 @@ function declaredLabels(): string[] {
 /** The labels an issue form applies. */
 function formLabels(file: string): string[] {
   const parsed: unknown = Bun.YAML.parse(readGithubFile(`ISSUE_TEMPLATE/${file}`));
-  const labels = isRecord(parsed) ? parsed["labels"] : undefined;
+  const labels = isRecord(parsed) ? parsed.labels : undefined;
   if (!Array.isArray(labels)) throw new Error(`${file} applies no labels`);
   return (labels as unknown[]).map(String);
 }
@@ -139,8 +139,8 @@ describe("issue forms", () => {
   test("config.yml disables blank issues, links the security advisory and not Discussions", () => {
     const parsed: unknown = Bun.YAML.parse(readGithubFile("ISSUE_TEMPLATE/config.yml"));
     if (!isRecord(parsed)) throw new Error("config.yml must be a mapping");
-    expect(parsed["blank_issues_enabled"]).toBe(false);
-    const links = JSON.stringify(parsed["contact_links"]);
+    expect(parsed.blank_issues_enabled).toBe(false);
+    const links = JSON.stringify(parsed.contact_links);
     expect(links).toContain("/security/advisories/new");
     expect(links.toLowerCase()).not.toContain("discussions");
   });

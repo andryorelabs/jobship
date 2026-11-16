@@ -26,28 +26,28 @@ export type FindCandidates = (options: {
   readonly now?: Date;
 }) => Promise<{ candidates: AtsRef[]; errors: string[] }>;
 
-export type DiscoverDeps = {
+export interface DiscoverDeps {
   readonly findCandidates: FindCandidates;
   readonly fetch: FetchFunction;
   readonly now: Date;
   readonly env: Record<string, string | undefined>;
   readonly sleep?: (milliseconds: number) => Promise<void>;
-};
+}
 
-export type DiscoverOptions = {
+export interface DiscoverOptions {
   readonly limit?: number;
   readonly keyword?: string;
-};
+}
 
-export type DiscoverReport = {
+export interface DiscoverReport {
   readonly candidates: number;
   readonly checked: number;
   readonly kept: number;
   readonly removed: number;
   readonly errors: string[];
-};
+}
 
-type Verdict = { readonly target: AtsRef; readonly passes: boolean };
+interface Verdict { readonly target: AtsRef; readonly passes: boolean }
 
 function companyKey(company: AtsRef): string {
   return `${company.ats}:${company.slug}`;

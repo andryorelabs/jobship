@@ -11,12 +11,12 @@ import type { AnswerResult, AnswerScope } from "./types.ts";
 const ANSWERS_FILE = "answers.json";
 export const GLOBAL_SCOPE: AnswerScope = "global";
 
-export type StoredAnswer = {
+export interface StoredAnswer {
   readonly answerKey: AnswerKey;
   readonly scope: AnswerScope;
   readonly text: string;
   readonly provenance: string;
-};
+}
 
 function storageKey(question: string): AnswerKey {
   return resolveAnswerKey(question) ?? normalizeQuestion(question);
@@ -25,18 +25,18 @@ function storageKey(question: string): AnswerKey {
 function toStoredAnswer(value: unknown): StoredAnswer | null {
   if (
     !isObject(value) ||
-    typeof value["scope"] !== "string" ||
-    typeof value["text"] !== "string" ||
-    typeof value["provenance"] !== "string"
+    typeof value.scope !== "string" ||
+    typeof value.text !== "string" ||
+    typeof value.provenance !== "string"
   ) {
     return null;
   }
   const { scope, text, provenance } = value;
-  if (typeof value["answerKey"] === "string") {
-    return { answerKey: value["answerKey"], scope, text, provenance };
+  if (typeof value.answerKey === "string") {
+    return { answerKey: value.answerKey, scope, text, provenance };
   }
-  if (typeof value["question"] === "string") {
-    return { answerKey: storageKey(value["question"]), scope, text, provenance };
+  if (typeof value.question === "string") {
+    return { answerKey: storageKey(value.question), scope, text, provenance };
   }
   return null;
 }

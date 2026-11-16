@@ -107,23 +107,23 @@ describe("assertRaster", () => {
   const target = { output: "og/cover.png", width: 1280, height: 440, maxBytes: 100 };
 
   test("accepts a PNG of the right size within budget", () => {
-    expect(() => assertRaster(target, fakePng(1280, 440))).not.toThrow();
+    expect(() =>{  assertRaster(target, fakePng(1280, 440)); }).not.toThrow();
   });
 
   test("names the file and both sizes when dimensions differ", () => {
-    expect(() => assertRaster(target, fakePng(1280, 640))).toThrow(
+    expect(() =>{  assertRaster(target, fakePng(1280, 640)); }).toThrow(
       "og/cover.png: expected 1280x440, got 1280x640",
     );
   });
 
   test("fails when the byte budget is exceeded", () => {
-    expect(() => assertRaster(target, fakePng(1280, 440, 80))).toThrow(
+    expect(() =>{  assertRaster(target, fakePng(1280, 440, 80)); }).toThrow(
       "og/cover.png: 113 bytes exceeds the 100 byte budget",
     );
   });
 
   test("fails when the bytes are not a PNG", () => {
-    expect(() => assertRaster(target, new Uint8Array(40))).toThrow("og/cover.png: not a PNG");
+    expect(() =>{  assertRaster(target, new Uint8Array(40)); }).toThrow("og/cover.png: not a PNG");
   });
 });
 

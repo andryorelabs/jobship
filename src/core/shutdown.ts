@@ -1,8 +1,8 @@
 import { EXIT_CODES } from "./exit-codes.ts";
 
-type InterruptSource = {
+interface InterruptSource {
   on(signal: "SIGINT", listener: () => void): unknown;
-};
+}
 
 /** Exits with the interrupted code (130) when SIGINT arrives. */
 export function installInterruptHandler(

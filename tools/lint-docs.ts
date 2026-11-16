@@ -14,7 +14,7 @@ const IGNORED_DIRECTORIES: ReadonlySet<string> = new Set([
 const HEADING_LINE = /^ {0,3}#{1,6}[ \t]+(.+?)[ \t]*#*[ \t]*$/;
 const SLUG_DISALLOWED = /[^\p{L}\p{N}\p{M}\s_-]/gu;
 
-export type BrokenLink = { readonly file: string; readonly line: number; readonly target: string };
+export interface BrokenLink { readonly file: string; readonly line: number; readonly target: string }
 
 /**
  * Lists the markdown files under a directory, skipping dependency and build folders.

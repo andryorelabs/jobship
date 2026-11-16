@@ -51,7 +51,7 @@ const BENIGN_BROWSER_ACTIONS: ReadonlySet<string> = new Set([
 
 const ALLOW: GuardDecision = { decision: "allow" };
 
-export type McpToolName = { readonly server: string; readonly action: string };
+export interface McpToolName { readonly server: string; readonly action: string }
 
 /**
  * Splits an MCP tool name into its server and action. The action is the last
@@ -124,7 +124,7 @@ function decideBrowser(
   sessionId: string | null,
   lookup: LabelLookup,
 ): GuardDecision {
-  const submitKey = toolInput["submitKey"];
+  const submitKey = toolInput.submitKey;
   if (submitKey !== undefined && submitKey !== null && submitKey !== "") {
     return deny("typing with a submit key can submit a form; the human presses Submit");
   }
@@ -142,8 +142,8 @@ function decideBrowser(
   }
   if (
     action === "type_text" &&
-    typeof toolInput["text"] === "string" &&
-    toolInput["text"].trim() === ""
+    typeof toolInput.text === "string" &&
+    toolInput.text.trim() === ""
   ) {
     return deny("type_text with only whitespace can press a focused button");
   }
@@ -154,7 +154,7 @@ function decideBrowser(
   }
   if (action === "drag") return deny("drag is blocked");
   if (action === "handle_dialog") {
-    return toolInput["action"] === "dismiss"
+    return toolInput.action === "dismiss"
       ? ALLOW
       : deny("accepting a dialog can confirm a submit or send; the human accepts it");
   }
@@ -163,7 +163,7 @@ function decideBrowser(
 
 function decideUnchecked(input: unknown, lookup: LabelLookup): GuardDecision {
   if (!isRecord(input)) return deny("hook payload is not a JSON object");
-  const toolName = input["tool_name"];
+  const toolName = input.tool_name;
   if (typeof toolName !== "string" || toolName === "") return deny("hook payload has no tool_name");
   const parsed = parseMcpToolName(toolName);
   if (parsed === "not-mcp") return ALLOW;
@@ -175,11 +175,11 @@ function decideUnchecked(input: unknown, lookup: LabelLookup): GuardDecision {
       : ALLOW;
   }
   if (!BROWSER_SERVER.test(server) && !INTERACTIVE_ACTIONS.has(action)) return ALLOW;
-  const toolInput = input["tool_input"];
+  const toolInput = input.tool_input;
   if (!isRecord(toolInput)) return deny("browser tool call has no readable tool_input");
   const sessionId =
-    typeof input["session_id"] === "string" && input["session_id"] !== ""
-      ? input["session_id"]
+    typeof input.session_id === "string" && input.session_id !== ""
+      ? input.session_id
       : null;
   return decideBrowser(action, server, toolInput, sessionId, lookup);
 }

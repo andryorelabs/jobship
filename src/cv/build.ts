@@ -9,25 +9,25 @@ import { loadBullets, loadFactBank, loadVariants } from "./facts.ts";
 import { selectBullets } from "./select.ts";
 import type { Bullet, Entry } from "./types.ts";
 
-type CompileRequest = {
+interface CompileRequest {
   readonly root: string;
   readonly template: string;
   readonly dataFile: string;
   readonly output: string;
-};
+}
 
-export type TypstRunner = {
+export interface TypstRunner {
   compile(request: CompileRequest): Promise<Result<void>>;
   extractText(pdf: string): Promise<Result<string>>;
-};
+}
 
-export type BuildOptions = {
+export interface BuildOptions {
   readonly name?: string;
   readonly tags?: string[];
   readonly requirements?: string[];
   readonly template?: string;
   readonly runner?: TypstRunner;
-};
+}
 
 const CV_DIRECTORY = "cv";
 const CV_OUTPUT_DIRECTORY = "out";

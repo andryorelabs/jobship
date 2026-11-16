@@ -1,22 +1,22 @@
 export const CHANNELS = ["linkedin", "email"] as const;
 type Channel = (typeof CHANNELS)[number];
 
-export type Draft = {
+export interface Draft {
   readonly channel: Channel;
   readonly body: string;
   readonly addressee?: string;
   readonly company?: string;
-};
+}
 
-export type Recipient = {
+export interface Recipient {
   readonly name: string;
-};
+}
 
-export type OutreachEntry = {
+export interface OutreachEntry {
   readonly channel: Channel;
   readonly recipient: string;
   readonly key?: string;
-};
+}
 
 type LintRule =
   | "too-long"
@@ -26,7 +26,7 @@ type LintRule =
   | "wrong-name"
   | "wrong-company";
 
-export type LintFinding = {
+export interface LintFinding {
   readonly rule: LintRule;
   readonly message: string;
-};
+}

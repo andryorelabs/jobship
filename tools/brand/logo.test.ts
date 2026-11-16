@@ -63,7 +63,7 @@ function findLogoProblems(fileName: string, svgText: string, palette: Set<string
   if (/\b(?:xlink:)?href\s*=|url\(|@import|<image\b/.test(svgText)) {
     problems.push(`${fileName}: references another file`);
   }
-  const external = svgText.replaceAll(`xmlns="${SVG_NAMESPACE}"`, "").match(/https?:\/\/[^\s"')]+/);
+  const external = /https?:\/\/[^\s"')]+/.exec(svgText.replaceAll(`xmlns="${SVG_NAMESPACE}"`, ""));
   if (external !== null) {
     problems.push(`${fileName}: external reference ${external[0]}`);
   }
