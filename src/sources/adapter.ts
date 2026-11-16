@@ -1,15 +1,15 @@
 import type { Posting, SourceAdapter, SourceQuery, SourceResult } from "../core/types.ts";
 import { getJson, type FetchFunction } from "./http.ts";
 
-export type Parsed = { readonly postings: Posting[]; readonly warnings: string[] };
-export type ParseFailure = { readonly error: string };
+export interface Parsed { readonly postings: Posting[]; readonly warnings: string[] }
+export interface ParseFailure { readonly error: string }
 
-export type AdapterSpec = {
+export interface AdapterSpec {
   readonly name: string;
   readonly requiresSlug: boolean;
   url(query: SourceQuery): string;
   parse(body: unknown, query: SourceQuery): Parsed | ParseFailure;
-};
+}
 
 function isParseFailure(value: Parsed | ParseFailure): value is ParseFailure {
   return "error" in value;

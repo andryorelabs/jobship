@@ -82,7 +82,7 @@ export function copyLine(copy: string, heading: string): string {
   return block?.[1] ?? "";
 }
 
-type LockEntry = { readonly skillPath?: unknown; readonly computedHash?: unknown };
+interface LockEntry { readonly skillPath?: unknown; readonly computedHash?: unknown }
 
 /**
  * Compares a skills lock with the skills on disk, in both directions, and checks each hash.
@@ -212,10 +212,10 @@ describe("brand copy", () => {
   test("the manifest descriptions equal their copy lines", () => {
     const pluginDescription = copyLine(copy, "plugin description");
     const marketplace = readJson(".claude-plugin/marketplace.json");
-    const plugins = marketplace["plugins"];
-    expect(readJson("package.json")["description"]).toBe(copyLine(copy, "package description"));
-    expect(readJson(".claude-plugin/plugin.json")["description"]).toBe(pluginDescription);
-    expect(field(marketplace["metadata"], "description")).toBe(pluginDescription);
+    const plugins = marketplace.plugins;
+    expect(readJson("package.json").description).toBe(copyLine(copy, "package description"));
+    expect(readJson(".claude-plugin/plugin.json").description).toBe(pluginDescription);
+    expect(field(marketplace.metadata, "description")).toBe(pluginDescription);
     expect(
       Array.isArray(plugins) ? plugins.map((entry) => field(entry, "description")) : [],
     ).toEqual([pluginDescription]);
@@ -237,7 +237,7 @@ describe("skills lock", () => {
   });
 
   test("skills-lock.json matches .claude/skills, with copy mode and a path per skill", () => {
-    const skills = readJson("skills-lock.json")["skills"];
+    const skills = readJson("skills-lock.json").skills;
     if (!isObject(skills)) throw new Error("skills-lock.json has no skills object");
     const lock: Record<string, LockEntry> = {};
     for (const [name, entry] of Object.entries(skills)) {

@@ -53,7 +53,7 @@ function decide(stdin: string, repoRoot: string): string | null {
   return decision === "deny" ? denyOutput(DENY_REASON) : null;
 }
 
-const output = decide(await Bun.stdin.text(), process.env["CLAUDE_PROJECT_DIR"] ?? process.cwd());
+const output = decide(await Bun.stdin.text(), process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
 if (output !== null) {
   process.stdout.write(`${output}\n`);
 }

@@ -48,11 +48,11 @@ export function extractUrl(cell: string): string {
   return bare?.[0] ?? "";
 }
 
-export type TableBlock = {
+export interface TableBlock {
   readonly headers: readonly string[];
   readonly columns: readonly string[];
   readonly rows: TableRow[];
-};
+}
 
 export function parseTables(markdown: string): TableRow[][] {
   return parseTableBlocks(markdown).map((block) => block.rows);

@@ -25,7 +25,7 @@ function collector(isTTY: boolean): {
 
 function runCliRaw(args: string[]): { stdout: string; stderr: string; code: number } {
   const result = Bun.spawnSync([process.execPath, cliPath, ...args], {
-    env: { PATH: process.env["PATH"] ?? "", HOME: "/nonexistent" },
+    env: { PATH: process.env.PATH ?? "", HOME: "/nonexistent" },
   });
   return {
     stdout: result.stdout.toString(),
@@ -80,7 +80,7 @@ describe("writeBanner", () => {
         throw new Error("closed");
       },
     };
-    expect(() => writeBanner(stream, {})).not.toThrow();
+    expect(() =>{  writeBanner(stream, {}); }).not.toThrow();
   });
 });
 

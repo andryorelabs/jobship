@@ -21,7 +21,7 @@ let root: string;
 beforeEach(() => {
   root = mkdtempSync(path.join(tmpdir(), "interview-"));
 });
-afterEach(() => rmSync(root, { recursive: true, force: true }));
+afterEach(() =>{  rmSync(root, { recursive: true, force: true }); });
 
 describe("prep pack", () => {
   test("scaffold references only existing fact ids", () => {

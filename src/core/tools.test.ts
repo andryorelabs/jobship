@@ -104,7 +104,7 @@ describe("cache dir after the rename", () => {
 
   test("defaults to ~/.cache/jobship", () => {
     const binary = placeTypst(path.join(root, ".cache", "jobship"));
-    expect(resolveTypst({ HOME: root, PATH: env["PATH"] })).toEqual({
+    expect(resolveTypst({ HOME: root, PATH: env.PATH })).toEqual({
       path: binary,
       source: "cache",
     });

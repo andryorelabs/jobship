@@ -42,7 +42,7 @@ export function mapState(text: string): ApplicationState | null {
   return STATE_ALIASES[normalized] ?? null;
 }
 
-export type OutcomeMapping = { readonly known: boolean; readonly state: ApplicationState | null };
+export interface OutcomeMapping { readonly known: boolean; readonly state: ApplicationState | null }
 
 export function mapOutcome(text: string): OutcomeMapping {
   const normalized = normalize(text);
@@ -53,7 +53,7 @@ export function mapOutcome(text: string): OutcomeMapping {
   return { known: state !== null, state };
 }
 
-export type VerdictOutcome = { readonly known: boolean; readonly state: ApplicationState | null };
+export interface VerdictOutcome { readonly known: boolean; readonly state: ApplicationState | null }
 
 export function mapVerdict(text: string): VerdictOutcome {
   const normalized = normalize(text);

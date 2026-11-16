@@ -14,10 +14,10 @@ function readJson(relative: string): Record<string, unknown> {
 describe("plugin manifest", () => {
   test("plugin.json carries the version and marketplace.json lists the plugin", () => {
     const manifest = readJson(".claude-plugin/plugin.json");
-    expect(manifest["name"]).toBe("jobship");
-    expect(manifest["version"]).toMatch(/^\d+\.\d+\.\d+/);
+    expect(manifest.name).toBe("jobship");
+    expect(manifest.version).toMatch(/^\d+\.\d+\.\d+/);
     const marketplace = readJson(".claude-plugin/marketplace.json");
-    expect(JSON.stringify(marketplace["plugins"])).toContain('"name":"jobship"');
+    expect(JSON.stringify(marketplace.plugins)).toContain('"name":"jobship"');
     expect(JSON.stringify(marketplace)).not.toContain("version");
   });
 
@@ -37,18 +37,18 @@ describe("plugin manifest", () => {
 describe("repo tooling", () => {
   test("selfCheck runs check and test", () => {
     const config = readJson("emet.config.json");
-    expect(JSON.stringify(config["commands"])).toContain(
+    expect(JSON.stringify(config.commands)).toContain(
       '"selfCheck":["bun run check","bun run test"]',
     );
   });
 
   test("the check script runs typecheck and lint", () => {
-    const scripts = readJson("package.json")["scripts"];
+    const scripts = readJson("package.json").scripts;
     expect(JSON.stringify(scripts)).toContain("bun run typecheck && bun run lint");
   });
 
   test("tsconfig enables the required strict flags", () => {
-    const options = readJson("tsconfig.json")["compilerOptions"];
+    const options = readJson("tsconfig.json").compilerOptions;
     for (const flag of [
       "strict",
       "noUncheckedIndexedAccess",
@@ -101,15 +101,15 @@ describe("manifest identity fields", () => {
 
   test("plugin.json carries author, homepage, repository and license", () => {
     const manifest = readJson(".claude-plugin/plugin.json");
-    expect(manifest["author"], "plugin.json author").toEqual(author);
-    expect(manifest["homepage"], "plugin.json homepage").toBe(`${repository}#readme`);
-    expect(manifest["repository"], "plugin.json repository").toBe(repository);
-    expect(manifest["license"], "plugin.json license").toBe("MIT");
+    expect(manifest.author, "plugin.json author").toEqual(author);
+    expect(manifest.homepage, "plugin.json homepage").toBe(`${repository}#readme`);
+    expect(manifest.repository, "plugin.json repository").toBe(repository);
+    expect(manifest.license, "plugin.json license").toBe("MIT");
   });
 
   test("the marketplace plugin entry carries author, homepage, repository and license", () => {
     const marketplace = readJson(".claude-plugin/marketplace.json");
-    const entries = marketplace["plugins"];
+    const entries = marketplace.plugins;
     if (!Array.isArray(entries)) throw new Error("marketplace.json plugins is not an array");
     const entry: unknown = entries[0];
     expect(entry, "marketplace.json plugin entry").toMatchObject({
@@ -123,18 +123,18 @@ describe("manifest identity fields", () => {
 
 describe("brand copy on the manifests", () => {
   test("package.json description equals the copy.md package description", () => {
-    expect(readJson("package.json")["description"], "package.json description").toBe(
+    expect(readJson("package.json").description, "package.json description").toBe(
       copyLine("package description"),
     );
   });
 
   test("package.json keywords include jobship", () => {
     const manifest = readJson("package.json");
-    expect(JSON.stringify(manifest["keywords"]), "package.json keywords").toContain('"jobship"');
+    expect(JSON.stringify(manifest.keywords), "package.json keywords").toContain('"jobship"');
   });
 
   test("plugin.json description equals the copy.md plugin description", () => {
-    expect(readJson(".claude-plugin/plugin.json")["description"], "plugin.json description").toBe(
+    expect(readJson(".claude-plugin/plugin.json").description, "plugin.json description").toBe(
       copyLine("plugin description"),
     );
   });
@@ -142,11 +142,11 @@ describe("brand copy on the manifests", () => {
   test("marketplace.json descriptions equal the plugin description and the owner is the org", () => {
     const marketplace = readJson(".claude-plugin/marketplace.json");
     const line = copyLine("plugin description");
-    expect(marketplace["owner"], "marketplace.json owner").toEqual({ name: "andryorelabs" });
-    expect(JSON.stringify(marketplace["plugins"]), "marketplace.json plugin description").toContain(
+    expect(marketplace.owner, "marketplace.json owner").toEqual({ name: "andryorelabs" });
+    expect(JSON.stringify(marketplace.plugins), "marketplace.json plugin description").toContain(
       JSON.stringify(line),
     );
-    expect(JSON.stringify(marketplace["metadata"]), "marketplace.json metadata").toContain(
+    expect(JSON.stringify(marketplace.metadata), "marketplace.json metadata").toContain(
       JSON.stringify(line),
     );
   });
@@ -175,13 +175,13 @@ describe("plugin contract", () => {
     expect(directories.length).toBeGreaterThan(0);
     for (const directory of directories) {
       const fields = frontmatter(path.join(root, "skills", directory, "SKILL.md"));
-      expect(fields["name"], `skills/${directory} name`).toBe(directory);
-      expect(fields["description"], `skills/${directory} description`).toContain("Use when");
+      expect(fields.name, `skills/${directory} name`).toBe(directory);
+      expect(fields.description, `skills/${directory} description`).toContain("Use when");
     }
   });
 
   test("hooks.json registers the Guard on PreToolUse and the recorder on PostToolUse", () => {
-    const hooks = readJson("hooks/hooks.json")["hooks"];
+    const hooks = readJson("hooks/hooks.json").hooks;
     if (typeof hooks !== "object" || hooks === null) throw new Error("hooks.json has no hooks");
     const events = new Map(Object.entries(hooks));
     const pre = JSON.stringify(events.get("PreToolUse"));
@@ -195,26 +195,26 @@ describe("plugin contract", () => {
   test("every agent pins model and effort", () => {
     for (const file of listDirectory("agents").filter((entry) => entry.endsWith(".md"))) {
       const fields = frontmatter(path.join(root, "agents", file));
-      expect(fields["model"], `agents/${file} model`).toBeTruthy();
-      expect(fields["effort"], `agents/${file} effort`).toBeTruthy();
+      expect(fields.model, `agents/${file} model`).toBeTruthy();
+      expect(fields.effort, `agents/${file} effort`).toBeTruthy();
     }
   });
 
   test("agents that read untrusted input list a restricted tools allowlist", () => {
     const reader = frontmatter(path.join(root, "agents/posting-reader.md"));
-    expect(reader["tools"], "posting-reader tools").toBe("WebFetch");
+    expect(reader.tools, "posting-reader tools").toBe("WebFetch");
     for (const file of listDirectory("agents").filter((entry) => entry.endsWith(".md"))) {
       const fields = frontmatter(path.join(root, "agents", file));
-      expect(fields["tools"], `agents/${file} tools`).toBeTruthy();
-      expect(fields["tools"], `agents/${file} tools`).not.toMatch(/Bash|Write|Edit/);
+      expect(fields.tools, `agents/${file} tools`).toBeTruthy();
+      expect(fields.tools, `agents/${file} tools`).not.toMatch(/Bash|Write|Edit/);
     }
   });
 
   test("plugin.json has bugs and its homepage equals package.json's", () => {
     const manifest = readJson(".claude-plugin/plugin.json");
-    expect(manifest["bugs"], "plugin.json bugs").toBe(
+    expect(manifest.bugs, "plugin.json bugs").toBe(
       "https://github.com/andryorelabs/jobship/issues",
     );
-    expect(manifest["homepage"], "plugin.json homepage").toBe(readJson("package.json")["homepage"]);
+    expect(manifest.homepage, "plugin.json homepage").toBe(readJson("package.json").homepage);
   });
 });

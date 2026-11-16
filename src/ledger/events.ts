@@ -46,7 +46,7 @@ export function discardUncommittedTail(file: string): void {
 }
 
 function isHuntEvent(value: unknown): value is HuntEvent {
-  return isObject(value) && typeof value["kind"] === "string" && typeof value["id"] === "string";
+  return isObject(value) && typeof value.kind === "string" && typeof value.id === "string";
 }
 
 export async function appendEvent(dir: DataDir, event: NewEvent): Promise<HuntEvent> {

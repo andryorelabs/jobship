@@ -59,9 +59,9 @@ function checkContractTypes(value: unknown): Checked<readonly ContractType[]> {
 
 function checkStack(value: unknown): Checked<Profile["stack"]> {
   if (!isObject(value)) return fail("stack", "must be an object with include and exclude lists");
-  const include = checkStringList(value["include"], "stack.include");
+  const include = checkStringList(value.include, "stack.include");
   if ("problem" in include) return include;
-  const exclude = checkStringList(value["exclude"], "stack.exclude");
+  const exclude = checkStringList(value.exclude, "stack.exclude");
   if ("problem" in exclude) return exclude;
   return { value: { include: include.value, exclude: exclude.value } };
 }
@@ -139,7 +139,7 @@ function checkTracker(value: unknown): Checked<TrackerConfig> {
   };
 }
 
-type ProfileFailure = { readonly ok: false; readonly error: { code: string; message: string } };
+interface ProfileFailure { readonly ok: false; readonly error: { code: string; message: string } }
 
 function failed(message: string): ProfileFailure {
   return { ok: false, error: { code: "profile-malformed", message } };
@@ -158,21 +158,21 @@ export function validateProfileWithWarnings(
     .filter((key) => !isOneOf(PROFILE_KEYS, key))
     .map((key) => `${key}: unknown field, ignored`);
 
-  const regions = checkStringList(raw["regions"], "regions");
+  const regions = checkStringList(raw.regions, "regions");
   if ("problem" in regions) return failed(regions.problem);
-  const contractTypes = checkContractTypes(raw["contractTypes"]);
+  const contractTypes = checkContractTypes(raw.contractTypes);
   if ("problem" in contractTypes) return failed(contractTypes.problem);
-  const remote = raw["remote"];
+  const remote = raw.remote;
   if (!isOneOf(REMOTE_PREFERENCES, remote)) {
     return failed(`remote: must be one of ${REMOTE_PREFERENCES.join(", ")}`);
   }
-  const stack = checkStack(raw["stack"]);
+  const stack = checkStack(raw.stack);
   if ("problem" in stack) return failed(stack.problem);
-  const salaryFloor = checkSalaryFloor(raw["salaryFloor"]);
+  const salaryFloor = checkSalaryFloor(raw.salaryFloor);
   if ("problem" in salaryFloor) return failed(salaryFloor.problem);
-  const excludedCompanies = checkStringList(raw["excludedCompanies"], "excludedCompanies");
+  const excludedCompanies = checkStringList(raw.excludedCompanies, "excludedCompanies");
   if ("problem" in excludedCompanies) return failed(excludedCompanies.problem);
-  const outreachDailyCap = raw["outreachDailyCap"];
+  const outreachDailyCap = raw.outreachDailyCap;
   if (
     typeof outreachDailyCap !== "number" ||
     !Number.isInteger(outreachDailyCap) ||
@@ -180,9 +180,9 @@ export function validateProfileWithWarnings(
   ) {
     return failed("outreachDailyCap: must be a non-negative integer");
   }
-  const sources = checkStringList(raw["sources"], "sources");
+  const sources = checkStringList(raw.sources, "sources");
   if ("problem" in sources) return failed(sources.problem);
-  const tracker = checkTracker(raw["tracker"]);
+  const tracker = checkTracker(raw.tracker);
   if ("problem" in tracker) return failed(tracker.problem);
 
   return {

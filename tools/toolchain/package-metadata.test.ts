@@ -19,24 +19,24 @@ async function brandCopyLine(heading: string): Promise<string> {
 describe("package.json metadata", () => {
   test("carries the package description from the brand copy", async () => {
     const manifest = await readRootManifest();
-    expect(manifest["description"]).toBe(await brandCopyLine("package description"));
+    expect(manifest.description).toBe(await brandCopyLine("package description"));
   });
 
   test("names the license and the author", async () => {
     const manifest = await readRootManifest();
-    expect(manifest["license"]).toBe("MIT");
-    expect(manifest["author"]).toBe("Andry Orellana <hello@andryore.dev>");
+    expect(manifest.license).toBe("MIT");
+    expect(manifest.author).toBe("Andry Orellana <hello@andryore.dev>");
   });
 
   test("points homepage, repository and bugs at github.com/andryorelabs/jobship", async () => {
     const manifest = await readRootManifest();
-    expect(manifest["homepage"]).toBe("https://github.com/andryorelabs/jobship#readme");
-    expect(manifest["repository"]).toEqual({
+    expect(manifest.homepage).toBe("https://github.com/andryorelabs/jobship#readme");
+    expect(manifest.repository).toEqual({
       type: "git",
       url: "git+https://github.com/andryorelabs/jobship.git",
     });
-    const bugs = manifest["bugs"];
-    expect(isRecord(bugs) ? bugs["url"] : undefined).toBe(
+    const bugs = manifest.bugs;
+    expect(isRecord(bugs) ? bugs.url : undefined).toBe(
       "https://github.com/andryorelabs/jobship/issues",
     );
   });

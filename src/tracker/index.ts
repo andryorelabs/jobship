@@ -16,10 +16,10 @@ const LEAD_MAP_FILE = "tracker-leads.json";
 const EVENT_MAP_FILE = "tracker-events.json";
 const LOCK_DIRECTORY = ".tracker";
 
-export type TrackerEnvironment = {
+export interface TrackerEnvironment {
   readonly apiKey?: string | undefined;
   readonly fetch?: FetchLike;
-};
+}
 
 function mappingFor(config: Profile["tracker"]): LinearMapping {
   return {
@@ -36,7 +36,7 @@ export function createTracker(
 ): TrackerAdapter {
   if (config.kind === "local") return createLocalTracker(config.directory, dir);
   return createLinearTracker({
-    apiKey: "apiKey" in environment ? environment.apiKey : process.env["LINEAR_API_KEY"],
+    apiKey: "apiKey" in environment ? environment.apiKey : process.env.LINEAR_API_KEY,
     team: config.team,
     mapping: mappingFor(config),
     ...(config.titleFormat === undefined ? {} : { titleFormat: config.titleFormat }),
@@ -133,7 +133,7 @@ async function projectKey(
   return { ok: true, value: { created: existing.value === null, updated: updated.value } };
 }
 
-type Totals = { readonly created: number; readonly updated: number };
+interface Totals { readonly created: number; readonly updated: number }
 
 async function projectGroups(
   tracker: TrackerAdapter,

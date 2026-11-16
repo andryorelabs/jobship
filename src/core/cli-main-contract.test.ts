@@ -5,14 +5,14 @@ import path from "node:path";
 
 import { dispatch, runMain, type MainIo } from "../cli.ts";
 
-type Fakes = {
+interface Fakes {
   io: MainIo;
   stdout: string[];
   stderr: string[];
   fetched: string[];
   written: { file: string; text: string }[];
   spawns: { count: number };
-};
+}
 
 function fakes(options: {
   tty: boolean;

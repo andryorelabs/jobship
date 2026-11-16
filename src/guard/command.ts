@@ -9,13 +9,13 @@ import { lookupLabel, parseSnapshotLabels, recordSnapshot } from "./snapshot.ts"
 
 export const MAX_STDIN_BYTES = 1024 * 1024;
 
-type HookOutput = {
+interface HookOutput {
   readonly hookSpecificOutput: {
     readonly hookEventName: "PreToolUse";
     readonly permissionDecision: "deny";
     readonly permissionDecisionReason: string;
   };
-};
+}
 
 /**
  * Turns a Guard decision into PreToolUse hook output. The Guard never grants
@@ -76,15 +76,15 @@ export function recordFromPayload(text: string): void {
   const payload = parseJson(text);
   if (!isObject(payload)) return;
   const record = payload;
-  const sessionId = record["session_id"];
+  const sessionId = record.session_id;
   if (typeof sessionId !== "string" || sessionId === "") return;
-  const toolName = record["tool_name"];
+  const toolName = record.tool_name;
   if (typeof toolName !== "string") return;
   const parsed = parseMcpToolName(toolName);
   if (parsed === null || parsed === "not-mcp") return;
   recordSnapshot(
     snapshotScope(sessionId, parsed.server),
-    parseSnapshotLabels(record["tool_response"]),
+    parseSnapshotLabels(record.tool_response),
   );
 }
 

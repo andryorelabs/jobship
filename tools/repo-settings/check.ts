@@ -38,7 +38,7 @@ function rulesetName(ruleset: JsonValue): string | undefined {
   if (typeof ruleset !== "object" || ruleset === null || Array.isArray(ruleset)) {
     return undefined;
   }
-  const name = ruleset["name"];
+  const name = ruleset.name;
   return typeof name === "string" ? name : undefined;
 }
 
