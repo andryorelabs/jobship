@@ -8,15 +8,23 @@ export type JsonValue =
 
 export type FeatureStatus = "enabled" | "disabled";
 
+export type WorkflowPermissions = "read" | "write";
+
+export type CodeScanningSetup = "configured" | "not-configured";
+
 /** The repository settings kept as code in `.github/repo-settings.json`. */
 export interface RepositorySettings {
+  description: string;
   homepage: string;
+  default_branch: string;
   topics: string[];
   allow_squash_merge: boolean;
   allow_merge_commit: boolean;
   allow_rebase_merge: boolean;
   squash_merge_commit_title: string;
   squash_merge_commit_message: string;
+  merge_commit_title: string;
+  merge_commit_message: string;
   delete_branch_on_merge: boolean;
   allow_auto_merge: boolean;
   allow_update_branch: boolean;
@@ -28,6 +36,10 @@ export interface RepositorySettings {
   dependabot_alerts: boolean;
   dependabot_security_updates: FeatureStatus;
   private_vulnerability_reporting: boolean;
+  default_workflow_permissions: WorkflowPermissions;
+  can_approve_pull_request_reviews: boolean;
+  fork_pr_contributor_approval: string;
+  code_scanning_default_setup: CodeScanningSetup;
 }
 
 /** Repository settings plus every ruleset, keyed by ruleset name. */
@@ -200,9 +212,14 @@ export function formatDifference(difference: SettingDifference): string {
 }
 
 const STRING_KEYS = [
+  "description",
   "homepage",
+  "default_branch",
   "squash_merge_commit_title",
   "squash_merge_commit_message",
+  "merge_commit_title",
+  "merge_commit_message",
+  "fork_pr_contributor_approval",
 ] as const;
 
 const BOOLEAN_KEYS = [
@@ -217,6 +234,7 @@ const BOOLEAN_KEYS = [
   "has_discussions",
   "dependabot_alerts",
   "private_vulnerability_reporting",
+  "can_approve_pull_request_reviews",
 ] as const;
 
 const STATUS_KEYS = [
@@ -248,6 +266,8 @@ export function isRepositorySettings(value: unknown): value is RepositorySetting
     topics.every((topic) => typeof topic === "string") &&
     STRING_KEYS.every((key) => typeof record.get(key) === "string") &&
     BOOLEAN_KEYS.every((key) => typeof record.get(key) === "boolean") &&
-    STATUS_KEYS.every((key) => ["enabled", "disabled"].includes(String(record.get(key))))
+    STATUS_KEYS.every((key) => ["enabled", "disabled"].includes(String(record.get(key)))) &&
+    ["read", "write"].includes(String(record.get("default_workflow_permissions"))) &&
+    ["configured", "not-configured"].includes(String(record.get("code_scanning_default_setup")))
   );
 }

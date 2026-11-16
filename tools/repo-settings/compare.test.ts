@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { readExpectedSettings } from "./check.ts";
-import { compareSettings, formatDifference } from "./compare.ts";
+import { compareSettings, formatDifference, isJsonValue, isRepositorySettings } from "./compare.ts";
 import type { JsonValue, RepoSettings } from "./compare.ts";
 
 type JsonObject = Record<string, JsonValue>;
@@ -130,5 +130,84 @@ describe("compareSettings", () => {
     expect(
       formatDifference({ path: "repository.has_wiki", expected: false, live: undefined }),
     ).toBe("repository.has_wiki: expected false, live (missing)");
+  });
+});
+
+describe("every setting is compared", () => {
+  const drifted: Record<string, string | boolean> = {
+    description: "other",
+    homepage: "https://example.com",
+    default_branch: "develop",
+    allow_squash_merge: false,
+    allow_merge_commit: false,
+    allow_rebase_merge: true,
+    squash_merge_commit_title: "COMMIT_OR_PR_TITLE",
+    squash_merge_commit_message: "COMMIT_MESSAGES",
+    merge_commit_title: "MERGE_MESSAGE",
+    merge_commit_message: "PR_TITLE",
+    delete_branch_on_merge: false,
+    allow_auto_merge: false,
+    allow_update_branch: false,
+    has_wiki: true,
+    has_projects: true,
+    has_discussions: true,
+    secret_scanning: "disabled",
+    secret_scanning_push_protection: "disabled",
+    dependabot_alerts: false,
+    dependabot_security_updates: "disabled",
+    private_vulnerability_reporting: false,
+    default_workflow_permissions: "write",
+    can_approve_pull_request_reviews: true,
+    fork_pr_contributor_approval: "all_external_contributors",
+    code_scanning_default_setup: "configured",
+  };
+
+  test("the table names every key of repo-settings.json", () => {
+    const keys = Object.keys(readExpectedSettings().repository).filter((key) => key !== "topics");
+    expect(Object.keys(drifted).toSorted()).toEqual(keys.toSorted());
+  });
+
+  for (const [key, value] of Object.entries(drifted)) {
+    test(`reports drift in ${key}`, () => {
+      const live = freshSettings();
+      Object.assign(live.repository, { [key]: value });
+      expect(compareSettings(freshSettings(), live).map((difference) => difference.path)).toEqual([
+        `repository.${key}`,
+      ]);
+    });
+  }
+
+  test("reports live merge_commit_title MERGE_MESSAGE with both values", () => {
+    const live = freshSettings();
+    live.repository.merge_commit_title = "MERGE_MESSAGE";
+    expect(compareSettings(freshSettings(), live)).toEqual([
+      { path: "repository.merge_commit_title", expected: "PR_TITLE", live: "MERGE_MESSAGE" },
+    ]);
+  });
+});
+
+describe("isRepositorySettings", () => {
+  const valid = readExpectedSettings().repository;
+
+  test("accepts the settings file", () => {
+    expect(isRepositorySettings(valid)).toBe(true);
+  });
+
+  test("rejects a missing, mistyped or out-of-range setting", () => {
+    expect(isRepositorySettings(null)).toBe(false);
+    expect(isRepositorySettings({ ...valid, topics: [1] })).toBe(false);
+    expect(isRepositorySettings({ ...valid, description: undefined })).toBe(false);
+    expect(isRepositorySettings({ ...valid, has_wiki: "no" })).toBe(false);
+    expect(isRepositorySettings({ ...valid, secret_scanning: "on" })).toBe(false);
+    expect(isRepositorySettings({ ...valid, default_workflow_permissions: "admin" })).toBe(false);
+    expect(isRepositorySettings({ ...valid, code_scanning_default_setup: "maybe" })).toBe(false);
+  });
+});
+
+describe("isJsonValue", () => {
+  test("accepts JSON data and rejects anything else", () => {
+    expect(isJsonValue({ a: [1, "b", null, true] })).toBe(true);
+    expect(isJsonValue([undefined])).toBe(false);
+    expect(isJsonValue({ a: () => 1 })).toBe(false);
   });
 });
