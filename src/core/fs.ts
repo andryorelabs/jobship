@@ -10,6 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+
 import { errnoCode, isObject } from "./narrow.ts";
 
 const LOCK_DIRECTORY_NAME = ".jobship.lock";

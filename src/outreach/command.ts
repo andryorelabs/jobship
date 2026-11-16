@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+
+import { readContacts } from "../contact/store.ts";
 import type { CommandContext } from "../core/commands.ts";
 import { loadProfile } from "../core/data-dir.ts";
 import { failure, success, type Envelope } from "../core/envelope.ts";
 import { errorMessage, isOneOf } from "../core/narrow.ts";
-import { readContacts } from "../contact/store.ts";
 import { lintDraft } from "./lint.ts";
 import { logOutreach } from "./log.ts";
 import { CHANNELS, type Draft } from "./types.ts";

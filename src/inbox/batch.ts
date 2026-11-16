@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+
 import { approvalHash, batchKey, IdempotencyMap, lookupBatchHash } from "../core/approval.ts";
 import type { CommandContext } from "../core/commands.ts";
 import { loadProfile } from "../core/data-dir.ts";

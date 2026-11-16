@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+
 import { compareSettings, formatDifference, isJsonValue, isRepositorySettings } from "./compare.ts";
 import type { JsonValue, RepoSettings } from "./compare.ts";
 import { readLiveSettings } from "./live.ts";

@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+
 import type { OxlintConfig } from "oxlint";
+
 import configuration from "../../oxlint.config.ts";
 
 const config: OxlintConfig = configuration;

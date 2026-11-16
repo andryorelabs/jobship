@@ -2,14 +2,15 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import type { CommandContext } from "../core/commands.ts";
 import { isObject } from "../core/narrow.ts";
 import type { HuntEvent, Posting, SourceAdapter, SourceResult } from "../core/types.ts";
 import { dedupKey, readLedger } from "../ledger/dedup.ts";
 import { readEvents } from "../ledger/events.ts";
 import { createTracker } from "../tracker/index.ts";
-import type { FetchLike } from "../tracker/linear.ts";
 import linearFixture from "../tracker/linear-fixture.json";
+import type { FetchLike } from "../tracker/linear.ts";
 import { run } from "./command.ts";
 import { recordScore } from "./score.ts";
 import { ingestPostings, runSweep } from "./sweep.ts";

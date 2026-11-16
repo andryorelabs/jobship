@@ -11,12 +11,12 @@ import {
 import os from "node:os";
 import path from "node:path";
 
+import { listAnswers } from "../apply/answers.ts";
 import type { FetchLike } from "../tracker/linear.ts";
 import type { CommandContext } from "./commands.ts";
-import { listAnswers } from "../apply/answers.ts";
 import { runDoctor } from "./doctor.ts";
-import { runInit } from "./init.ts";
 import { exitCodeFor } from "./envelope.ts";
+import { runInit } from "./init.ts";
 import { isObject } from "./narrow.ts";
 
 const RECOVERY =

@@ -2,13 +2,14 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { IdempotencyMap } from "../core/approval.ts";
 import { isObject } from "../core/narrow.ts";
 import type { HuntEvent, Posting } from "../core/types.ts";
 import { appendEvent, readEvents } from "../ledger/events.ts";
 import { createTracker, projectEvents } from "./index.ts";
-import { createLinearTracker, type FetchLike } from "./linear.ts";
 import fixture from "./linear-fixture.json";
+import { createLinearTracker, type FetchLike } from "./linear.ts";
 
 const API_KEY = "lin_api_synthetic_secret_key";
 

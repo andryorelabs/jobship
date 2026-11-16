@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+
 import { formatCall, planApply } from "./apply.ts";
 import { readExpectedSettings } from "./check.ts";
 

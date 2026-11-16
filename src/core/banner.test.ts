@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+
 import { BANNER_ANSI, BANNER_TEXT, writeBanner, writeBannerForArgs } from "./banner.ts";
 
 const terminalDir = path.join(import.meta.dir, "../../docs/brand/terminal");

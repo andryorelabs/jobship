@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+
 import { errorMessage, isObject, isOneOf } from "../core/narrow.ts";
 import type { Posting, SourceAdapter, SourceQuery, SourceResult } from "../core/types.ts";
 import { matchesKeywords, withOptional } from "./adapter.ts";

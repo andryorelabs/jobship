@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+
 import { checkThreshold } from "./check-threshold.ts";
 
 const table = (functions: string, lines: string): string =>

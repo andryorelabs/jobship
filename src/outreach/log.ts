@@ -1,4 +1,5 @@
 import path from "node:path";
+
 import { withLock } from "../core/fs.ts";
 import { errorMessage } from "../core/narrow.ts";
 import type { DataDir, Profile, Result } from "../core/types.ts";

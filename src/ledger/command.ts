@@ -1,4 +1,5 @@
 import type { CommandContext } from "../core/commands.ts";
+import { loadProfile } from "../core/data-dir.ts";
 import { failure, success, type Envelope } from "../core/envelope.ts";
 import { errorMessage, isObject, isOneOf } from "../core/narrow.ts";
 import {
@@ -8,7 +9,6 @@ import {
   type DataDir,
   type Posting,
 } from "../core/types.ts";
-import { loadProfile } from "../core/data-dir.ts";
 import { createTracker, projectEvents } from "../tracker/index.ts";
 import { findDuplicate, readLedger } from "./dedup.ts";
 import { appendEvent, readEvents, type NewEvent } from "./events.ts";

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import path from "node:path";
+
 import { writeAtomic } from "../core/fs.ts";
 import type { DataDir, Result } from "../core/types.ts";
 import type { Fact, FactBank } from "../cv/types.ts";

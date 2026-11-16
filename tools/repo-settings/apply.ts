@@ -1,5 +1,5 @@
-import type { JsonValue, RepoSettings } from "./compare.ts";
 import { readExpectedSettings } from "./check.ts";
+import type { JsonValue, RepoSettings } from "./compare.ts";
 import {
   assertExpectedRepository,
   readPackageRepository,

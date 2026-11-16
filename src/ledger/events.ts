@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, truncateSync } from "node:fs";
 import path from "node:path";
+
 import { withLock } from "../core/fs.ts";
 import { errorMessage, isObject } from "../core/narrow.ts";
 import type { DataDir, HuntEvent } from "../core/types.ts";

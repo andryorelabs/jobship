@@ -1,10 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+
 import { writeAtomic } from "../core/fs.ts";
 import { errorMessage, isObject } from "../core/narrow.ts";
+import type { DataDir, Result } from "../core/types.ts";
 import { isTierDKey, resolveAnswerKey, type AnswerKey } from "./answer-keys.ts";
 import { closeFieldBlockers, normalizeQuestion } from "./blockers.ts";
-import type { DataDir, Result } from "../core/types.ts";
 import type { AnswerResult, AnswerScope } from "./types.ts";
 
 const ANSWERS_FILE = "answers.json";

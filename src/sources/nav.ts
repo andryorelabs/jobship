@@ -1,5 +1,5 @@
-import type { Posting, SourceAdapter, SourceQuery, SourceResult } from "../core/types.ts";
 import { errorMessage, isObject } from "../core/narrow.ts";
+import type { Posting, SourceAdapter, SourceQuery, SourceResult } from "../core/types.ts";
 import { matchesKeywords } from "./adapter.ts";
 import {
   field,

@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { createNavAdapter } from "./nav.ts";
+
 import { field, type FetchFunction } from "./http.ts";
+import { createNavAdapter } from "./nav.ts";
 
 const ENDPOINT = "https://pam-stilling-feed.nav.no/api/v1/feed";
 const PAGE_ID = "0fd1a817-e705-483e-87e1-fab5a946d2c7";

@@ -1,11 +1,12 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { errorMessage, isObject, isOneOf } from "../core/narrow.ts";
-import type { DataDir, Result } from "../core/types.ts";
+
 import careerTemplate from "../../templates/dossier/career.md" with { type: "text" };
 import identityTemplate from "../../templates/dossier/identity.md" with { type: "text" };
 import presenceTemplate from "../../templates/dossier/presence.md" with { type: "text" };
 import searchTemplate from "../../templates/dossier/search.md" with { type: "text" };
+import { errorMessage, isObject, isOneOf } from "../core/narrow.ts";
+import type { DataDir, Result } from "../core/types.ts";
 
 export const DOSSIER_SECTION_NAMES = ["career", "search", "presence", "identity"] as const;
 export type DossierSectionName = (typeof DOSSIER_SECTION_NAMES)[number];

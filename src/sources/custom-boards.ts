@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+
 import { withLock, writeAtomic } from "../core/fs.ts";
 import { errorMessage } from "../core/narrow.ts";
 import type { Result } from "../core/types.ts";

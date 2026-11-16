@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import type { FetchFunction } from "./http.ts";
+
 import { createFeedAdapter, createJobFeedXmlAdapter, createNhsXmlAdapter } from "./feed.ts";
+import type { FetchFunction } from "./http.ts";
 
 function bytes(name: string): Uint8Array {
   return new Uint8Array(readFileSync(path.join(import.meta.dir, "fixtures", "feed", name)));

@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import type { CommandContext } from "../core/commands.ts";
-import { foldState } from "../ledger/state.ts";
 import { readEvents } from "../ledger/events.ts";
+import { foldState } from "../ledger/state.ts";
 import type { FetchLike } from "../tracker/linear.ts";
 import { run } from "./command.ts";
 import { importLegacy } from "./legacy.ts";

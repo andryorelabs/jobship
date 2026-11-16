@@ -1,3 +1,4 @@
+import { isObject } from "../core/narrow.ts";
 import type {
   Posting,
   Salary,
@@ -7,7 +8,13 @@ import type {
   SourceResult,
   WorkMode,
 } from "../core/types.ts";
-import { isObject } from "../core/narrow.ts";
+import {
+  mapRows,
+  matchesKeywords,
+  withOptional,
+  type Parsed,
+  type ParseFailure,
+} from "./adapter.ts";
 import {
   field,
   getJson,
@@ -21,13 +28,6 @@ import {
   type FetchFunction,
   type JsonOutcome,
 } from "./http.ts";
-import {
-  mapRows,
-  matchesKeywords,
-  withOptional,
-  type Parsed,
-  type ParseFailure,
-} from "./adapter.ts";
 
 type ApiParse = (body: unknown, query: SourceQuery) => Parsed | ParseFailure;
 

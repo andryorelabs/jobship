@@ -1,11 +1,12 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+
+import emailsEn from "../../fixtures/inbox/emails-en.json" with { type: "json" };
+import emailsEs from "../../fixtures/inbox/emails-es.json" with { type: "json" };
 import type { CommandContext } from "../core/commands.ts";
 import { failure, success, type Envelope } from "../core/envelope.ts";
 import { errorMessage, isObject, isOneOf } from "../core/narrow.ts";
 import { EMAIL_CLASSES } from "../inbox/types.ts";
-import emailsEn from "../../fixtures/inbox/emails-en.json" with { type: "json" };
-import emailsEs from "../../fixtures/inbox/emails-es.json" with { type: "json" };
 import { scoreClassifications, type LabelledEmail, type Prediction } from "./score.ts";
 
 function usage(message: string): Envelope<never> {

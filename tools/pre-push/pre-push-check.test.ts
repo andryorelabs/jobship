@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+
 import { checkPush, parsePushedRefs, type PushedRef } from "./pre-push-check.ts";
 
 const sha = "a".repeat(40);

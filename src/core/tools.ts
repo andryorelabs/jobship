@@ -9,6 +9,7 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { PRODUCT_NAME, settingValue } from "./env.ts";
 import { errorMessage } from "./narrow.ts";
 import type { Result } from "./types.ts";

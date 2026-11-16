@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+
 import { loadProfile } from "../../core/data-dir.ts";
 import { errorMessage } from "../../core/narrow.ts";
 import type { DataDir, Posting, Profile, Result, SourceAdapter } from "../../core/types.ts";

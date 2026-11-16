@@ -1,9 +1,9 @@
 import type { DataDir, Profile, Result, SourceAdapter } from "../core/types.ts";
-import { readCompanies } from "./companies.ts";
 import { createAtsAdapters } from "./ats.ts";
 import { createApiBoardAdapters, type ApiBoardName, type ApiEndpoints } from "./boards-api.ts";
 import { createBoardAdapters, type BoardEndpoints } from "./boards.ts";
 import { loadCatalog, matchesProfile, type Board, type LoadCatalogOptions } from "./catalog.ts";
+import { readCompanies } from "./companies.ts";
 import { readCustomBoards } from "./custom-boards.ts";
 import {
   createFeedAdapter,

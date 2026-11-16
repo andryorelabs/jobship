@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+
 import { PRODUCT_NAME, readSetting } from "./env.ts";
 import { errorMessage, isObject } from "./narrow.ts";
 import { validateProfileWithWarnings } from "./profile.ts";

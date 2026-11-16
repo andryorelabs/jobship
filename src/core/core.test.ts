@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { approvalHash, batchKey, IdempotencyMap, lookupBatchHash } from "./approval.ts";
 import { COMMANDS, resolveCommand } from "./commands.ts";
 import { loadProfile, resolveDataDir } from "./data-dir.ts";

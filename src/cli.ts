@@ -1,3 +1,4 @@
+import { writeBannerForArgs } from "./core/banner.ts";
 import {
   COMMANDS,
   findUnknownFlag,
@@ -6,10 +7,9 @@ import {
   type CommandModule,
 } from "./core/commands.ts";
 import { resolveDataDir } from "./core/data-dir.ts";
-import { readSetting } from "./core/env.ts";
 import { runDoctor } from "./core/doctor.ts";
+import { readSetting } from "./core/env.ts";
 import { exitCodeFor, failure, printEnvelope, success, type Envelope } from "./core/envelope.ts";
-import { writeBannerForArgs } from "./core/banner.ts";
 import { runInit } from "./core/init.ts";
 import { errorMessage } from "./core/narrow.ts";
 import { runSetup } from "./core/setup.ts";
