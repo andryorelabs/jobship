@@ -86,8 +86,8 @@ describe("importLegacy", () => {
     const leads = events.filter((event) => event.kind === "lead.created");
     expect(
       leads
-        .map((event) => event.kind === "lead.created" && event.posting.company)
-        .toSorted((left, right) => String(left).localeCompare(String(right))),
+        .map((event) => event.posting.company)
+        .toSorted((left, right) => left.localeCompare(right)),
     ).toEqual(["Acme Corp", "Globex", "Hooli", "Initech", "Pied Piper", "Umbrella"]);
     const acme = events.filter((event) => event.key?.startsWith("acme|"));
     expect(foldState(acme)).toBe("interviewing");

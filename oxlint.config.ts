@@ -11,7 +11,9 @@ import { defineConfig } from "oxlint";
  *   in those categories fails the check instead of arriving as a warning.
  * - `options`: an unused disable directive is an error, so a suppression that
  *   stops being needed is deleted.
- * - `rules`: `local/no-non-doc-comments` allows JSDoc blocks and tool
+ * - `rules`: the aokit baseline subset `typescript/no-unnecessary-condition` and
+ *   `local/no-unawaited-async-matcher` is active; the rest of the baseline in
+ *   `tools/oxlint/baseline/` is not wired yet. `local/no-non-doc-comments` allows JSDoc blocks and tool
  *   directives only, and `local/require-description` requires ` -- reason` on
  *   every disable directive.
  */
@@ -33,6 +35,7 @@ export default defineConfig({
     "typescript/no-floating-promises": "error",
     "typescript/no-misused-promises": "error",
     "typescript/await-thenable": "error",
+    "typescript/no-unnecessary-condition": "error",
     "typescript/no-unsafe-argument": "error",
     "typescript/no-unsafe-assignment": "error",
     "typescript/no-unsafe-call": "error",
@@ -55,6 +58,7 @@ export default defineConfig({
         "jest/no-focused-tests": "error",
         "jest/no-identical-title": "error",
         "jest/no-disabled-tests": "error",
+        "local/no-unawaited-async-matcher": "error",
       },
     },
   ],
