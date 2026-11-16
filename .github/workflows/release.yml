@@ -7,15 +7,84 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  smoke:
+    name: Smoke-run ${{ matrix.binary }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - binary: jobship-linux-x64
+            target: bun-linux-x64
+            runner: ubuntu-latest
+          - binary: jobship-linux-arm64
+            target: bun-linux-arm64
+            runner: ubuntu-24.04-arm
+          - binary: jobship-darwin-x64
+            target: bun-darwin-x64
+            runner: macos-15-intel
+          - binary: jobship-darwin-arm64
+            target: bun-darwin-arm64
+            runner: macos-latest
+    steps:
+      - if: runner.os == 'Linux'
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+          no-cache: true
+
+      - run: bun install --frozen-lockfile
+
+      # Fails, before anything is built, unless the tag is annotated, signed, equals plugin.json's version and has a CHANGELOG section.
+      - name: Verify the tag
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bun tools/release/verify-tag.ts
+
+      - name: Build this target natively
+        env:
+          TARGET: ${{ matrix.target }}
+        run: bun tools/build-binaries.ts --target "${TARGET}" --outdir dist
+
+      - name: Smoke-run the binary on its native runner
+        env:
+          BINARY: ${{ matrix.binary }}
+        run: bun tools/release/binary-report.ts smoke "dist/${BINARY}" "$(jq -r .version .claude-plugin/plugin.json)"
+
+      - name: Write the binary size to the step summary
+        env:
+          BINARY: ${{ matrix.binary }}
+        run: bun tools/release/binary-report.ts sizes "dist/${BINARY}" >> "${GITHUB_STEP_SUMMARY}"
+
   verify:
     name: Verify tagged commit
+    needs: smoke
     runs-on: ubuntu-latest
     timeout-minutes: 100
     permissions:
       contents: read
       checks: read
     steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -81,17 +150,13 @@ jobs:
       id-token: write
       attestations: write
     steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      - name: Check the tag matches plugin.json
-        run: |
-          plugin_version="$(jq -r '.version' .claude-plugin/plugin.json)"
-          if [ "${GITHUB_REF_NAME}" != "v${plugin_version}" ]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match plugin.json version v${plugin_version}"
-            exit 1
-          fi
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -99,6 +164,11 @@ jobs:
           no-cache: true
 
       - run: bun install --frozen-lockfile
+
+      - name: Verify the tag
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bun tools/release/verify-tag.ts
 
       # Fails, before anything is built, when CHANGELOG.md has no section for the tag or it is empty.
       - name: Take the release notes from CHANGELOG.md
@@ -109,6 +179,18 @@ jobs:
 
       - name: Smoke-run the linux binary
         run: ./dist/jobship-linux-x64 --version
+
+      - name: Write the binary sizes to the step summary
+        run: bun tools/release/binary-report.ts sizes dist/jobship-linux-x64 dist/jobship-linux-arm64 dist/jobship-darwin-x64 dist/jobship-darwin-arm64 >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Generate the SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: dist/jobship.sbom.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
 
       - name: Write SHA256SUMS
         working-directory: dist
@@ -150,4 +232,5 @@ jobs:
             dist/jobship-darwin-x64 \
             dist/jobship-darwin-arm64 \
             dist/SHA256SUMS \
-            dist/jobship.intoto.jsonl
+            dist/jobship.intoto.jsonl \
+            dist/jobship.sbom.cdx.json
