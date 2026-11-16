@@ -24,7 +24,7 @@ afterEach(() => {
 function cli(args: string[]): { code: number; envelope: Record<string, unknown> } {
   const result = Bun.spawnSync([process.execPath, cliPath, ...args, "--data", workDir], {
     cwd: workDir,
-    env: { PATH: process.env["PATH"] ?? "", HOME: workDir },
+    env: { PATH: process.env.PATH ?? "", HOME: workDir },
   });
   const lines = result.stdout
     .toString()
@@ -106,8 +106,8 @@ describe("answer list and blocker closing", () => {
     cli(["apply", "answer", "Notice period?", "--save", "2 weeks", "--provenance", "human"]);
     cli(["apply", "answer", "Visa?", "--scope", "acme", "--save", "no", "--provenance", "profile"]);
     const listed = cli(["apply", "answer", "--list"]);
-    const data = listed.envelope["data"];
-    const answers = isObject(data) ? data["answers"] : undefined;
+    const data = listed.envelope.data;
+    const answers = isObject(data) ? data.answers : undefined;
     expect(answers).toHaveLength(2);
     expect(answers).toContainEqual(
       expect.objectContaining({ scope: "acme", provenance: "profile" }),
@@ -204,9 +204,9 @@ describe("cli", () => {
       "acme-1",
     ]);
     expect(abstained.code).toBe(0);
-    expect(abstained.envelope["data"]).toMatchObject({ status: "abstain" });
+    expect(abstained.envelope.data).toMatchObject({ status: "abstain" });
     const needs = cli(["needs"]);
-    expect(JSON.stringify(needs.envelope["data"])).toContain("salary expectation");
+    expect(JSON.stringify(needs.envelope.data)).toContain("salary expectation");
   });
 
   test("answer saved by the human is returned next time", () => {
@@ -215,7 +215,7 @@ describe("cli", () => {
       0,
     );
     const found = cli(["apply", "answer", question, "--key", "acme-1"]);
-    expect(found.envelope["data"]).toMatchObject({
+    expect(found.envelope.data).toMatchObject({
       status: "answer",
       text: "90k",
       provenance: "human",
@@ -226,11 +226,11 @@ describe("cli", () => {
     cli(["apply", "block", "acme-1", "--scope", "field", "--detail", "salary"]);
     cli(["apply", "block", "acme-1", "--scope", "field", "--detail", "visa"]);
     const needs = cli(["needs"]);
-    const data = needs.envelope["data"];
-    const groups: unknown = isObject(data) ? data["groups"] : undefined;
+    const data = needs.envelope.data;
+    const groups: unknown = isObject(data) ? data.groups : undefined;
     expect(groups).toHaveLength(1);
     const firstGroup: unknown = Array.isArray(groups) ? groups[0] : undefined;
-    expect(isObject(firstGroup) ? firstGroup["items"] : undefined).toHaveLength(2);
+    expect(isObject(firstGroup) ? firstGroup.items : undefined).toHaveLength(2);
   });
 
   test("verify exits 1 when the uploaded file name differs", () => {

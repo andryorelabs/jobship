@@ -250,7 +250,7 @@ describe("approval", () => {
     map.record("lead-1", "issue-9");
     map.record("lead-1", "issue-9");
     expect(map.lookup("lead-1")).toBe("issue-9");
-    expect(() => map.record("lead-1", "issue-10")).toThrow("refusing");
+    expect(() =>{  map.record("lead-1", "issue-10"); }).toThrow("refusing");
   });
 
   test("batchKey is data-dir-relative with slashes and cwd independent", () => {

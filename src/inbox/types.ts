@@ -2,13 +2,13 @@ import type { ApplicationState, EmailClass } from "../core/types.ts";
 
 export const EMAIL_CLASSES = ["rejection", "interview", "info-request", "offer", "other"] as const;
 
-export type ClassifiedEmail = {
+export interface ClassifiedEmail {
   readonly messageId: string;
   readonly threadId: string;
   readonly from: string;
   readonly subject: string;
   readonly classification: EmailClass;
-};
+}
 
 export type MatchBand = "high" | "medium" | "none";
 export const MATCH_REASONS = [
@@ -21,7 +21,7 @@ export const MATCH_REASONS = [
 ] as const;
 export type MatchReason = (typeof MATCH_REASONS)[number];
 
-export type ProposedChange = {
+export interface ProposedChange {
   readonly messageId: string;
   readonly threadId: string;
   readonly classification: EmailClass;
@@ -31,10 +31,10 @@ export type ProposedChange = {
   readonly reason: MatchReason;
   readonly confirmed: boolean;
   readonly targetState: ApplicationState | null;
-};
+}
 
-export type ApplicationRecord = {
+export interface ApplicationRecord {
   readonly key: string;
   readonly company: string;
   readonly state: ApplicationState | null;
-};
+}

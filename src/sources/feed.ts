@@ -5,19 +5,19 @@ import type { Posting, SourceAdapter, SourceQuery, SourceResult } from "../core/
 import { matchesKeywords, withOptional } from "./adapter.ts";
 import { isoDate, readCapped, stripHtml, text, type FetchFunction } from "./http.ts";
 
-export type FeedOptions = {
+export interface FeedOptions {
   readonly id: string;
   readonly endpoint: string;
   readonly encoding?: string;
-};
+}
 
-export type XmlFeedOptions = {
+export interface XmlFeedOptions {
   readonly id: string;
   readonly endpoint: string;
-};
+}
 
 type Node = Record<string, unknown>;
-type Mapped = { readonly postings: Posting[]; readonly warnings: string[] };
+interface Mapped { readonly postings: Posting[]; readonly warnings: string[] }
 type Outcome<Value> =
   | { readonly ok: true; readonly value: Value }
   | { readonly ok: false; readonly error: string };
@@ -177,7 +177,7 @@ function absolute(link: string | undefined, base: string): string | undefined {
 }
 
 function atomLink(row: Node): string | undefined {
-  const links = nodes(row["link"]);
+  const links = nodes(row.link);
   const preferred = links.find(
     (link) => link["@_rel"] === undefined || link["@_rel"] === "alternate",
   );
@@ -189,8 +189,8 @@ function linkOf(row: Node): string | undefined {
 }
 
 function authorOf(row: Node): string | undefined {
-  const author = row["author"];
-  const named = isObject(author) ? leaf(author["name"]) : undefined;
+  const author = row.author;
+  const named = isObject(author) ? leaf(author.name) : undefined;
   return pick(row, ["company", "employer", "dc:creator"]) ?? named ?? leaf(author);
 }
 
@@ -234,13 +234,13 @@ function collect(
 
 function feedItems(document: unknown): Node[] | undefined {
   if (!isObject(document)) return undefined;
-  const rss = document["rss"];
-  const channel = isObject(rss) ? rss["channel"] : undefined;
-  if (isObject(channel)) return nodes(channel["item"]);
-  const atom = document["feed"];
-  if (isObject(atom)) return nodes(atom["entry"]);
+  const rss = document.rss;
+  const channel = isObject(rss) ? rss.channel : undefined;
+  if (isObject(channel)) return nodes(channel.item);
+  const atom = document.feed;
+  if (isObject(atom)) return nodes(atom.entry);
   const rdf = document["rdf:RDF"];
-  if (isObject(rdf)) return nodes(rdf["item"]);
+  if (isObject(rdf)) return nodes(rdf.item);
   return findNodes(document, "item");
 }
 
@@ -365,12 +365,12 @@ function utcDate(value: string | undefined): string | undefined {
 }
 
 function nhsLocation(row: Node): string | undefined {
-  const wrapper = row["locations"];
+  const wrapper = row.locations;
   const entries = nodes(wrapper).flatMap((node) =>
-    (Array.isArray(node["location"]) ? node["location"] : [node["location"]]).map(leaf),
+    (Array.isArray(node.location) ? node.location : [node.location]).map(leaf),
   );
   const names = entries.filter((entry) => entry !== undefined);
-  return names.length === 0 ? leaf(row["location"]) : names.join("; ");
+  return names.length === 0 ? leaf(row.location) : names.join("; ");
 }
 
 function mapNhsRow(row: Node, options: XmlFeedOptions): Posting | undefined {

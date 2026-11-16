@@ -21,15 +21,15 @@ import type { DataDir, Profile } from "./types.ts";
 const PLUGIN_RECOVERY_ACTION =
   "claude plugin marketplace add andryorelabs/jobship && claude plugin install jobship@jobship-marketplace";
 
-export type DoctorDeps = { readonly fetch?: FetchLike; readonly guardHooks?: unknown };
+export interface DoctorDeps { readonly fetch?: FetchLike; readonly guardHooks?: unknown }
 
-type DoctorWarning = {
+interface DoctorWarning {
   readonly code: string;
   readonly message: string;
   readonly recoveryAction: string;
-};
+}
 
-type PluginProbe = { readonly installed: boolean; readonly warning: DoctorWarning | null };
+interface PluginProbe { readonly installed: boolean; readonly warning: DoctorWarning | null }
 
 function cvDataProblems(dir: DataDir): string[] {
   const present = (file: string): boolean => existsSync(path.join(dir.path, file));
@@ -121,7 +121,7 @@ function noBoardsWarning(resolved: readonly ResolvedBoard[]): DoctorWarning[] {
 function pluginsFilePath(env: CommandContext["env"]): string {
   const override = settingValue(env, "CLAUDE_PLUGINS_FILE");
   if (override !== undefined) return override;
-  const home = env["HOME"] !== undefined && env["HOME"] !== "" ? env["HOME"] : os.homedir();
+  const home = env.HOME !== undefined && env.HOME !== "" ? env.HOME : os.homedir();
   return path.join(home, ".claude", "plugins", "installed_plugins.json");
 }
 
@@ -143,7 +143,7 @@ function probePlugin(env: CommandContext["env"]): PluginProbe {
       warning: pluginWarning(`could not read plugins file ${file}: ${errorMessage(error)}`),
     };
   }
-  const plugins = isObject(parsed) ? parsed["plugins"] : undefined;
+  const plugins = isObject(parsed) ? parsed.plugins : undefined;
   if (!isObject(plugins)) {
     return {
       installed: false,
@@ -173,7 +173,7 @@ async function linearProblems(
   deps: DoctorDeps,
 ): Promise<string[]> {
   const result = await checkLinearConnection({
-    apiKey: env["LINEAR_API_KEY"],
+    apiKey: env.LINEAR_API_KEY,
     team: tracker.team,
     mapping: linearMapping(tracker),
     ...(deps.fetch === undefined ? {} : { fetch: deps.fetch }),

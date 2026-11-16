@@ -146,13 +146,13 @@ describe("ci.yml", () => {
   });
 
   test("runs the check and test scripts", () => {
-    expect(stepIndex(jobs["check"], (text) => text.includes("bun run check"))).toBeGreaterThan(-1);
-    expect(stepIndex(jobs["test"], (text) => /bun run test$/m.test(text))).toBeGreaterThan(-1);
+    expect(stepIndex(jobs.check, (text) => text.includes("bun run check"))).toBeGreaterThan(-1);
+    expect(stepIndex(jobs.test, (text) => /bun run test$/m.test(text))).toBeGreaterThan(-1);
     expect(raw).not.toMatch(/\bbun test\b/);
   });
 
   test("has a commitlint job over the pull request range", () => {
-    const job = jobs["commitlint"];
+    const job = jobs.commitlint;
     const checkout = (job?.steps ?? []).find((step) => step.uses?.startsWith("actions/checkout@"));
     expect(job?.if).toContain("pull_request");
     expect(checkout?.with?.["fetch-depth"]).toBe(0);
@@ -186,8 +186,8 @@ describe("lint-pr.yml", () => {
 
 describe("release.yml", () => {
   const { raw, workflow } = workflowFile(workflows, "release.yml");
-  const verify = workflow.jobs["verify"];
-  const release = workflow.jobs["release"];
+  const verify = workflow.jobs.verify;
+  const release = workflow.jobs.release;
 
   test("runs on v* tags only", () => {
     expect(workflow.on).toEqual({ push: { tags: ["v*"] } });

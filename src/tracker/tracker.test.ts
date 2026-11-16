@@ -49,7 +49,7 @@ const events: HuntEvent[] = [
   noteEvent,
 ];
 
-type Call = { operation: string; variables: Record<string, unknown>; authorization: string };
+interface Call { operation: string; variables: Record<string, unknown>; authorization: string }
 
 function requestOf(init: RequestInit): { query: string; variables: Record<string, unknown> } {
   if (typeof init.body !== "string") throw new Error("expected a string request body");
@@ -61,7 +61,7 @@ function requestOf(init: RequestInit): { query: string; variables: Record<string
 }
 
 function createInputOf(calls: Call[]): Record<string, unknown> {
-  const input = calls.find((call) => call.operation === "CreateIssue")?.variables["input"];
+  const input = calls.find((call) => call.operation === "CreateIssue")?.variables.input;
   if (!isObject(input)) throw new Error("no CreateIssue input was recorded");
   return input;
 }
@@ -100,7 +100,7 @@ async function titleFor(
     posting: { ...posting, company: "Acme", title: "Backend Engineer" },
     eligibility: "eligible",
   });
-  return String(createInputOf(calls)["title"]);
+  return String(createInputOf(calls).title);
 }
 
 describe("local tracker", () => {
@@ -207,7 +207,7 @@ describe("linear tracker", () => {
     });
     await tracker.find("greenhouse:1001");
     const lookup = calls.find((call) => call.operation === "FindIssue");
-    const marker = String(lookup?.variables["marker"]);
+    const marker = String(lookup?.variables.marker);
     expect(marker).toBe("[jobship-key: greenhouse:1001]");
     expect("[jobship-key: greenhouse:10012]".includes(marker)).toBe(false);
   });
@@ -234,9 +234,9 @@ describe("linear tracker", () => {
     });
     await projectEvents(tracker, dir, events);
     const input = createInputOf(calls);
-    expect(input["stateId"]).toBe("st-backlog");
-    expect(input["labelIds"]).toEqual(["lb-new"]);
-    expect(calls.find((call) => call.operation === "CreateLabel")?.variables["name"]).toBe(
+    expect(input.stateId).toBe("st-backlog");
+    expect(input.labelIds).toEqual(["lb-new"]);
+    expect(calls.find((call) => call.operation === "CreateLabel")?.variables.name).toBe(
       "channel:greenhouse",
     );
     const update = calls.find((call) => call.operation === "UpdateIssue");
@@ -252,11 +252,11 @@ describe("linear tracker", () => {
     );
     await tracker.upsertLead({ key: "k", posting, eligibility: "eligible" });
     const input = createInputOf(calls);
-    expect(input["stateId"]).toBe("st-lead");
+    expect(input.stateId).toBe("st-lead");
     const unmapped = await tracker.setStatus("k", "hired");
     expect(unmapped.ok).toBe(true);
     const update = calls.findLast((call) => call.operation === "UpdateIssue");
-    expect(update?.variables["input"]).toEqual({ stateId: "st-done" });
+    expect(update?.variables.input).toEqual({ stateId: "st-done" });
   });
 
   test("a channelLabels entry is used verbatim without a duplicate label", async () => {
@@ -272,7 +272,7 @@ describe("linear tracker", () => {
       eligibility: "eligible",
     });
     const input = createInputOf(calls);
-    expect(input["labelIds"]).toEqual(["lb-existing"]);
+    expect(input.labelIds).toEqual(["lb-existing"]);
     expect(calls.some((call) => call.operation === "CreateLabel")).toBe(false);
   });
 
@@ -287,7 +287,7 @@ describe("linear tracker", () => {
       },
     );
     await tracker.upsertLead({ key: "k", posting, eligibility: "eligible" });
-    expect(calls.find((call) => call.operation === "CreateLabel")?.variables["name"]).toBe(
+    expect(calls.find((call) => call.operation === "CreateLabel")?.variables.name).toBe(
       "via:greenhouse",
     );
   });

@@ -19,11 +19,11 @@ const MAX_DETAILS = 50;
 const MAX_TOKEN_BYTES = 16_000;
 const JWT_PATTERN = /eyJ[\w-]+\.[\w-]+\.[\w-]+/;
 
-type Page = {
+interface Page {
   readonly id: string;
   readonly nextId: string | undefined;
   readonly items: Record<string, unknown>[];
-};
+}
 
 type Outcome<T> =
   | { readonly ok: true; readonly value: T }
@@ -68,7 +68,7 @@ function parsePage(body: unknown): Page | undefined {
 }
 
 function itemId(item: Record<string, unknown>): string | undefined {
-  return text(item["id"]) ?? text(field(item["_feed_entry"], "uuid"));
+  return text(item.id) ?? text(field(item._feed_entry, "uuid"));
 }
 
 function parseCursor(cursor: string): Position {
@@ -93,11 +93,11 @@ function isActive(item: Record<string, unknown>): boolean {
 
 function toPosting(item: Record<string, unknown>): Posting | undefined {
   const entry = entryOf(item);
-  const uuid = text(field(entry, "uuid")) ?? text(item["id"]);
-  const title = text(field(entry, "title")) ?? text(item["title"]);
+  const uuid = text(field(entry, "uuid")) ?? text(item.id);
+  const title = text(field(entry, "title")) ?? text(item.title);
   if (uuid === undefined || title === undefined) return undefined;
   const location = text(field(entry, "municipal"));
-  const postedAt = isoDate(field(entry, "sistEndret")) ?? isoDate(item["date_modified"]);
+  const postedAt = isoDate(field(entry, "sistEndret")) ?? isoDate(item.date_modified);
   return {
     id: `nav:${uuid}`,
     source: "nav",
@@ -113,15 +113,15 @@ function failed(message: string): SourceResult {
   return { postings: [], errors: [`nav: ${message}`], warnings: [] };
 }
 
-type WalkState = {
+interface WalkState {
   readonly postings: readonly Posting[];
   readonly warnings: readonly string[];
   readonly nextCursor: string;
   readonly pages: number;
   readonly details: number;
-};
+}
 
-type Position = { readonly pageId: string; readonly after: string | undefined };
+interface Position { readonly pageId: string; readonly after: string | undefined }
 
 type CollectStep =
   | {

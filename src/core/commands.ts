@@ -1,15 +1,15 @@
 import type { Envelope } from "./envelope.ts";
 import type { DataDir } from "./types.ts";
 
-export type CommandContext = {
+export interface CommandContext {
   readonly dataDir: DataDir | null;
   readonly env: Record<string, string | undefined>;
   readonly cwd: string;
-};
+}
 
-export type CommandModule = {
+export interface CommandModule {
   run(argv: string[], ctx: CommandContext): Promise<Envelope<unknown>>;
-};
+}
 
 export const COMMANDS: Record<string, string> = {
   sweep: "src/sweep/command.ts",

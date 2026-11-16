@@ -224,7 +224,7 @@ async function findChromium(): Promise<string> {
     return bundled;
   }
   const cache =
-    process.env["PLAYWRIGHT_BROWSERS_PATH"] ?? join(homedir(), ".cache", "ms-playwright");
+    process.env.PLAYWRIGHT_BROWSERS_PATH ?? join(homedir(), ".cache", "ms-playwright");
   const entries = await readdir(cache).catch(() => [] as string[]);
   const candidates = entries
     .flatMap((entry) => {

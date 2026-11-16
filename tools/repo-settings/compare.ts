@@ -55,7 +55,7 @@ const VOLATILE_RULESET_KEYS = new Set([
 ]);
 
 /** Whether `value` is a plain JSON object. */
-function isObject(value: JsonValue | undefined): value is { [key: string]: JsonValue } {
+function isObject(value: JsonValue | undefined): value is Record<string, JsonValue> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -67,7 +67,7 @@ function compareSerialized(left: JsonValue, right: JsonValue): number {
 /** Reads the sort key of a rule or status check, falling back to the serialized value. */
 function sortKeyOf(entry: JsonValue): string {
   if (isObject(entry)) {
-    const key = entry["type"] ?? entry["context"];
+    const key = entry.type ?? entry.context;
     if (typeof key === "string") {
       return key;
     }
@@ -82,13 +82,13 @@ function sortKeyOf(entry: JsonValue): string {
 export function normalizeRuleset(value: JsonValue): JsonValue {
   if (Array.isArray(value)) {
     const items = value.map(normalizeRuleset);
-    const keyed = items.every((item) => isObject(item) && (item["type"] ?? item["context"]));
+    const keyed = items.every((item) => isObject(item) && (item.type ?? item.context));
     return keyed
       ? items.toSorted((left, right) => sortKeyOf(left).localeCompare(sortKeyOf(right)))
       : items;
   }
   if (isObject(value)) {
-    const result: { [key: string]: JsonValue } = {};
+    const result: Record<string, JsonValue> = {};
     for (const [key, child] of Object.entries(value)) {
       if (!VOLATILE_RULESET_KEYS.has(key)) {
         result[key] = normalizeRuleset(child);
@@ -100,8 +100,8 @@ export function normalizeRuleset(value: JsonValue): JsonValue {
 }
 
 /** Sorts the ref patterns and merge-method lists inside a normalized object. */
-function sortStringArrays(value: { [key: string]: JsonValue }): { [key: string]: JsonValue } {
-  const result: { [key: string]: JsonValue } = {};
+function sortStringArrays(value: Record<string, JsonValue>): Record<string, JsonValue> {
+  const result: Record<string, JsonValue> = {};
   for (const [key, child] of Object.entries(value)) {
     const sortable =
       Array.isArray(child) && child.every((item): item is string => typeof item === "string");

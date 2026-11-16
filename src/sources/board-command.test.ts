@@ -25,17 +25,17 @@ function errorCode(envelope: Awaited<ReturnType<typeof run>>): string | null {
   return envelope.ok ? null : envelope.error.code;
 }
 
-type ListedBoard = { id: string; access: string; active: boolean; custom: boolean };
+interface ListedBoard { id: string; access: string; active: boolean; custom: boolean }
 
 function listedBoards(envelope: Awaited<ReturnType<typeof run>>): ListedBoard[] {
   if (!envelope.ok) return [];
   const data = envelope.data;
-  if (!isObject(data) || !Array.isArray(data["boards"])) return [];
-  return data["boards"].filter(isObject).map((entry) => ({
-    id: String(entry["id"]),
-    access: String(entry["access"]),
-    active: entry["active"] === true,
-    custom: entry["custom"] === true,
+  if (!isObject(data) || !Array.isArray(data.boards)) return [];
+  return data.boards.filter(isObject).map((entry) => ({
+    id: String(entry.id),
+    access: String(entry.access),
+    active: entry.active === true,
+    custom: entry.custom === true,
   }));
 }
 

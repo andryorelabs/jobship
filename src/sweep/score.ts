@@ -48,7 +48,7 @@ export async function recordScore(
   });
   try {
     const projected = await projectEvents(
-      createTracker(profile.value.tracker, dir, { apiKey: ctx.env["LINEAR_API_KEY"] }),
+      createTracker(profile.value.tracker, dir, { apiKey: ctx.env.LINEAR_API_KEY }),
       dir,
       [...existing, stored],
     );

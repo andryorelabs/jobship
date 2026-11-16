@@ -15,7 +15,7 @@ const INGEST_USAGE =
 const SCORE_USAGE =
   "usage: jobship score <key> --score <0-100> [--reason <text>]... [--liveness live|closed|unknown] [--liveness-error <message>]";
 
-type Flags = { readonly values: Map<string, string[]>; readonly positionals: string[] };
+interface Flags { readonly values: Map<string, string[]>; readonly positionals: string[] }
 
 function parseFlags(argv: readonly string[]): Flags {
   const values = new Map<string, string[]>();
@@ -55,7 +55,7 @@ function toPosting(value: unknown, index: number): Posting | string {
   if (typeof company !== "string" || typeof title !== "string") {
     return `posting ${index} needs string company and title`;
   }
-  const source = typeof value["source"] === "string" ? value["source"] : "";
+  const source = typeof value.source === "string" ? value.source : "";
   const optional = optionalFields(value, index);
   if (typeof optional === "string") return optional;
   return { id, url, company, title, source, ...optional };
@@ -69,19 +69,19 @@ function optionalFields(value: Record<string, unknown>, index: number): Partial<
     if (typeof entry !== "string") return `posting ${index} field ${field} must be a string`;
     result[field] = entry;
   }
-  const remote = value["remote"];
+  const remote = value.remote;
   if (remote !== undefined && remote !== null) {
     if (typeof remote !== "boolean") return `posting ${index} field remote must be a boolean`;
-    result["remote"] = remote;
+    result.remote = remote;
   }
-  const stack = value["stack"];
+  const stack = value.stack;
   if (stack !== undefined && stack !== null) {
     if (!Array.isArray(stack) || stack.some((item) => typeof item !== "string")) {
       return `posting ${index} field stack must be an array of strings`;
     }
-    result["stack"] = stack;
+    result.stack = stack;
   }
-  const salary = value["salary"];
+  const salary = value.salary;
   if (salary !== undefined && salary !== null) {
     if (!isObject(salary)) return `posting ${index} field salary must be an object`;
     const parsed: Record<string, unknown> = {};
@@ -92,16 +92,16 @@ function optionalFields(value: Record<string, unknown>, index: number): Partial<
         return `posting ${index} salary ${bound} must be a number`;
       parsed[bound] = amount;
     }
-    if (typeof salary["currency"] === "string") parsed["currency"] = salary["currency"];
-    if (salary["period"] === "year" || salary["period"] === "month")
-      parsed["period"] = salary["period"];
-    result["salary"] = parsed;
+    if (typeof salary.currency === "string") parsed.currency = salary.currency;
+    if (salary.period === "year" || salary.period === "month")
+      parsed.period = salary.period;
+    result.salary = parsed;
   }
   return result;
 }
 
 function parsePostings(raw: unknown): Posting[] | string {
-  const list = isObject(raw) ? raw["postings"] : raw;
+  const list = isObject(raw) ? raw.postings : raw;
   if (!Array.isArray(list))
     return "expected a JSON array of postings or an object with a postings array";
   const postings: Posting[] = [];

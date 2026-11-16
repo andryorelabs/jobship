@@ -7,11 +7,11 @@ import { dedupKey, findDuplicate, ledgerRecord } from "../ledger/dedup.ts";
 import { appendEvent } from "../ledger/events.ts";
 import type { SourceCounts } from "./types.ts";
 
-export type BatchOutcome = {
+export interface BatchOutcome {
   readonly counts: SourceCounts;
   readonly leadKeys: readonly string[];
   readonly events: readonly HuntEvent[];
-};
+}
 
 type PostingOutcome =
   | { readonly kind: "known" }

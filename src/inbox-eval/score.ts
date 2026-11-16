@@ -1,44 +1,44 @@
 import type { EmailClass } from "../core/types.ts";
 import { EMAIL_CLASSES } from "../inbox/types.ts";
 
-export type LabelledEmail = {
+export interface LabelledEmail {
   readonly messageId: string;
   readonly language: "en" | "es";
   readonly from: string;
   readonly subject: string;
   readonly body: string;
   readonly label: EmailClass;
-};
+}
 
-export type Prediction = {
+export interface Prediction {
   readonly messageId: string;
   readonly classification: EmailClass;
-};
+}
 
-type ClassScore = {
+interface ClassScore {
   readonly support: number;
   readonly truePositives: number;
   readonly falsePositives: number;
   readonly falseNegatives: number;
   readonly precision: number | null;
   readonly recall: number | null;
-};
+}
 
-export type EvalReport = {
+export interface EvalReport {
   readonly total: number;
   readonly correct: number;
   readonly accuracy: number;
   readonly perClass: Readonly<Record<EmailClass, ClassScore>>;
   readonly missing: readonly string[];
   readonly unknown: readonly string[];
-};
+}
 
-type Counts = {
+interface Counts {
   truePositives: number;
   falsePositives: number;
   falseNegatives: number;
   support: number;
-};
+}
 
 function ratio(numerator: number, denominator: number): number | null {
   return denominator === 0 ? null : numerator / denominator;

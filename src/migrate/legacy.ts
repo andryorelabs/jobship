@@ -18,19 +18,19 @@ import type { ImportResult } from "./types.ts";
 
 const DATE_PATTERN = /\d{4}-\d{2}-\d{2}/;
 
-type LegacyFile = {
+interface LegacyFile {
   readonly absolute: string;
   readonly display: string;
   readonly name: string;
   readonly date: string;
-};
+}
 
-type FileContext = {
+interface FileContext {
   readonly importer: Importer;
   readonly file: string;
   readonly display: string;
   readonly fallbackDate: string;
-};
+}
 
 function isDirectory(candidate: string): boolean {
   return existsSync(candidate) && statSync(candidate).isDirectory();
@@ -57,29 +57,29 @@ function walk(directory: string, root: string, inheritedDate: string): LegacyFil
 }
 
 function toPosting(row: TableRow, date: string): Posting {
-  const channel = (row["channel"] ?? "").toLowerCase();
+  const channel = (row.channel ?? "").toLowerCase();
   return {
     id: "",
     source: channel === "" ? "legacy" : channel,
-    url: row["url"] ?? "",
-    company: row["company"] ?? "",
-    title: row["role"] ?? "",
+    url: row.url ?? "",
+    company: row.company ?? "",
+    title: row.role ?? "",
     ...(date === "" ? {} : { postedAt: date }),
   };
 }
 
 function rowDate(row: TableRow, fallback: string): string {
-  return DATE_PATTERN.exec(row["date"] ?? "")?.[0] ?? fallback;
+  return DATE_PATTERN.exec(row.date ?? "")?.[0] ?? fallback;
 }
 
 function withCompany(row: TableRow): TableRow {
-  if ((row["company"] ?? "") !== "" || (row["role"] ?? "") === "") return row;
-  const split = splitCompanyRole(row["role"] ?? "");
+  if ((row.company ?? "") !== "" || (row.role ?? "") === "") return row;
+  const split = splitCompanyRole(row.role ?? "");
   return split.company === "" ? row : { ...row, company: split.company, role: split.role };
 }
 
 function isRoleRow(row: TableRow): boolean {
-  return (row["company"] ?? "") !== "" && (row["role"] ?? "") !== "";
+  return (row.company ?? "") !== "" && (row.role ?? "") !== "";
 }
 
 const COVERAGE_HEADERS: readonly (readonly string[])[] = [
@@ -108,7 +108,7 @@ function describe(
   row: TableRow,
   extra: string[],
 ): string {
-  const notes = row["notes"] ?? "";
+  const notes = row.notes ?? "";
   return [
     `legacy ${kind} ${ctx.file}`,
     date === "" ? "" : `date ${date}`,
@@ -139,7 +139,7 @@ function warnUnrecognised(block: TableBlock, ctx: FileContext): void {
 }
 
 function warnRow(ctx: FileContext, row: TableRow): void {
-  const label = row["role"] ?? row["company"] ?? "";
+  const label = row.role ?? row.company ?? "";
   ctx.importer.warn(
     `row without company and role in ${ctx.display}${label === "" ? "" : `: "${label}"`}; skipped`,
   );
@@ -155,10 +155,10 @@ function roleRows(block: TableBlock, ctx: FileContext): TableRow[] {
 
 function importCoverage(rows: readonly TableRow[], ctx: FileContext): void {
   for (const row of rows) {
-    const company = row["company"] ?? "";
+    const company = row.company ?? "";
     if (company === "") continue;
     const date = rowDate(row, ctx.fallbackDate);
-    const result = row["state"] ?? row["verdict"] ?? "";
+    const result = row.state ?? row.verdict ?? "";
     ctx.importer.note(
       `company:${company.toLowerCase()}`,
       describe("coverage", ctx, date, row, [
@@ -229,9 +229,9 @@ function importReviewRow(row: TableRow, ctx: FileContext, postingById: Map<strin
   const date = rowDate(row, ctx.fallbackDate);
   const posting = toPosting(row, date);
   const key = importer.lead(posting);
-  if ((row["id"] ?? "") !== "") postingById.set(row["id"] ?? "", posting);
-  const verdictText = row["verdict"] ?? "";
-  const scoreText = row["score"] ?? "";
+  if ((row.id ?? "") !== "") postingById.set(row.id ?? "", posting);
+  const verdictText = row.verdict ?? "";
+  const scoreText = row.score ?? "";
   const score = Number.parseFloat(scoreText);
   const verdict = mapVerdict(verdictText);
   if (!verdict.known) importer.unknownState(`review verdict "${verdictText}" in ${ctx.file}`);
@@ -267,39 +267,39 @@ function importReviewFile(
   }
 }
 
-type ApplicationEntry = {
+interface ApplicationEntry {
   readonly row: TableRow;
   readonly ctx: FileContext;
   readonly followUp: boolean;
   readonly legacyId: string;
-};
+}
 
-type OutcomeMapping = {
+interface OutcomeMapping {
   readonly known: boolean;
   readonly state: ApplicationState | null;
   readonly label: string;
   readonly text: string;
-};
+}
 
 function applicationOutcome(row: TableRow): OutcomeMapping {
   if ("outcome" in row) {
-    const text = row["outcome"] ?? "";
+    const text = row.outcome ?? "";
     return { ...mapOutcome(text), label: "outcome", text };
   }
-  const text = row["state"] ?? "";
+  const text = row.state ?? "";
   const state = text === "" ? "applied" : mapState(text);
   return { known: state !== null, state: state === "lead" ? null : state, label: "state", text };
 }
 
 function leadOutcomeEntry(row: TableRow, ctx: FileContext, followUp: boolean): ApplicationEntry {
-  const { company, role } = splitCompanyRole(row["lead"] ?? "");
+  const { company, role } = splitCompanyRole(row.lead ?? "");
   const mapped: TableRow = {
-    outcome: row["outcome"] ?? "",
-    notes: row["notes"] ?? "",
+    outcome: row.outcome ?? "",
+    notes: row.notes ?? "",
     company,
     role,
   };
-  return { row: mapped, ctx, followUp, legacyId: row["linear"] ?? "" };
+  return { row: mapped, ctx, followUp, legacyId: row.linear ?? "" };
 }
 
 function collectApplicationRows(file: LegacyFile, importer: Importer): ApplicationEntry[] {
@@ -326,12 +326,12 @@ function fillFromIds(
   postingById: Map<string, Posting>,
 ): ApplicationEntry[] {
   for (const { row } of entries) {
-    const id = row["id"] ?? "";
+    const id = row.id ?? "";
     if (id !== "" && isRoleRow(row) && !postingById.has(id))
       postingById.set(id, toPosting(row, ""));
   }
   return entries.map((entry) => {
-    const known = postingById.get(entry.row["id"] ?? "");
+    const known = postingById.get(entry.row.id ?? "");
     if (isRoleRow(entry.row) || known === undefined) return entry;
     return { ...entry, row: { ...entry.row, company: known.company, role: known.title } };
   });
@@ -361,7 +361,7 @@ function importApplications(entries: readonly ApplicationEntry[], importer: Impo
     if (!mapping.known)
       importer.unknownState(`application ${mapping.label} "${mapping.text}" in ${ctx.file}`);
     const key = importer.lead(toPosting(row, date));
-    const groupKey = (row["id"] ?? "") === "" ? key : `id:${row["id"]}`;
+    const groupKey = (row.id ?? "") === "" ? key : `id:${row.id}`;
     keys.set(groupKey, key);
     groups.set(groupKey, [...(groups.get(groupKey) ?? []), { ...entry, mapping }]);
     if (entry.legacyId !== "") {

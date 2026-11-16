@@ -38,13 +38,13 @@ type Section = (typeof SECTIONS)[number];
  * One difference between a proposal and the current derived files. `section` names the
  * part of facts.yaml a change targets; its absence means `facts`.
  */
-type DerivedChange = {
+interface DerivedChange {
   readonly file: DerivedFile;
   readonly section?: Section;
   readonly op: Operation;
   readonly id: string;
   readonly value: unknown;
-};
+}
 
 const HEADER_ID = "header";
 
@@ -88,15 +88,15 @@ function bulletRow(bullet: Bullet): Record<string, unknown> {
 }
 
 function storedFactRow(row: Record<string, unknown>): string {
-  const tags = Array.isArray(row["tags"]) ? row["tags"] : [];
-  const cites = Array.isArray(row["cites"]) ? row["cites"] : [];
+  const tags = Array.isArray(row.tags) ? row.tags : [];
+  const cites = Array.isArray(row.cites) ? row.cites : [];
   return canonical([
-    row["id"],
-    row["text"],
+    row.id,
+    row.text,
     tags,
-    row["source"] ?? null,
+    row.source ?? null,
     cites,
-    row["estimate"] ?? null,
+    row.estimate ?? null,
   ]);
 }
 
@@ -121,7 +121,7 @@ function answerSlot(answer: { answerKey: string; scope: string }): string {
 
 function diffFacts(dir: DataDir, proposal: DossierProposal): DerivedChange[] {
   const stored = new Map(
-    rowsOf(readYamlMapping(dir, "facts.yaml"), "facts").map((row) => [row["id"], row]),
+    rowsOf(readYamlMapping(dir, "facts.yaml"), "facts").map((row) => [row.id, row]),
   );
   const changes: DerivedChange[] = [];
   for (const fact of proposal.facts) {
@@ -148,21 +148,21 @@ function listOrEmpty(value: unknown): unknown[] {
 
 function entryKey(row: Record<string, unknown>): string {
   return canonical([
-    row["id"],
-    row["name"],
-    row["role"] ?? null,
-    row["dates"] ?? null,
-    sortedMap(row["metadata"]),
-    listOrEmpty(row["cites"]),
+    row.id,
+    row.name,
+    row.role ?? null,
+    row.dates ?? null,
+    sortedMap(row.metadata),
+    listOrEmpty(row.cites),
   ]);
 }
 
 function skillKey(row: Record<string, unknown>): string {
-  return canonical([row["name"], listOrEmpty(row["items"]), listOrEmpty(row["cites"])]);
+  return canonical([row.name, listOrEmpty(row.items), listOrEmpty(row.cites)]);
 }
 
 function headerKey(row: Record<string, unknown>): string {
-  return canonical([row["name"], sortedMap(row["contact"]), listOrEmpty(row["cites"])]);
+  return canonical([row.name, sortedMap(row.contact), listOrEmpty(row.cites)]);
 }
 
 function diffRows<T extends { readonly cites: readonly string[] }>(
@@ -213,7 +213,7 @@ function diffCvData(dir: DataDir, proposal: DossierProposal): DerivedChange[] {
     (group) => skillKey({ ...group }),
     proposal.removals?.skills ?? [],
   );
-  const stored = document["profile"];
+  const stored = document.profile;
   const header = proposal.header;
   const headerChanges: DerivedChange[] = [];
   if (header !== undefined) {
@@ -334,7 +334,7 @@ export function deriveBatch(
   return Promise.resolve(deriveSync(ctx, proposal));
 }
 
-type DerivedBatch = { batchPath: string; hash: string; items: DerivedChange[] };
+interface DerivedBatch { batchPath: string; hash: string; items: DerivedChange[] }
 
 function deriveSync(ctx: CommandContext, proposal: DossierProposal): Result<DerivedBatch> {
   const located = requireDataDir(ctx);
@@ -378,17 +378,17 @@ function parseChange(value: unknown): DerivedChange | null {
   const { file, op, id } = value;
   if (!isOneOf(DERIVED_FILES, file) || !isOneOf(OPERATIONS, op) || typeof id !== "string")
     return null;
-  const section = value["section"];
-  if (section === undefined) return { file, op, id, value: value["value"] };
+  const section = value.section;
+  if (section === undefined) return { file, op, id, value: value.value };
   if (!isOneOf(SECTIONS, section) || file !== "facts.yaml") return null;
-  return { file, section, op, id, value: value["value"] };
+  return { file, section, op, id, value: value.value };
 }
 
 function parseBatch(content: string): DerivedChange[] | null {
   const parsed: unknown = JSON.parse(content);
-  if (!isObject(parsed) || !Array.isArray(parsed["items"])) return null;
+  if (!isObject(parsed) || !Array.isArray(parsed.items)) return null;
   const items: DerivedChange[] = [];
-  for (const raw of parsed["items"]) {
+  for (const raw of parsed.items) {
     const item = parseChange(raw);
     if (item === null) return null;
     items.push(item);
@@ -396,7 +396,7 @@ function parseBatch(content: string): DerivedChange[] | null {
   return items;
 }
 
-type Rendered = { readonly content: string; readonly applied: number };
+interface Rendered { readonly content: string; readonly applied: number }
 
 function loadDocument(dir: DataDir, file: string): Document {
   const target = path.join(dir.path, file);
@@ -465,11 +465,11 @@ function serialize(document: Document): string {
   return document.toString({ lineWidth: 0 });
 }
 
-type RowShape = {
+interface RowShape {
   readonly toRow: (value: unknown) => Record<string, unknown>;
   readonly clearable: readonly string[];
   readonly idKey: string;
-};
+}
 
 function applyRows(
   document: Document,
@@ -613,18 +613,18 @@ function renderAnswers(dir: DataDir, changes: readonly DerivedChange[]): Rendere
 function toFactRow(value: unknown): Record<string, unknown> {
   if (
     !isObject(value) ||
-    !Array.isArray(value["cites"]) ||
-    !isOneOf(DOSSIER_SOURCES, value["source"])
+    !Array.isArray(value.cites) ||
+    !isOneOf(DOSSIER_SOURCES, value.source)
   ) {
     throw new TypeError("fact item is malformed");
   }
   return {
-    id: value["id"],
-    text: value["text"],
-    tags: value["tags"],
-    source: value["source"],
-    cites: value["cites"],
-    ...(typeof value["estimate"] === "string" ? { estimate: value["estimate"] } : {}),
+    id: value.id,
+    text: value.text,
+    tags: value.tags,
+    source: value.source,
+    cites: value.cites,
+    ...(typeof value.estimate === "string" ? { estimate: value.estimate } : {}),
   };
 }
 
@@ -636,52 +636,52 @@ function stringEntries(value: unknown): Record<string, string> {
 function toEntryRow(value: unknown): Record<string, unknown> {
   if (
     !isObject(value) ||
-    typeof value["id"] !== "string" ||
-    typeof value["name"] !== "string" ||
-    !Array.isArray(value["cites"])
+    typeof value.id !== "string" ||
+    typeof value.name !== "string" ||
+    !Array.isArray(value.cites)
   ) {
     throw new TypeError("entry item is malformed");
   }
   return {
-    id: value["id"],
-    name: value["name"],
-    ...(typeof value["role"] === "string" ? { role: value["role"] } : {}),
-    ...(typeof value["dates"] === "string" ? { dates: value["dates"] } : {}),
-    metadata: stringEntries(value["metadata"]),
-    cites: value["cites"],
+    id: value.id,
+    name: value.name,
+    ...(typeof value.role === "string" ? { role: value.role } : {}),
+    ...(typeof value.dates === "string" ? { dates: value.dates } : {}),
+    metadata: stringEntries(value.metadata),
+    cites: value.cites,
   };
 }
 
 function toSkillRow(value: unknown): Record<string, unknown> {
   if (
     !isObject(value) ||
-    typeof value["name"] !== "string" ||
-    !Array.isArray(value["items"]) ||
-    !Array.isArray(value["cites"])
+    typeof value.name !== "string" ||
+    !Array.isArray(value.items) ||
+    !Array.isArray(value.cites)
   ) {
     throw new TypeError("skills item is malformed");
   }
-  return { name: value["name"], items: value["items"].map(String), cites: value["cites"] };
+  return { name: value.name, items: value.items.map(String), cites: value.cites };
 }
 
 function toHeaderRow(value: unknown): Record<string, unknown> {
-  if (!isObject(value) || typeof value["name"] !== "string" || !Array.isArray(value["cites"])) {
+  if (!isObject(value) || typeof value.name !== "string" || !Array.isArray(value.cites)) {
     throw new TypeError("header item is malformed");
   }
-  return { name: value["name"], contact: stringEntries(value["contact"]), cites: value["cites"] };
+  return { name: value.name, contact: stringEntries(value.contact), cites: value.cites };
 }
 
 function toBulletRow(value: unknown): Record<string, unknown> {
-  if (!isObject(value) || typeof value["id"] !== "string" || !Array.isArray(value["factIds"])) {
+  if (!isObject(value) || typeof value.id !== "string" || !Array.isArray(value.factIds)) {
     throw new TypeError("bullet item is malformed");
   }
   return bulletRow({
-    id: value["id"],
-    text: String(value["text"]),
-    tags: Array.isArray(value["tags"]) ? value["tags"].map(String) : [],
-    factIds: value["factIds"].map(String),
-    ...(typeof value["entry"] === "string" ? { entry: value["entry"] } : {}),
-    ...(typeof value["order"] === "number" ? { order: value["order"] } : {}),
+    id: value.id,
+    text: String(value.text),
+    tags: Array.isArray(value.tags) ? value.tags.map(String) : [],
+    factIds: value.factIds.map(String),
+    ...(typeof value.entry === "string" ? { entry: value.entry } : {}),
+    ...(typeof value.order === "number" ? { order: value.order } : {}),
   });
 }
 

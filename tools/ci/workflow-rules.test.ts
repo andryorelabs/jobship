@@ -54,9 +54,9 @@ describe("parseWorkflow", () => {
 
   test("normalizes needs to a sorted list", () => {
     const { jobs } = parseWorkflow("jobs:\n  a:\n    needs: z\n  b:\n    needs: [y, x]\n  c: {}\n");
-    expect(neededJobs(jobs["a"])).toEqual(["z"]);
-    expect(neededJobs(jobs["b"])).toEqual(["x", "y"]);
-    expect(neededJobs(jobs["c"])).toEqual([]);
+    expect(neededJobs(jobs.a)).toEqual(["z"]);
+    expect(neededJobs(jobs.b)).toEqual(["x", "y"]);
+    expect(neededJobs(jobs.c)).toEqual([]);
     expect(neededJobs(undefined)).toEqual([]);
   });
 });
