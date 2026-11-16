@@ -57,7 +57,7 @@ Live settings are never edited in the web UI. Drift is fixed by re-applying the 
 
 - Tests sit beside the code as `*.test.ts`; tool tests sit in `tools/`.
 - Use synthetic fixtures only ([ADR-0003](adr/0003-code-and-personal-data-live-apart.md)).
-- A new `src/**/*.ts` module needs a test that imports it or a reasoned entry in the coverage exemptions file.
+- Every module under `src/` and `tools/` must show up in the coverage table of a full `bun run test`, or carry a reasoned entry in `tools/coverage/coverage-exemptions.ts`. Each one must also meet the per-file floor (97% lines, 98% functions) or carry an entry with its measured floor in `tools/coverage/coverage-exceptions.ts`.
 
 ## Docs
 
