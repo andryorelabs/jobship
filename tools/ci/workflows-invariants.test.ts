@@ -42,15 +42,14 @@ const GITHUB_HOSTED_ONLY: Record<string, Record<string, string>> = {
 };
 
 /**
- * Rules release.yml is not yet held to: its owner adds them in the release hardening change, and
- * the entry for each is removed there so the rule then covers it too.
+ * Jobs that run on each target's native GitHub-hosted runner through `matrix.runner`, keyed by
+ * workflow file, with the reason the routed runner cannot serve them.
  */
-const RELEASE_DEFERRED = new Set(["concurrency", "harden-runner"]);
-
-/** Whether `rule` is not yet enforced on the given workflow file. */
-function isDeferred(fileName: string, rule: string): boolean {
-  return fileName === "release.yml" && RELEASE_DEFERRED.has(rule);
-}
+const NATIVE_RUNNER_MATRIX: Record<string, Record<string, string>> = {
+  "release.yml": {
+    smoke: "smoke-runs each binary on its own OS and architecture, so it needs native runners",
+  },
+};
 
 /** Workflows that must also be startable by hand. */
 const MANUAL_TRIGGER_WORKFLOWS = new Set(["ci.yml", "codeql.yml"]);
@@ -112,16 +111,13 @@ describe.each(workflows)("$fileName", ({ fileName, raw, workflow }) => {
     expect(isMinimalPermissions(workflow.permissions)).toBe(true);
   });
 
-  test.skipIf(isDeferred(fileName, "concurrency"))("has a concurrency group", () => {
+  test("has a concurrency group", () => {
     expect(lacksConcurrency(workflow)).toBe(false);
   });
 
-  test.skipIf(isDeferred(fileName, "harden-runner"))(
-    "harden-runner in audit mode is the first step of every job",
-    () => {
-      expect(jobsWithoutHardenRunner(workflow)).toEqual([]);
-    },
-  );
+  test("harden-runner in audit mode is the first step of every job", () => {
+    expect(jobsWithoutHardenRunner(workflow)).toEqual([]);
+  });
 
   test("artifact uploads only run on failure", () => {
     expect(uploadsWithoutFailureGuard(workflow)).toEqual([]);
@@ -150,13 +146,20 @@ describe.each(workflows)("$fileName", ({ fileName, raw, workflow }) => {
 
   test("Linux jobs use the BLACKSMITH_RUNNER expression", () => {
     const githubHostedOnly = Object.keys(GITHUB_HOSTED_ONLY[fileName] ?? {});
-    expect(misroutedJobs(workflow, githubHostedOnly)).toEqual([]);
+    const nativeMatrix = NATIVE_RUNNER_MATRIX[fileName] ?? {};
+    const misrouted = misroutedJobs(workflow, githubHostedOnly).filter(
+      (id) => !(id in nativeMatrix && workflow.jobs[id]?.["runs-on"] === "${{ matrix.runner }}"),
+    );
+    expect(misrouted).toEqual([]);
   });
 });
 
-describe("GitHub-hosted-only jobs", () => {
+describe.each([
+  ["GitHub-hosted-only jobs", GITHUB_HOSTED_ONLY],
+  ["native-runner matrix jobs", NATIVE_RUNNER_MATRIX],
+])("%s", (_label, exemptions) => {
   test("every exemption names an existing job and carries a reason", () => {
-    const stale = Object.entries(GITHUB_HOSTED_ONLY).flatMap(([fileName, jobs]) =>
+    const stale = Object.entries(exemptions).flatMap(([fileName, jobs]) =>
       Object.entries(jobs)
         .filter(
           ([id, reason]) =>
