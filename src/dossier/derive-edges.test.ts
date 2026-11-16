@@ -52,15 +52,15 @@ function recordBatch(batchPath: string, content: string): void {
   );
 }
 
-function forgeBatch(content: string): string {
-  const batchPath = path.join(dataDir, "dossier", "batches", "forged.json");
+function writeBatchFile(content: string): string {
+  const batchPath = path.join(dataDir, "dossier", "batches", "crafted.json");
   mkdirSync(path.dirname(batchPath), { recursive: true });
   recordBatch(batchPath, content);
   return batchPath;
 }
 
-function forgeItems(items: readonly unknown[]): string {
-  return forgeBatch(`${JSON.stringify({ version: 1, items })}\n`);
+function writeItemsBatch(items: readonly unknown[]): string {
+  return writeBatchFile(`${JSON.stringify({ version: 1, items })}\n`);
 }
 
 const ANSWER = {
@@ -135,13 +135,13 @@ describe("applyDossierBatch edges", () => {
     ],
     ["an unknown section", [{ file: "facts.yaml", section: "nope", op: "add", id: "a" }]],
   ])("%s is not a valid batch", async (_name, items) => {
-    const applied = await applyDossierBatch(context(), forgeItems(items));
+    const applied = await applyDossierBatch(context(), writeItemsBatch(items));
     expect(applied.ok).toBe(false);
     if (!applied.ok) expect(applied.error.message).toContain("not a valid batch");
   });
 
   test("a batch whose items is not a list is not a valid batch", async () => {
-    const batchPath = forgeBatch('{"version":1,"items":"x"}\n');
+    const batchPath = writeBatchFile('{"version":1,"items":"x"}\n');
     const applied = await applyDossierBatch(context(), batchPath);
     expect(applied.ok).toBe(false);
     if (!applied.ok) expect(applied.error.message).toContain("not a valid batch");
@@ -162,7 +162,7 @@ describe("applyDossierBatch edges", () => {
       id: "x",
       value: 1,
     };
-    const applied = await applyDossierBatch(context(), forgeItems([item]));
+    const applied = await applyDossierBatch(context(), writeItemsBatch([item]));
     expect(applied.ok).toBe(false);
     if (!applied.ok) {
       expect(applied.error.code).toBe("dossier-apply-failed");
