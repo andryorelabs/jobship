@@ -8,7 +8,10 @@ import { applyDossierBatch, deriveBatch } from "./derive.ts";
 import { loadDossier } from "./dossier.ts";
 import { parseProposal } from "./proposal.ts";
 
-type Failure = { readonly code: string; readonly message: string };
+interface Failure {
+  readonly code: string;
+  readonly message: string;
+}
 
 function resultFailure(error: Failure): Envelope<never> {
   return failure(error.code, error.message, { recoverable: true });

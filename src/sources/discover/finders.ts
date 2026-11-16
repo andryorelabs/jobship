@@ -18,14 +18,17 @@ import {
 
 type FinderEnv = Readonly<Record<string, string | undefined>>;
 
-export type FinderOptions = {
+export interface FinderOptions {
   readonly fetch: FetchFunction;
   readonly env: FinderEnv;
   readonly now?: Date;
   readonly sleep?: (milliseconds: number) => Promise<void>;
-};
+}
 
-export type FinderResult = { readonly candidates: AtsRef[]; readonly errors: string[] };
+export interface FinderResult {
+  readonly candidates: AtsRef[];
+  readonly errors: string[];
+}
 
 const COLLINFO_URL = "https://index.commoncrawl.org/collinfo.json";
 const CDX_PAGE_LIMIT = 20_000;
@@ -58,9 +61,9 @@ const NON_BOARD_SLUGS: ReadonlySet<string> = new Set([
 export function discoverCacheDirectory(env: FinderEnv): string {
   const override = settingValue(env, "CACHE_DIR");
   if (override !== undefined) return path.join(override, "discover");
-  const xdg = env["XDG_CACHE_HOME"];
+  const xdg = env.XDG_CACHE_HOME;
   const root =
-    xdg !== undefined && xdg !== "" ? xdg : path.join(env["HOME"] ?? os.homedir(), ".cache");
+    xdg !== undefined && xdg !== "" ? xdg : path.join(env.HOME ?? os.homedir(), ".cache");
   return path.join(root, PRODUCT_NAME, "discover");
 }
 
@@ -173,9 +176,9 @@ function commentUrls(raw: string): string[] {
 
 function hnStoryId(body: unknown): string | undefined {
   const story = records(field(body, "hits"))?.find((hit) =>
-    /who is hiring/i.test(text(hit["title"]) ?? ""),
+    /who is hiring/i.test(text(hit.title) ?? ""),
   );
-  return story === undefined ? undefined : identifier(story["objectID"]);
+  return story === undefined ? undefined : identifier(story.objectID);
 }
 
 async function findInHackerNews(options: FinderOptions, errors: string[]): Promise<AtsRef[]> {
@@ -197,7 +200,7 @@ async function findInHackerNews(options: FinderOptions, errors: string[]): Promi
   }
   const refs: AtsRef[] = [];
   for (const row of records(field(comments.body, "hits")) ?? []) {
-    for (const link of commentUrls(text(row["comment_text"]) ?? "")) {
+    for (const link of commentUrls(text(row.comment_text) ?? "")) {
       const ref = boardRef(link);
       if (ref !== null) refs.push(ref);
     }

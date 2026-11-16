@@ -75,20 +75,20 @@ const DISTINGUISHING_TOKENS: ReadonlySet<string> = new Set([
 
 export type LedgerOutcome = "seen" | "dismissed" | "duplicate";
 
-export type LedgerEntry = {
+export interface LedgerEntry {
   readonly at: string;
   readonly key: string;
   readonly outcome: LedgerOutcome;
   readonly reason?: RejectionReason;
   readonly posting: Posting;
-};
+}
 
-export type DuplicateMatch = {
+export interface DuplicateMatch {
   readonly key: string;
   readonly matchedBy: "exact" | "fuzzy";
   readonly dismissed: boolean;
   readonly source: "ledger" | "events";
-};
+}
 
 function tokenize(text: string, ignored: ReadonlySet<string>): string[] {
   return text
@@ -165,21 +165,19 @@ function isFuzzyDuplicate(
 function isPosting(value: unknown): value is Posting {
   return (
     isObject(value) &&
-    typeof value["source"] === "string" &&
-    typeof value["company"] === "string" &&
-    typeof value["title"] === "string"
+    typeof value.source === "string" &&
+    typeof value.company === "string" &&
+    typeof value.title === "string"
   );
 }
 
 function isLedgerEntry(value: unknown): value is LedgerEntry {
   return (
     isObject(value) &&
-    typeof value["key"] === "string" &&
-    typeof value["at"] === "string" &&
-    (value["outcome"] === "seen" ||
-      value["outcome"] === "dismissed" ||
-      value["outcome"] === "duplicate") &&
-    isPosting(value["posting"])
+    typeof value.key === "string" &&
+    typeof value.at === "string" &&
+    (value.outcome === "seen" || value.outcome === "dismissed" || value.outcome === "duplicate") &&
+    isPosting(value.posting)
   );
 }
 
@@ -208,13 +206,13 @@ export async function ledgerRecord(
   });
 }
 
-type Candidate = {
+interface Candidate {
   readonly key: string;
   readonly at: string;
   readonly posting: Posting;
   readonly dismissed: boolean;
   readonly source: "ledger" | "events";
-};
+}
 
 async function loadCandidates(dir: DataDir): Promise<Candidate[]> {
   const ledger: Candidate[] = (await readLedger(dir)).map((entry) => ({
@@ -227,15 +225,15 @@ async function loadCandidates(dir: DataDir): Promise<Candidate[]> {
   const events: Candidate[] = [];
   const raws = await withLock(dir.path, () => Promise.resolve(readJsonLines(eventsPath(dir))));
   for (const raw of raws) {
-    if (!isObject(raw) || !isPosting(raw["posting"]) || typeof raw["at"] !== "string") continue;
-    const kind = raw["kind"];
+    if (!isObject(raw) || !isPosting(raw.posting) || typeof raw.at !== "string") continue;
+    const kind = raw.kind;
     if (kind !== "lead.created" && kind !== "posting.seen" && kind !== "posting.dismissed")
       continue;
-    const key = typeof raw["key"] === "string" ? raw["key"] : dedupKey(raw["posting"]);
+    const key = typeof raw.key === "string" ? raw.key : dedupKey(raw.posting);
     events.push({
       key,
-      at: raw["at"],
-      posting: raw["posting"],
+      at: raw.at,
+      posting: raw.posting,
       dismissed: kind === "posting.dismissed",
       source: "events",
     });

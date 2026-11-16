@@ -27,25 +27,25 @@ const API_BOARD_NAMES: readonly ApiBoardName[] = [
   "cbop",
 ];
 
-export type ResolveOptions = {
+export interface ResolveOptions {
   readonly env?: Readonly<Record<string, string | undefined>>;
   readonly fetch?: FetchFunction;
   readonly catalog?: LoadCatalogOptions;
-};
+}
 
 /**
  * One entry of the resolved Source set. `id` is the report label (`id` or `id:option`).
  * `adapter` is absent for browser and manual boards and when `problem` explains why the
  * name could not be resolved.
  */
-export type ResolvedBoard = {
+export interface ResolvedBoard {
   readonly id: string;
   readonly board?: Board;
   readonly option?: string;
   readonly adapter?: SourceAdapter;
   readonly minIntervalMinutes?: number;
   readonly problem?: string;
-};
+}
 
 function isApiBoardName(name: string): name is ApiBoardName {
   return (API_BOARD_NAMES as readonly string[]).includes(name);
@@ -58,7 +58,7 @@ function isOptionBoardName(name: string): name is keyof BoardEndpoints {
 function defaultValue(board: Board, name: string): string {
   const options = board.options ?? {};
   const allowed = options[name] ?? [];
-  return (options["default"] ?? []).find((value) => allowed.includes(value)) ?? "";
+  return (options.default ?? []).find((value) => allowed.includes(value)) ?? "";
 }
 
 function optionKey(board: Board, option: string): string | undefined {

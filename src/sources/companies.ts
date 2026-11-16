@@ -20,28 +20,24 @@ export function readCompanies(dir: DataDir): Result<SavedCompany[]> {
   if (!existsSync(file)) return { ok: true, value: [] };
   try {
     const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
-    const list = isObject(parsed) ? parsed["companies"] : undefined;
+    const list = isObject(parsed) ? parsed.companies : undefined;
     if (!Array.isArray(list)) throw new Error("expected an object with a companies array");
     const entries: SavedCompany[] = [];
     for (const entry of list) {
-      if (
-        !isObject(entry) ||
-        typeof entry["ats"] !== "string" ||
-        typeof entry["slug"] !== "string"
-      ) {
+      if (!isObject(entry) || typeof entry.ats !== "string" || typeof entry.slug !== "string") {
         throw new Error("every company needs string ats and slug fields");
       }
-      const origin = entry["origin"];
+      const origin = entry.origin;
       if (origin !== undefined && origin !== "manual" && origin !== "discovered") {
         throw new Error("company origin must be manual or discovered");
       }
-      const checkedAt = entry["checkedAt"];
+      const checkedAt = entry.checkedAt;
       if (checkedAt !== undefined && typeof checkedAt !== "string") {
         throw new Error("company checkedAt must be a string");
       }
       entries.push({
-        ats: entry["ats"],
-        slug: entry["slug"],
+        ats: entry.ats,
+        slug: entry.slug,
         origin: origin ?? "manual",
         ...(checkedAt === undefined ? {} : { checkedAt }),
       });
@@ -58,7 +54,10 @@ export function readCompanies(dir: DataDir): Result<SavedCompany[]> {
   }
 }
 
-export type AddOutcome = { readonly added: boolean; readonly company: SavedCompany };
+export interface AddOutcome {
+  readonly added: boolean;
+  readonly company: SavedCompany;
+}
 
 /**
  * Replaces the Saved companies with what `update` derives from the current list, reading and

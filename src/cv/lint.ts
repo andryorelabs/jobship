@@ -28,7 +28,11 @@ function numbersIn(text: string): string[] {
   return (text.match(new RegExp(NUMBER_SOURCE, "gu")) ?? []).map(normalizeNumber);
 }
 
-type Located = { readonly term: string; readonly line: number; readonly column: number };
+interface Located {
+  readonly term: string;
+  readonly line: number;
+  readonly column: number;
+}
 
 function locate(text: string, pattern: RegExp): Located[] {
   const found: Located[] = [];
@@ -117,7 +121,11 @@ function guardedIdentityFields(identity: readonly IdentityField[]): IdentityFiel
   );
 }
 
-type IdentityHit = { readonly field: string; readonly line: number; readonly column: number };
+interface IdentityHit {
+  readonly field: string;
+  readonly line: number;
+  readonly column: number;
+}
 
 /**
  * Locates guarded identity values in `text`. A hit lying inside a longer hit on the

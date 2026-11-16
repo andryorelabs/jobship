@@ -71,8 +71,7 @@ function brokenPinGroups(config: RenovateConfig): string[] {
     .filter(([groupName, members]) => {
       const rule = config.packageRules.find((candidate) => candidate.groupName === groupName);
       return (
-        rule === undefined ||
-        rule.automerge !== false ||
+        rule?.automerge !== false ||
         rule.rangeStrategy !== "pin" ||
         JSON.stringify(rule.matchDepNames) !== JSON.stringify(members)
       );
@@ -195,7 +194,7 @@ describe("renovate custom managers", () => {
       );
       const filePattern = (manager?.managerFilePatterns?.[0] ?? "").replace(/^\/|\/$/g, "");
       const versions = (manager?.matchStrings ?? []).map(
-        (pattern) => new RegExp(pattern).exec(lintWorkflows)?.groups?.["currentValue"],
+        (pattern) => new RegExp(pattern).exec(lintWorkflows)?.groups?.currentValue,
       );
       expect(manager?.customType).toBe("regex");
       expect(manager?.datasourceTemplate).toBe("github-releases");

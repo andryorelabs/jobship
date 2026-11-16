@@ -49,11 +49,11 @@ describe("package repository guard", () => {
   });
 
   test("accepts a match and refuses a different repository", () => {
-    expect(() =>
-      assertExpectedRepository("AndryOreLabs/jobship", "andryorelabs/jobship"),
-    ).not.toThrow();
-    expect(() => assertExpectedRepository("someone/else", "andryorelabs/jobship")).toThrow(
-      "refusing to apply",
-    );
+    expect(() => {
+      assertExpectedRepository("AndryOreLabs/jobship", "andryorelabs/jobship");
+    }).not.toThrow();
+    expect(() => {
+      assertExpectedRepository("someone/else", "andryorelabs/jobship");
+    }).toThrow("refusing to apply");
   });
 });

@@ -122,7 +122,7 @@ export async function dispatch(
     if (!dataDir.ok && hasExplicitSource) {
       return failure(dataDir.error.code, dataDir.error.message);
     }
-    return await runDoctor(ctx);
+    return runDoctor(ctx);
   }
   const command = resolveCommand(withoutDataFlag(argv));
   if (command === null) {
@@ -148,7 +148,10 @@ export async function dispatch(
   return (await load()).run(withoutGlobalFlags(command.path, withoutDataFlag(moduleArgv)), ctx);
 }
 
-type OutputStream = { readonly isTTY?: boolean; write(chunk: string): unknown };
+interface OutputStream {
+  readonly isTTY?: boolean;
+  write(chunk: string): unknown;
+}
 
 /**
  * Writes the envelope in the chosen mode: the JSON envelope for `json`, readable lines for
@@ -177,7 +180,7 @@ export function outputModeFor(argv: readonly string[], stdout: OutputStream): Ou
 }
 
 /** Everything `runMain` touches outside the process: streams, clock, disk and network. */
-export type MainIo = {
+export interface MainIo {
   readonly env: Record<string, string | undefined>;
   readonly cwd: string;
   readonly stdout: OutputStream;
@@ -188,7 +191,7 @@ export type MainIo = {
   readonly readCacheText: (file: string) => string | null;
   readonly writeCacheText: (file: string, text: string) => void;
   readonly spawnRefresh: () => void;
-};
+}
 
 /**
  * Runs one CLI invocation against injected edges and returns the exit code. The update

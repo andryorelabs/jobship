@@ -6,7 +6,7 @@ const CHECK_SCRIPT = path.join(import.meta.dir, "check.ts");
 describe("check.ts", () => {
   test("exits 1 and says unreadable when gh is missing from PATH", () => {
     const result = Bun.spawnSync([process.execPath, CHECK_SCRIPT], {
-      env: { PATH: "", HOME: process.env["HOME"] ?? "" },
+      env: { PATH: "", HOME: process.env.HOME ?? "" },
       stdout: "pipe",
       stderr: "pipe",
     });

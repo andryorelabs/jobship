@@ -15,10 +15,10 @@ import { loadFactBank, loadNeverClaim } from "./facts.ts";
 import { lintCv } from "./lint.ts";
 import { requirementCoverage } from "./select.ts";
 
-type Parsed = {
+interface Parsed {
   readonly positional: string[];
   readonly flags: Map<string, string[]>;
-};
+}
 
 function parseArgs(argv: readonly string[]): Parsed | string {
   const positional: string[] = [];

@@ -5,12 +5,12 @@ export type LinearCheckResult =
   | { readonly ok: true; readonly value: { readonly teamId: string } }
   | { readonly ok: false; readonly error: { readonly problems: string[] } };
 
-export type LinearCheckOptions = {
+export interface LinearCheckOptions {
   readonly apiKey: string | undefined;
   readonly team: string | undefined;
   readonly mapping: LinearMapping;
   readonly fetch?: FetchLike;
-};
+}
 
 const CHECK_QUERY = `query TeamCheck($key: String!) {
   teams(filter: { key: { eq: $key } }) {
@@ -19,11 +19,11 @@ const CHECK_QUERY = `query TeamCheck($key: String!) {
 }`;
 
 function stateNames(team: Record<string, unknown>): string[] {
-  const states = team["states"];
-  if (!isObject(states) || !Array.isArray(states["nodes"])) return [];
+  const states = team.states;
+  if (!isObject(states) || !Array.isArray(states.nodes)) return [];
   const names: string[] = [];
-  for (const node of states["nodes"]) {
-    if (isObject(node) && typeof node["name"] === "string") names.push(node["name"]);
+  for (const node of states.nodes) {
+    if (isObject(node) && typeof node.name === "string") names.push(node.name);
   }
   return names;
 }
@@ -73,19 +73,19 @@ export async function checkLinearConnection(
   }
   if (!isObject(body)) return failure(["Linear returned a malformed response"]);
 
-  const errors = body["errors"];
+  const errors = body.errors;
   if (Array.isArray(errors) && errors.length > 0) {
     const first: unknown = errors[0];
     const message =
-      isObject(first) && typeof first["message"] === "string" ? first["message"] : "unknown error";
+      isObject(first) && typeof first.message === "string" ? first.message : "unknown error";
     return failure([`Linear rejected the request: ${redact(message)}`]);
   }
 
-  const data = body["data"];
-  const teams = isObject(data) && isObject(data["teams"]) ? data["teams"] : undefined;
-  const nodes: unknown = teams === undefined ? undefined : teams["nodes"];
+  const data = body.data;
+  const teams = isObject(data) && isObject(data.teams) ? data.teams : undefined;
+  const nodes: unknown = teams === undefined ? undefined : teams.nodes;
   const found: unknown = Array.isArray(nodes) ? nodes[0] : undefined;
-  if (!isObject(found) || typeof found["id"] !== "string") {
+  if (!isObject(found) || typeof found.id !== "string") {
     return failure([`team ${team} not found`]);
   }
 
@@ -95,5 +95,5 @@ export async function checkLinearConnection(
       problems.push(`state "${name}" not found in team ${team}`);
   }
   if (problems.length > 0) return failure(problems);
-  return { ok: true, value: { teamId: found["id"] } };
+  return { ok: true, value: { teamId: found.id } };
 }

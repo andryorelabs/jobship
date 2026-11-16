@@ -77,7 +77,7 @@ const KNOWN_PARSERS = [
 ] as const;
 
 /** One job board in the catalog. Only `feed` boards carry a `parser` and an `endpoint`. */
-export type Board = {
+export interface Board {
   readonly id: string;
   readonly name: string;
   readonly homepage: string;
@@ -97,23 +97,23 @@ export type Board = {
   readonly options?: Readonly<Record<string, readonly string[]>>;
   readonly minIntervalMinutes?: number;
   readonly attribution?: string;
-};
+}
 
 type CatalogOrigin = "cache" | "remote" | "bundled";
 
 /** The boards a load produced, where they came from, and any non-fatal problems. */
-export type Catalog = {
+export interface Catalog {
   readonly boards: readonly Board[];
   readonly origin: CatalogOrigin;
   readonly warnings: readonly string[];
-};
+}
 
-export type LoadCatalogOptions = {
+export interface LoadCatalogOptions {
   readonly env?: Readonly<Record<string, string | undefined>>;
   readonly fetchText?: (url: string) => Promise<string>;
   readonly now?: () => number;
   readonly bundled?: unknown;
-};
+}
 
 const DEFAULT_CATALOG_URL =
   "https://raw.githubusercontent.com/andryorelabs/jobship/main/catalog/boards.json";
@@ -216,7 +216,10 @@ const REGION_GROUPS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
 ]);
 
 type ParseMode = "bundled" | "remote";
-type Parsed = { readonly boards: Board[]; readonly warnings: string[] };
+interface Parsed {
+  readonly boards: Board[];
+  readonly warnings: string[];
+}
 
 function invalid(message: string): Result<never> {
   return { ok: false, error: { code: "catalog-invalid", message } };
@@ -249,7 +252,7 @@ function validateOptions(options: unknown, entry: Record<string, unknown>): stri
   if (!isRecord(declared) || !Object.values(declared).every(isStringArray)) {
     return "options must map names to string arrays";
   }
-  const templates = [entry["endpoint"], entry["optionEndpoint"]].filter(isString);
+  const templates = [entry.endpoint, entry.optionEndpoint].filter(isString);
   for (const template of templates) {
     for (const match of template.matchAll(/\{(\w+)\}/g)) {
       const name = match[1] ?? "";
@@ -260,21 +263,21 @@ function validateOptions(options: unknown, entry: Record<string, unknown>): stri
 }
 
 function validateFeedFields(entry: Record<string, unknown>, mode: ParseMode): string | undefined {
-  if (!isString(entry["endpoint"])) return "feed entry needs an endpoint";
-  if (!isString(entry["parser"])) return "feed entry needs a parser";
-  const method = entry["method"];
+  if (!isString(entry.endpoint)) return "feed entry needs an endpoint";
+  if (!isString(entry.parser)) return "feed entry needs a parser";
+  const method = entry.method;
   if (method !== undefined && method !== "GET" && method !== "POST") {
     return `unknown method ${JSON.stringify(method)}`;
   }
-  const headers = entry["headers"];
+  const headers = entry.headers;
   if (
     headers !== undefined &&
     !(isRecord(headers) && Object.values(headers).every((value) => typeof value === "string"))
   ) {
     return "headers must map names to strings";
   }
-  return mode === "bundled" && !(KNOWN_PARSERS as readonly string[]).includes(entry["parser"])
-    ? `unknown parser "${entry["parser"]}"`
+  return mode === "bundled" && !(KNOWN_PARSERS as readonly string[]).includes(entry.parser)
+    ? `unknown parser "${entry.parser}"`
     : undefined;
 }
 
@@ -282,39 +285,39 @@ function validateEntry(entry: Record<string, unknown>, mode: ParseMode): string 
   for (const field of ["id", "name", "homepage"]) {
     if (!isString(entry[field])) return `${field} must be a non-empty string`;
   }
-  const access = entry["access"];
+  const access = entry.access;
   if (!(BOARD_ACCESS as readonly unknown[]).includes(access)) {
     return `unknown access "${String(access)}"`;
   }
   const listProblem =
-    validateEnumList(entry["regions"], BOARD_REGIONS, "region") ??
-    validateEnumList(entry["workModes"], BOARD_WORK_MODES, "work mode") ??
-    validateEnumList(entry["jobTypes"], BOARD_JOB_TYPES, "job type");
+    validateEnumList(entry.regions, BOARD_REGIONS, "region") ??
+    validateEnumList(entry.workModes, BOARD_WORK_MODES, "work mode") ??
+    validateEnumList(entry.jobTypes, BOARD_JOB_TYPES, "job type");
   if (listProblem !== undefined) return listProblem;
-  const stability = entry["stability"];
+  const stability = entry.stability;
   if (stability !== undefined && stability !== "unofficial") {
     return `unknown stability ${JSON.stringify(stability)}`;
   }
-  const interval = entry["minIntervalMinutes"];
+  const interval = entry.minIntervalMinutes;
   if (interval !== undefined && !(typeof interval === "number" && interval > 0)) {
     return "minIntervalMinutes must be a positive number";
   }
   return (
-    validateOptions(entry["options"], entry) ??
+    validateOptions(entry.options, entry) ??
     (access === "feed" ? validateFeedFields(entry, mode) : undefined)
   );
 }
 
 function isUnknownRemoteParser(entry: Record<string, unknown>): boolean {
   return (
-    entry["access"] === "feed" &&
-    isString(entry["parser"]) &&
-    !(KNOWN_PARSERS as readonly string[]).includes(entry["parser"])
+    entry.access === "feed" &&
+    isString(entry.parser) &&
+    !(KNOWN_PARSERS as readonly string[]).includes(entry.parser)
   );
 }
 
 function describeEntry(entry: unknown, index: number): string {
-  const id = isRecord(entry) ? entry["id"] : undefined;
+  const id = isRecord(entry) ? entry.id : undefined;
   return isString(id) ? `"${id}"` : `#${index}`;
 }
 
@@ -342,30 +345,27 @@ function toOptions(value: unknown): Record<string, string[]> {
 }
 
 function toBoard(entry: Record<string, unknown>): Board {
-  const access = BOARD_ACCESS.find((candidate) => candidate === entry["access"]) ?? "manual";
-  const method =
-    entry["method"] === "POST" ? "POST" : entry["method"] === "GET" ? "GET" : undefined;
-  const interval = entry["minIntervalMinutes"];
+  const access = BOARD_ACCESS.find((candidate) => candidate === entry.access) ?? "manual";
+  const method = entry.method === "POST" ? "POST" : entry.method === "GET" ? "GET" : undefined;
+  const interval = entry.minIntervalMinutes;
   return {
-    id: optionalString(entry["id"]) ?? "",
-    name: optionalString(entry["name"]) ?? "",
-    homepage: optionalString(entry["homepage"]) ?? "",
+    id: optionalString(entry.id) ?? "",
+    name: optionalString(entry.name) ?? "",
+    homepage: optionalString(entry.homepage) ?? "",
     access,
-    regions: narrowList(entry["regions"], BOARD_REGIONS),
-    workModes: narrowList(entry["workModes"], BOARD_WORK_MODES),
-    jobTypes: narrowList(entry["jobTypes"], BOARD_JOB_TYPES),
-    ...(entry["stability"] === "unofficial" ? { stability: "unofficial" as const } : {}),
-    ...(typeof entry["parser"] === "string" ? { parser: entry["parser"] } : {}),
-    ...(typeof entry["endpoint"] === "string" ? { endpoint: entry["endpoint"] } : {}),
-    ...(typeof entry["optionEndpoint"] === "string"
-      ? { optionEndpoint: entry["optionEndpoint"] }
-      : {}),
+    regions: narrowList(entry.regions, BOARD_REGIONS),
+    workModes: narrowList(entry.workModes, BOARD_WORK_MODES),
+    jobTypes: narrowList(entry.jobTypes, BOARD_JOB_TYPES),
+    ...(entry.stability === "unofficial" ? { stability: "unofficial" as const } : {}),
+    ...(typeof entry.parser === "string" ? { parser: entry.parser } : {}),
+    ...(typeof entry.endpoint === "string" ? { endpoint: entry.endpoint } : {}),
+    ...(typeof entry.optionEndpoint === "string" ? { optionEndpoint: entry.optionEndpoint } : {}),
     ...(method === undefined ? {} : { method }),
-    ...(entry["headers"] === undefined ? {} : { headers: toStringRecord(entry["headers"]) }),
-    ...(entry["body"] === undefined ? {} : { body: entry["body"] }),
-    ...(entry["options"] === undefined ? {} : { options: toOptions(entry["options"]) }),
+    ...(entry.headers === undefined ? {} : { headers: toStringRecord(entry.headers) }),
+    ...(entry.body === undefined ? {} : { body: entry.body }),
+    ...(entry.options === undefined ? {} : { options: toOptions(entry.options) }),
     ...(typeof interval === "number" ? { minIntervalMinutes: interval } : {}),
-    ...(typeof entry["attribution"] === "string" ? { attribution: entry["attribution"] } : {}),
+    ...(typeof entry.attribution === "string" ? { attribution: entry.attribution } : {}),
   };
 }
 
@@ -378,12 +378,12 @@ function parseCatalog(raw: unknown, mode: ParseMode): Result<Parsed> {
     const label = describeEntry(entry, index);
     if (!isRecord(entry)) return invalid(`entry ${label}: must be an object`);
     if (mode === "remote" && isUnknownRemoteParser(entry)) {
-      warnings.push(`skipped entry ${label}: unknown parser "${String(entry["parser"])}"`);
+      warnings.push(`skipped entry ${label}: unknown parser "${String(entry.parser)}"`);
       continue;
     }
     const problem = validateEntry(entry, mode);
     if (problem !== undefined) return invalid(`entry ${label}: ${problem}`);
-    const id = String(entry["id"]);
+    const id = String(entry.id);
     if (seen.has(id)) return invalid(`entry ${label}: duplicate id`);
     seen.add(id);
     boards.push(toBoard(entry));
@@ -403,9 +403,9 @@ function parseText(text: string, mode: ParseMode): Result<Parsed> {
 function cacheFilePath(env: Readonly<Record<string, string | undefined>>): string {
   const override = settingValue(env, "CACHE_DIR");
   if (override !== undefined) return path.join(override, CACHE_FILE);
-  const xdg = env["XDG_CACHE_HOME"];
+  const xdg = env.XDG_CACHE_HOME;
   const root =
-    xdg !== undefined && xdg !== "" ? xdg : path.join(env["HOME"] ?? os.homedir(), ".cache");
+    xdg !== undefined && xdg !== "" ? xdg : path.join(env.HOME ?? os.homedir(), ".cache");
   return path.join(root, PRODUCT_NAME, CACHE_FILE);
 }
 

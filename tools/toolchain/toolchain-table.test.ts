@@ -24,7 +24,7 @@ describe("toolchain table", () => {
 
   test("packageManager and engines pin bun 1.4.4", async () => {
     const manifest = await readRootManifest();
-    expect(manifest["packageManager"]).toBe("bun@1.4.4");
+    expect(manifest.packageManager).toBe("bun@1.4.4");
     expect(stringEntriesOf(manifest, "engines").get("bun")).toBe("1.4.4");
   });
 

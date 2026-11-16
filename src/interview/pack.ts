@@ -8,11 +8,11 @@ import type { Fact, FactBank } from "../cv/types.ts";
 
 export type FactIndex = FactBank;
 
-export type Finding = {
+export interface Finding {
   readonly rule: "unknown-fact" | "story-without-facts" | "missing-section" | "missing-field";
   readonly line: number;
   readonly message: string;
-};
+}
 
 const SECTIONS = ["Rounds", "Question bank", "Signals", "Pitfalls", "Stories"] as const;
 const STORY_FIELDS = ["Situation", "Task", "Action", "Result", "Reflection"] as const;
@@ -93,12 +93,12 @@ export function scaffoldPrepPack(dir: DataDir, key: string, facts: FactIndex): R
   return { ok: true, value: target };
 }
 
-type StoryScan = {
+interface StoryScan {
   readonly title: string;
   readonly line: number;
   readonly fields: Set<string>;
   factIds: string[] | null;
-};
+}
 
 export function validatePrepPack(markdown: string, facts: FactIndex): Finding[] {
   const known = new Set(facts.facts.map((fact) => fact.id));

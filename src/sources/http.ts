@@ -94,10 +94,10 @@ const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([502, 503, 504]);
 const RETRY_ATTEMPTS = 3;
 const RETRY_BASE_DELAY_MS = 1000;
 
-export type RetryOptions = {
+export interface RetryOptions {
   readonly headers?: Record<string, string>;
   readonly sleep?: ((milliseconds: number) => Promise<void>) | undefined;
-};
+}
 
 function defaultSleep(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));

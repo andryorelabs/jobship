@@ -33,7 +33,7 @@ describe("runGuardSelfTest", () => {
   test("covers Gmail casing, nested names, dash, wider labels and dialogs", () => {
     const result = runGuardSelfTest(REAL_HOOKS);
     const byName = new Map(result.cases.map((entry) => [entry.name, entry]));
-    const expectations: ReadonlyArray<readonly [string, string, "allow" | "deny"]> = [
+    const expectations: readonly (readonly [string, string, "allow" | "deny"])[] = [
       ["Gmail send_email on a lowercase server", "mcp__gmail__send_email", "deny"],
       ["Gmail send_draft on a mixed-case server", "mcp__Gmail__send_draft", "deny"],
       [
@@ -168,13 +168,13 @@ describe("guard --self-test", () => {
   test("runs through the CLI and exits 0 with an envelope listing the cases", () => {
     const spawned = Bun.spawnSync(
       [process.execPath, path.join(ROOT, "src/cli.ts"), "guard", "--self-test"],
-      { env: { PATH: process.env["PATH"] ?? "" } },
+      { env: { PATH: process.env.PATH ?? "" } },
     );
     expect(spawned.exitCode).toBe(0);
     const envelope: unknown = JSON.parse(spawned.stdout.toString());
     if (!isObject(envelope)) throw new Error("envelope is not an object");
-    expect(envelope["ok"]).toBe(true);
-    const cases = isObject(envelope["data"]) ? envelope["data"]["cases"] : undefined;
+    expect(envelope.ok).toBe(true);
+    const cases = isObject(envelope.data) ? envelope.data.cases : undefined;
     expect(Array.isArray(cases) ? cases.length : 0).toBeGreaterThanOrEqual(5);
   });
 

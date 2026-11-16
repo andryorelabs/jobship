@@ -2,10 +2,10 @@ import { COMMANDS } from "../core/commands.ts";
 
 type Frontmatter = Record<string, string>;
 
-type ParsedDocument = {
+interface ParsedDocument {
   readonly frontmatter: Frontmatter | null;
   readonly body: string;
-};
+}
 
 const BUILTIN_COMMANDS: ReadonlySet<string> = new Set(["init", "doctor", "setup"]);
 
@@ -68,9 +68,9 @@ export function validateDocument(kind: DocumentKind, name: string, source: strin
   const problems: string[] = [];
   const { frontmatter, body } = parseDocument(source);
   if (frontmatter === null) return [`${name}: missing frontmatter`];
-  if (kind !== "command" && (frontmatter["name"] ?? "") === "")
+  if (kind !== "command" && (frontmatter.name ?? "") === "")
     problems.push(`${name}: frontmatter lacks name`);
-  if ((frontmatter["description"] ?? "") === "")
+  if ((frontmatter.description ?? "") === "")
     problems.push(`${name}: frontmatter lacks description`);
   for (const words of extractCliReferences(body)) {
     const problem = unknownCommandProblem(words);
@@ -85,7 +85,7 @@ export function validateDocument(kind: DocumentKind, name: string, source: strin
 
 export function readOnlyViolations(name: string, source: string): string[] {
   const { frontmatter } = parseDocument(source);
-  const tools = new Set((frontmatter?.["tools"] ?? "").split(",").map((tool) => tool.trim()));
+  const tools = new Set((frontmatter?.tools ?? "").split(",").map((tool) => tool.trim()));
   return WRITE_TOOLS.filter((tool) => tools.has(tool)).map(
     (tool) => `${name}: read-only agent lists ${tool}`,
   );

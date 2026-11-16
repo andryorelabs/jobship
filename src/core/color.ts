@@ -1,4 +1,6 @@
-type TerminalStream = { readonly isTTY?: boolean };
+interface TerminalStream {
+  readonly isTTY?: boolean;
+}
 type Env = Readonly<Record<string, string | undefined>>;
 
 /**
@@ -8,10 +10,10 @@ type Env = Readonly<Record<string, string | undefined>>;
  */
 export function colorEnabled(env: Env, stream: TerminalStream, argv: readonly string[]): boolean {
   if (argv.includes("--no-color")) return false;
-  const noColor = env["NO_COLOR"];
+  const noColor = env.NO_COLOR;
   if (noColor !== undefined && noColor !== "") return false;
-  const forceColor = env["FORCE_COLOR"];
+  const forceColor = env.FORCE_COLOR;
   if (forceColor !== undefined && forceColor !== "") return forceColor !== "0";
-  if (env["TERM"] === "dumb") return false;
+  if (env.TERM === "dumb") return false;
   return stream.isTTY === true;
 }

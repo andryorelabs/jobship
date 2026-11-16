@@ -91,7 +91,11 @@ function proposedTransition(
   return PROGRESSION.indexOf(target) > currentRank ? target : null;
 }
 
-type Candidate = { readonly key: string; readonly band: MatchBand; readonly reason: MatchReason };
+interface Candidate {
+  readonly key: string;
+  readonly band: MatchBand;
+  readonly reason: MatchReason;
+}
 
 function foldAccents(value: string): string {
   return value
@@ -172,12 +176,12 @@ function candidateFor(email: ClassifiedEmail, application: ApplicationRecord): C
   return null;
 }
 
-type Resolution = {
+interface Resolution {
   readonly key: string | null;
   readonly keys: string[];
   readonly band: MatchBand;
   readonly reason: MatchReason;
-};
+}
 
 function resolveCandidates(candidates: readonly Candidate[]): Resolution {
   const high = candidates.filter((candidate) => candidate.band === "high");

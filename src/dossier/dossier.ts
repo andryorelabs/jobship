@@ -20,20 +20,20 @@ export type DossierSource = (typeof DOSSIER_SOURCES)[number];
 const IDENTITY_TIERS = ["A", "B", "C", "D"] as const;
 export type IdentityTier = (typeof IDENTITY_TIERS)[number];
 
-export type IdentityField = {
+export interface IdentityField {
   readonly name: string;
   readonly tier: IdentityTier;
   readonly value: string;
   readonly line: number;
-};
+}
 
-export type DossierSection = {
+export interface DossierSection {
   readonly name: DossierSectionName;
   readonly file: string;
   readonly status: SectionStatus;
   readonly sources: DossierSource[];
   readonly lines: string[];
-};
+}
 
 const DOSSIER_DIRECTORY = "dossier";
 const READINESS_VALUE = /^ready: (yes|no)$/;
@@ -71,7 +71,10 @@ function frontMatterEnd(lines: readonly string[]): number {
   return -1;
 }
 
-type FrontMatter = { readonly status: SectionStatus; readonly sources: DossierSource[] };
+interface FrontMatter {
+  readonly status: SectionStatus;
+  readonly sources: DossierSource[];
+}
 
 function parseFrontMatter(file: string, lines: readonly string[]): Result<FrontMatter> {
   if (lines.every((line) => line.trim() === "")) return invalid(file, "file is empty");

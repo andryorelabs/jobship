@@ -18,13 +18,13 @@ const ISSUES_QUERY = `query Issues($filter: IssueFilter!, $after: String) {
   }
 }`;
 
-export type LinearImportOptions = {
+export interface LinearImportOptions {
   readonly team: string;
   readonly project?: string;
   readonly fetch?: FetchLike;
-};
+}
 
-type LinearIssue = {
+interface LinearIssue {
   readonly id: string;
   readonly identifier: string;
   readonly title: string;
@@ -33,9 +33,12 @@ type LinearIssue = {
   readonly createdAt: string;
   readonly stateName: string;
   readonly labels: readonly string[];
-};
+}
 
-type Page = { readonly issues: LinearIssue[]; readonly next: string | null };
+interface Page {
+  readonly issues: LinearIssue[];
+  readonly next: string | null;
+}
 
 function fail<T>(code: string, message: string): Result<T> {
   return { ok: false, error: { code, message } };
@@ -46,27 +49,26 @@ function text(value: unknown): string {
 }
 
 function labelNames(value: unknown): string[] {
-  if (!isObject(value) || !Array.isArray(value["nodes"])) return [];
+  if (!isObject(value) || !Array.isArray(value.nodes)) return [];
   const names: string[] = [];
-  for (const label of value["nodes"] as unknown[]) {
-    if (isObject(label) && typeof label["name"] === "string") names.push(label["name"]);
+  for (const label of value.nodes as unknown[]) {
+    if (isObject(label) && typeof label.name === "string") names.push(label.name);
   }
   return names;
 }
 
 function toIssue(node: unknown): LinearIssue | null {
-  if (!isObject(node) || typeof node["id"] !== "string" || typeof node["title"] !== "string")
-    return null;
-  const state = node["state"];
+  if (!isObject(node) || typeof node.id !== "string" || typeof node.title !== "string") return null;
+  const state = node.state;
   return {
-    id: node["id"],
-    identifier: text(node["identifier"]),
-    title: node["title"],
-    description: text(node["description"]),
-    url: text(node["url"]),
-    createdAt: text(node["createdAt"]),
-    stateName: isObject(state) ? text(state["name"]) : "",
-    labels: labelNames(node["labels"]),
+    id: node.id,
+    identifier: text(node.identifier),
+    title: node.title,
+    description: text(node.description),
+    url: text(node.url),
+    createdAt: text(node.createdAt),
+    stateName: isObject(state) ? text(state.name) : "",
+    labels: labelNames(node.labels),
   };
 }
 
@@ -96,27 +98,22 @@ async function fetchPage(
     return fail("migrate-linear-malformed", errorMessage(error));
   }
   if (!isObject(body)) return fail("migrate-linear-malformed", "response is not an object");
-  if (Array.isArray(body["errors"]) && body["errors"].length > 0) {
-    const first: unknown = body["errors"][0];
-    return fail(
-      "migrate-linear-graphql",
-      isObject(first) ? text(first["message"]) : "unknown error",
-    );
+  if (Array.isArray(body.errors) && body.errors.length > 0) {
+    const first: unknown = body.errors[0];
+    return fail("migrate-linear-graphql", isObject(first) ? text(first.message) : "unknown error");
   }
-  const data = body["data"];
-  const issues = isObject(data) ? data["issues"] : undefined;
-  if (!isObject(issues) || !Array.isArray(issues["nodes"])) {
+  const data = body.data;
+  const issues = isObject(data) ? data.issues : undefined;
+  if (!isObject(issues) || !Array.isArray(issues.nodes)) {
     return fail("migrate-linear-malformed", "response has no issues");
   }
-  const parsed = (issues["nodes"] as unknown[])
+  const parsed = (issues.nodes as unknown[])
     .map(toIssue)
     .filter((issue): issue is LinearIssue => issue !== null);
-  const pageInfo = issues["pageInfo"];
+  const pageInfo = issues.pageInfo;
   const next =
-    isObject(pageInfo) &&
-    pageInfo["hasNextPage"] === true &&
-    typeof pageInfo["endCursor"] === "string"
-      ? pageInfo["endCursor"]
+    isObject(pageInfo) && pageInfo.hasNextPage === true && typeof pageInfo.endCursor === "string"
+      ? pageInfo.endCursor
       : null;
   return { ok: true, value: { issues: parsed, next } };
 }
@@ -141,7 +138,7 @@ function fetchAll(
   options: LinearImportOptions,
 ): Promise<Result<LinearIssue[]>> {
   const filter: Record<string, unknown> = { team: { key: { eq: options.team } } };
-  if (options.project !== undefined) filter["project"] = { name: { eq: options.project } };
+  if (options.project !== undefined) filter.project = { name: { eq: options.project } };
   return fetchFrom(send, apiKey, filter, null, []);
 }
 
@@ -195,7 +192,7 @@ export async function importLinear(
   if (ctx.dataDir === null) {
     return fail("data-dir-not-found", "no data dir resolved; pass --data or set JOBSHIP_HOME");
   }
-  const apiKey = ctx.env["LINEAR_API_KEY"];
+  const apiKey = ctx.env.LINEAR_API_KEY;
   if (apiKey === undefined || apiKey === "")
     return fail("migrate-linear-no-key", "LINEAR_API_KEY is not set");
   const send: FetchLike = options.fetch ?? ((input, init) => fetch(input, init));

@@ -16,7 +16,10 @@ import type { Result } from "./types.ts";
 
 export const TYPST_VERSION = "0.15.1";
 
-type TypstAsset = { readonly asset: string; readonly sha256: string };
+interface TypstAsset {
+  readonly asset: string;
+  readonly sha256: string;
+}
 
 const TYPST_ASSETS: Readonly<Record<string, TypstAsset>> = {
   "linux-x64": {
@@ -42,18 +45,21 @@ const TYPST_MANUAL_HINT =
   "install typst yourself: mise use -g typst, cargo install typst-cli or brew install typst";
 
 export type ToolEnv = Readonly<Record<string, string | undefined>>;
-export type PlatformInfo = { readonly os: string; readonly arch: string };
+export interface PlatformInfo {
+  readonly os: string;
+  readonly arch: string;
+}
 export type Downloader = (url: string) => Promise<Result<Uint8Array>>;
 export type Extractor = (archive: string, destination: string) => Promise<Result<void>>;
-export type InstallDeps = {
+export interface InstallDeps {
   readonly platform: PlatformInfo;
   readonly download: Downloader;
   readonly extract: Extractor;
   readonly assets?: Readonly<Record<string, TypstAsset>>;
-};
+}
 
 type ToolSource = "path" | "cache" | "missing";
-export type ToolStatus = {
+export interface ToolStatus {
   readonly typst: {
     readonly found: boolean;
     readonly source: ToolSource;
@@ -65,7 +71,7 @@ export type ToolStatus = {
     readonly path: string | null;
     readonly installHint: string;
   };
-};
+}
 
 function currentPlatform(): PlatformInfo {
   return { os: process.platform, arch: process.arch };
@@ -76,9 +82,9 @@ function cacheRoot(env: ToolEnv): string {
 }
 
 function defaultCacheRoot(env: ToolEnv): string {
-  const xdg = env["XDG_CACHE_HOME"];
+  const xdg = env.XDG_CACHE_HOME;
   if (xdg !== undefined && xdg !== "") return path.join(xdg, PRODUCT_NAME);
-  return path.join(env["HOME"] ?? os.homedir(), ".cache", PRODUCT_NAME);
+  return path.join(env.HOME ?? os.homedir(), ".cache", PRODUCT_NAME);
 }
 
 function toolsRoot(env: ToolEnv): string {
@@ -90,7 +96,7 @@ function cachedTypstPath(env: ToolEnv): string {
 }
 
 function onPath(name: string, env: ToolEnv): string | null {
-  return Bun.which(name, { PATH: env["PATH"] ?? "" });
+  return Bun.which(name, { PATH: env.PATH ?? "" });
 }
 
 export function resolveTypst(env: ToolEnv): { path: string; source: "path" | "cache" } | null {

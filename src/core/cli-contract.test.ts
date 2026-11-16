@@ -206,11 +206,15 @@ describe("command help", () => {
   });
 });
 
-type Spawned = { code: number; stdout: string; stderr: string };
+interface Spawned {
+  code: number;
+  stdout: string;
+  stderr: string;
+}
 
 function runCli(args: string[], env: Record<string, string>): Spawned {
   const result = Bun.spawnSync([process.execPath, cliPath, ...args], {
-    env: { PATH: process.env["PATH"] ?? "", ...env },
+    env: { PATH: process.env.PATH ?? "", ...env },
   });
   return {
     code: result.exitCode,
@@ -228,7 +232,7 @@ function runOnTty(args: string[], env: Record<string, string>): Spawned | null {
   const scriptArgs =
     process.platform === "linux" ? ["-qec", command, "/dev/null"] : ["-q", "/dev/null", ...argv];
   const result = Bun.spawnSync([script, ...scriptArgs], {
-    env: { PATH: process.env["PATH"] ?? "", ...env },
+    env: { PATH: process.env.PATH ?? "", ...env },
   });
   return {
     code: result.exitCode,
@@ -311,7 +315,7 @@ describe("TTY and pipe contract", () => {
 
   test("SIGINT to a running CLI exits 130", async () => {
     const child = Bun.spawn([process.execPath, cliPath, "guard"], {
-      env: { PATH: process.env["PATH"] ?? "", ...env },
+      env: { PATH: process.env.PATH ?? "", ...env },
       stdin: "pipe",
       stdout: "ignore",
       stderr: "ignore",

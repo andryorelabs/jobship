@@ -278,7 +278,9 @@ describe("committed rasters", () => {
     "%s has its size, alpha and budget",
     (output, target) => {
       const bytes = readBrand(output);
-      expect(() => assertRaster(target, bytes)).not.toThrow();
+      expect(() => {
+        assertRaster(target, bytes);
+      }).not.toThrow();
       expect(bytes[25]).toBe(TRUECOLOUR_WITH_ALPHA);
     },
   );
@@ -300,7 +302,9 @@ describe("committed rasters", () => {
   test.each(OG_TARGETS.map((target) => [target.output, target] as const))(
     "%s has its size and fits its budget",
     (output, target) => {
-      expect(() => assertRaster(target, readBrand(output))).not.toThrow();
+      expect(() => {
+        assertRaster(target, readBrand(output));
+      }).not.toThrow();
     },
   );
 });

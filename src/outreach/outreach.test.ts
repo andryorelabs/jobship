@@ -28,7 +28,9 @@ let root: string;
 beforeEach(() => {
   root = mkdtempSync(path.join(tmpdir(), "outreach-"));
 });
-afterEach(() => rmSync(root, { recursive: true, force: true }));
+afterEach(() => {
+  rmSync(root, { recursive: true, force: true });
+});
 
 describe("lintDraft", () => {
   test("320-character LinkedIn Draft fails, 300 passes", () => {

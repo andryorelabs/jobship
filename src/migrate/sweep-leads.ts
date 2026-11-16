@@ -2,10 +2,10 @@ import type { Posting } from "../core/types.ts";
 import { extractUrl } from "./table.ts";
 import { splitCompanyRole } from "./title.ts";
 
-export type SweepLead = {
+export interface SweepLead {
   readonly heading: string;
   readonly fields: Readonly<Record<string, string>>;
-};
+}
 
 const HEADING = /^###\s+(.+?)\s*$/;
 const FIELD = /^\s*(?:[-*]\s+)?\*\*([^*:]+):\*\*\s*(.*?)\s*$/;
@@ -38,11 +38,16 @@ export function parseSweepLeads(markdown: string): SweepLead[] {
   return leads;
 }
 
+/** The value, or the fallback when the value is missing or empty. */
+function nonEmpty(value: string | undefined, fallback: string): string {
+  return value === undefined || value === "" ? fallback : value;
+}
+
 export function leadIdentity(lead: SweepLead): { company: string; role: string } {
   const split = splitCompanyRole(lead.heading);
   return {
-    company: lead.fields["company"] || split.company,
-    role: lead.fields["role"] || (split.company === "" ? "" : split.role),
+    company: nonEmpty(lead.fields.company, split.company),
+    role: nonEmpty(lead.fields.role, split.company === "" ? "" : split.role),
   };
 }
 
@@ -53,16 +58,16 @@ export function leadPosting(
   fallbackDate: string,
 ): Posting {
   const portal = (lead.fields["source portal"] ?? "").toLowerCase();
-  const posted = DATE_PATTERN.exec(lead.fields["posted"] ?? "")?.[0] ?? fallbackDate;
-  const contract = lead.fields["contract"] ?? "";
-  const stack = (lead.fields["stack"] ?? "")
+  const posted = DATE_PATTERN.exec(lead.fields.posted ?? "")?.[0] ?? fallbackDate;
+  const contract = lead.fields.contract ?? "";
+  const stack = (lead.fields.stack ?? "")
     .split(",")
     .map((item) => item.trim())
     .filter((item) => item !== "");
   return {
     id: "",
     source: portal === "" ? "legacy" : portal,
-    url: extractUrl(lead.fields["url"] ?? ""),
+    url: extractUrl(lead.fields.url ?? ""),
     company,
     title: role,
     ...(contract === "" ? {} : { contract }),

@@ -16,36 +16,39 @@ const FETCH_TIMEOUT_MS = 5000;
 type Env = Readonly<Record<string, string | undefined>>;
 
 /** What the last release check learned: when it ran and the latest version it saw. */
-export type UpdateCache = { readonly checkedAt: number; readonly latest: string | null };
+export interface UpdateCache {
+  readonly checkedAt: number;
+  readonly latest: string | null;
+}
 
 /** The injected edges of the update notice: clock, disk and the detached refresh. */
-export type UpdateNoticeDeps = {
+export interface UpdateNoticeDeps {
   readonly env: Env;
   readonly currentVersion: string;
   readonly now: () => number;
   readonly readCacheText: (file: string) => string | null;
   readonly writeCacheText: (file: string, text: string) => void;
   readonly spawnRefresh: () => void;
-};
+}
 
 /** The injected edges of the refresh: network, clock and disk. */
-export type RefreshDeps = {
+export interface RefreshDeps {
   readonly env: Env;
   readonly fetchImpl: (url: string, init: { signal: AbortSignal }) => Promise<Response>;
   readonly now: () => number;
   readonly readCacheText: (file: string) => string | null;
   readonly writeCacheText: (file: string, text: string) => void;
-};
+}
 
 /** Where the update check keeps its cache, under the jobship cache dir. */
 export function updateCacheFile(env: Env): string {
   const override = settingValue(env, "CACHE_DIR");
   if (override !== undefined) return path.join(override, "update-check.json");
-  const xdg = env["XDG_CACHE_HOME"];
+  const xdg = env.XDG_CACHE_HOME;
   const root =
     xdg !== undefined && xdg !== ""
       ? path.join(xdg, PRODUCT_NAME)
-      : path.join(env["HOME"] ?? os.homedir(), ".cache", PRODUCT_NAME);
+      : path.join(env.HOME ?? os.homedir(), ".cache", PRODUCT_NAME);
   return path.join(root, "update-check.json");
 }
 
@@ -53,7 +56,7 @@ export function updateCacheFile(env: Env): string {
 export function updateCheckDisabled(env: Env): boolean {
   const optOut = settingValue(env, "NO_UPDATE_CHECK");
   if (optOut !== undefined && optOut !== "0") return true;
-  const ci = env["CI"];
+  const ci = env.CI;
   return ci !== undefined && ci !== "" && ci !== "0" && ci !== "false";
 }
 
@@ -136,7 +139,7 @@ async function fetchLatestTag(deps: RefreshDeps): Promise<string | null> {
     if (!response.ok) return null;
     const body: unknown = await response.json();
     if (!isObject(body)) return null;
-    const tag = body["tag_name"];
+    const tag = body.tag_name;
     return typeof tag === "string" && versionParts(tag) !== null ? tag : null;
   } catch {
     return null;

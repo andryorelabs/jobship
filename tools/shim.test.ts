@@ -40,11 +40,11 @@ function denyReasonOf(stdout: string): string {
   expect(stdout.endsWith("\n")).toBe(true);
   expect(stdout.trim().split("\n")).toHaveLength(1);
   const parsed: unknown = JSON.parse(stdout);
-  const fields = isObject(parsed) ? parsed["hookSpecificOutput"] : undefined;
+  const fields = isObject(parsed) ? parsed.hookSpecificOutput : undefined;
   if (!isObject(fields)) throw new Error("no hookSpecificOutput");
-  expect(fields["hookEventName"]).toBe("PreToolUse");
-  expect(fields["permissionDecision"]).toBe("deny");
-  const reason = fields["permissionDecisionReason"];
+  expect(fields.hookEventName).toBe("PreToolUse");
+  expect(fields.permissionDecision).toBe("deny");
+  const reason = fields.permissionDecisionReason;
   if (typeof reason !== "string") throw new Error("no permissionDecisionReason");
   return reason;
 }
@@ -61,7 +61,7 @@ function fakeCommand(name: string, body: string): string {
   mkdirSync(fakeBin, { recursive: true });
   writeFileSync(path.join(fakeBin, name), body);
   chmodSync(path.join(fakeBin, name), 0o755);
-  return `${fakeBin}:${process.env["PATH"] ?? ""}`;
+  return `${fakeBin}:${process.env.PATH ?? ""}`;
 }
 
 function sha256(content: string): string {
@@ -79,18 +79,22 @@ function publishRelease(
   writeFileSync(path.join(releaseDir, "SHA256SUMS"), line);
 }
 
-type ShimResult = { code: number; stdout: string; stderr: string };
+interface ShimResult {
+  code: number;
+  stdout: string;
+  stderr: string;
+}
 
 function runShim(
   args: string[],
   env: Record<string, string> = {},
-  stdin: string = "",
-  root: string = pluginRoot,
+  stdin = "",
+  root = pluginRoot,
 ): ShimResult {
   const result = Bun.spawnSync(["sh", path.join(root, "bin/jobship"), ...args], {
     stdin: Buffer.from(stdin),
     env: {
-      PATH: process.env["PATH"] ?? "",
+      PATH: process.env.PATH ?? "",
       HOME: workDir,
       JOBSHIP_CACHE_DIR: cacheDir,
       JOBSHIP_RELEASE_BASE_URL: `file://${path.join(workDir, "releases")}`,
@@ -180,7 +184,7 @@ describe("bin/jobship shim", () => {
     writeFileSync(sourceEntry, 'console.log("from-source", process.argv.slice(2).join(" "));\n');
     const result = runShim(["init"], {
       JOBSHIP_FROM_SOURCE: "1",
-      PATH: `${path.dirname(process.execPath)}:${process.env["PATH"] ?? ""}`,
+      PATH: `${path.dirname(process.execPath)}:${process.env.PATH ?? ""}`,
     });
     expect(result.code).toBe(0);
     expect(result.stdout).toBe("from-source init\n");
@@ -197,7 +201,7 @@ describe("bin/jobship shim", () => {
     chmodSync(path.join(fakeBin, "curl"), 0o755);
     const result = Bun.spawnSync(["sh", path.join(pluginRoot, "bin/jobship"), "--version"], {
       env: {
-        PATH: `${fakeBin}:${process.env["PATH"] ?? ""}`,
+        PATH: `${fakeBin}:${process.env.PATH ?? ""}`,
         HOME: workDir,
         JOBSHIP_CACHE_DIR: cacheDir,
       },
@@ -215,7 +219,7 @@ describe("bin/jobship shim", () => {
     writeFileSync(sourceEntry, 'console.log("from-source", process.argv.slice(2).join(" "));\n');
     const result = runShim(["init"], {
       JOBSHIP_FROM_SOURCE: "1",
-      PATH: `${path.dirname(process.execPath)}:${process.env["PATH"] ?? ""}`,
+      PATH: `${path.dirname(process.execPath)}:${process.env.PATH ?? ""}`,
     });
     expect(result.code).toBe(0);
     expect(result.stdout).toBe("from-source init\n");
@@ -336,32 +340,32 @@ describe("bin/jobship as the PreToolUse guard", () => {
 describe("hooks/hooks.json", () => {
   const hooks: unknown = JSON.parse(readFileSync(hooksSource, "utf8"));
   const entriesFor = (event: string): Record<string, unknown>[] => {
-    const byEvent = isObject(hooks) ? hooks["hooks"] : undefined;
+    const byEvent = isObject(hooks) ? hooks.hooks : undefined;
     const entries: unknown = isObject(byEvent) ? byEvent[event] : undefined;
     return Array.isArray(entries) ? entries.filter(isObject) : [];
   };
 
   test("prefetches the binary at SessionStart", () => {
     const commands = entriesFor("SessionStart").flatMap((entry) => {
-      const nested: unknown = entry["hooks"];
+      const nested: unknown = entry.hooks;
       return Array.isArray(nested) ? nested.filter(isObject) : [];
     });
     expect(
       commands.some(
         (hook) =>
-          hook["type"] === "command" &&
-          typeof hook["command"] === "string" &&
-          hook["command"].includes("JOBSHIP_PREFETCH=1") &&
-          hook["command"].includes("bin/jobship"),
+          hook.type === "command" &&
+          typeof hook.command === "string" &&
+          hook.command.includes("JOBSHIP_PREFETCH=1") &&
+          hook.command.includes("bin/jobship"),
       ),
     ).toBe(true);
   });
 
   const commandsFor = (event: string): string[] =>
     entriesFor(event).flatMap((entry) => {
-      const nested: unknown = entry["hooks"];
+      const nested: unknown = entry.hooks;
       return Array.isArray(nested)
-        ? nested.filter(isObject).map((hook) => String(hook["command"]))
+        ? nested.filter(isObject).map((hook) => String(hook.command))
         : [];
     });
 
@@ -375,7 +379,7 @@ describe("hooks/hooks.json", () => {
   });
 
   test("the PreToolUse matcher skips dash and catches Gmail sends in any case", () => {
-    const matchers = entriesFor("PreToolUse").map((entry) => String(entry["matcher"]));
+    const matchers = entriesFor("PreToolUse").map((entry) => String(entry.matcher));
     expect(matchers.length).toBeGreaterThan(0);
     const matches = (tool: string): boolean =>
       matchers.some((matcher) => new RegExp(`^(?:${matcher})$`).test(tool));

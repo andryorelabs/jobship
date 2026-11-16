@@ -18,7 +18,10 @@ const HOLDERLESS_GRACE_MS = 10_000;
 const LOCK_TIMEOUT_MS = 15_000;
 const LOCK_POLL_MS = 20;
 
-type LockHolder = { readonly pid: number; readonly acquiredAt: number };
+interface LockHolder {
+  readonly pid: number;
+  readonly acquiredAt: number;
+}
 
 export function writeAtomic(target: string, data: string): void {
   mkdirSync(path.dirname(target), { recursive: true });

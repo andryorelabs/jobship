@@ -88,7 +88,7 @@ function targetPath(fromFile: string, reference: string): string {
 function linkedStylesheets(html: string): string[] {
   return [...html.matchAll(/<link\b[^>]*>/g)]
     .map((match) => match[0])
-    .filter((tag) => /rel="stylesheet"/.test(tag))
+    .filter((tag) => tag.includes('rel="stylesheet"'))
     .map((tag) => /href="([^"]*)"/.exec(tag)?.[1] ?? "")
     .map((href) => targetPath(PAGE_PATH, href));
 }

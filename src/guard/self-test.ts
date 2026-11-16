@@ -4,26 +4,29 @@ import { decideGuard, snapshotScope, type GuardDecision, type LabelLookup } from
 
 export const SELF_TEST_HOOKS: unknown = hooksJson;
 
-type SelfTestCase = {
+interface SelfTestCase {
   readonly name: string;
   readonly tool: string;
   readonly expected: "allow" | "deny";
   readonly actual: "allow" | "deny";
   readonly matcherCovers: boolean;
   readonly pass: boolean;
-};
+}
 
-export type SelfTestResult = { readonly pass: boolean; readonly cases: SelfTestCase[] };
+export interface SelfTestResult {
+  readonly pass: boolean;
+  readonly cases: SelfTestCase[];
+}
 
 type Decide = (input: unknown, lookup?: LabelLookup) => GuardDecision;
 
-type CannedCase = {
+interface CannedCase {
   readonly name: string;
   readonly tool: string;
   readonly toolInput: Record<string, unknown>;
   readonly expected: "allow" | "deny";
   readonly matcherMustMiss?: true;
-};
+}
 
 const SESSION_ID = "self-test";
 const LABELLED_SERVERS: readonly string[] = [
@@ -127,12 +130,12 @@ function cannedLabelLookup(scope: string, uid: string): string | null {
 }
 
 function preToolUseMatchers(hooks: unknown): string[] {
-  if (!isObject(hooks) || !isObject(hooks["hooks"])) return [];
-  const entries = hooks["hooks"]["PreToolUse"];
+  if (!isObject(hooks) || !isObject(hooks.hooks)) return [];
+  const entries = hooks.hooks.PreToolUse;
   if (!Array.isArray(entries)) return [];
   const matchers: string[] = [];
   for (const entry of entries as unknown[]) {
-    if (isObject(entry) && typeof entry["matcher"] === "string") matchers.push(entry["matcher"]);
+    if (isObject(entry) && typeof entry.matcher === "string") matchers.push(entry.matcher);
   }
   return matchers;
 }
