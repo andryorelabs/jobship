@@ -18,19 +18,14 @@ const mainGuard =
 export const coverageExceptions: Readonly<Record<string, CoverageException>> = {
   "src/cli.ts": {
     reason:
-      "process entry point: dispatch branches that call process.exit or read real stdin are exercised only by spawning the launcher",
-    lines: 74,
-    functions: 31,
-  },
-  "src/core/human.ts": {
-    reason: "the String(value) fallback of renderEntry is unreachable for parsed YAML values",
-    lines: 96,
-    functions: 100,
+      "the uncovered code is the import.meta.main block, the refreshCommand helper and the spawnRefresh closure it wires, which run only when the launcher starts the process, plus the unreachable defensive 'no loader registered' failure",
+    lines: 87,
+    functions: 44,
   },
   "src/sources/catalog.ts": {
     reason:
-      "defensive validation branches for malformed catalog entries that no bundled entry hits",
-    lines: 95,
+      "defaultFetchText is the real network fetch that offline tests must never call; every other line is covered through injected fetch",
+    lines: 98,
     functions: 97,
   },
   "tools/release/binary-report.ts": { reason: mainGuard, lines: 89, functions: 75 },
