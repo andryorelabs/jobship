@@ -1,6 +1,8 @@
 ---
 name: groundedness-reviewer
 description: Checks that every claim in a Tailored CV or Draft traces to a Fact bank fact. Use after a CV build or before an outreach Draft is shown to the human.
+model: sonnet
+effort: medium
 tools: Read, Grep, Glob
 ---
 

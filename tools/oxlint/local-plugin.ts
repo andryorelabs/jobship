@@ -1,6 +1,8 @@
 import { definePlugin, defineRule } from "@oxlint/plugins";
 import type { Comment } from "@oxlint/plugins";
 
+import { baselineLocalRules } from "./baseline/oxlint-plugin.ts";
+
 /**
  * Prefixes of comments that tools read. They are exempt from
  * `no-non-doc-comments` because removing them changes tool behavior.
@@ -86,48 +88,14 @@ const noNonDocComments = defineRule({
   },
 });
 
-const disableDirectivePattern = /^\s*(?:oxlint|eslint)-disable(?:-next-line|-line)?(?=\s|$)/;
-
-const directiveReasonPattern = /\s--\s+\S/;
-
 /**
- * Whether the comment is an `oxlint-disable` or `eslint-disable` directive.
- */
-function isDisableDirective(comment: Comment): boolean {
-  return disableDirectivePattern.test(comment.value);
-}
-
-const requireDescription = defineRule({
-  meta: {
-    type: "suggestion",
-    docs: {
-      description: "Require a ` -- <reason>` suffix on every lint disable directive.",
-    },
-    messages: {
-      missingReason: "Disable directives need a reason: add ` -- <why this is safe>`.",
-    },
-    schema: [],
-  },
-  create(context) {
-    return {
-      Program() {
-        for (const comment of context.sourceCode.getAllComments()) {
-          if (isDisableDirective(comment) && !directiveReasonPattern.test(comment.value)) {
-            context.report({ node: comment, messageId: "missingReason" });
-          }
-        }
-      },
-    };
-  },
-});
-
-/**
- * Project-local Oxlint rules, loaded as a jsPlugin under the `local` alias.
+ * Project-local Oxlint rules: the aokit baseline rules plus the jobship-only
+ * `no-non-doc-comments`, loaded as a jsPlugin under the `local` alias.
  */
 export default definePlugin({
   meta: { name: "local" },
   rules: {
+    ...baselineLocalRules,
     "no-non-doc-comments": noNonDocComments,
-    "require-description": requireDescription,
   },
 });

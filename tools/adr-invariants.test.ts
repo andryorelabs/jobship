@@ -5,7 +5,24 @@ import path from "node:path";
 const ADR_DIRECTORY = path.join(import.meta.dir, "..", "docs", "adr");
 const ADR_FILE = /^(\d{4})-[a-z0-9-]+\.md$/;
 
-const adrFiles = readdirSync(ADR_DIRECTORY).filter((name) => ADR_FILE.test(name));
+const TEMPLATE_FILE = "0000-template.md";
+const REVISED_LINE = /^Revised:(.*)$/gm;
+const REVISED_FORM = /^ \d{4}-\d{2}-\d{2} \S.*$/;
+
+/**
+ * Lists the `Revised:` lines of an ADR that lack a date or a reason.
+ * @param text The ADR source.
+ * @returns The offending lines, empty when every one is `Revised: YYYY-MM-DD reason`.
+ */
+export function findMalformedRevisedLines(text: string): string[] {
+  return [...text.matchAll(REVISED_LINE)]
+    .filter((match) => !REVISED_FORM.test(match[1] ?? ""))
+    .map((match) => match[0]);
+}
+
+const adrFiles = readdirSync(ADR_DIRECTORY).filter(
+  (name) => ADR_FILE.test(name) && name !== TEMPLATE_FILE,
+);
 const index = readFileSync(path.join(ADR_DIRECTORY, "README.md"), "utf8");
 
 describe("ADR index", () => {
@@ -18,7 +35,7 @@ describe("ADR index", () => {
     const linked = [...index.matchAll(/\((\d{4}-[a-z0-9-]+\.md)\)/g)].map(
       (match) => match[1] ?? "",
     );
-    expect(linked.filter((name) => !adrFiles.includes(name))).toEqual([]);
+    expect(linked.filter((name) => name !== TEMPLATE_FILE && !adrFiles.includes(name))).toEqual([]);
   });
 
   test("numbers are unique and sequential from 0001", () => {
@@ -30,8 +47,18 @@ describe("ADR index", () => {
 describe("ADR form", () => {
   const REQUIRED_SECTIONS = ["## Context", "## Decision", "## Consequences"];
 
-  test("a template exists", () => {
-    expect(readdirSync(ADR_DIRECTORY)).toContain("template.md");
+  test("the template is 0000-template.md and is not counted as an ADR", () => {
+    expect(readdirSync(ADR_DIRECTORY)).toContain(TEMPLATE_FILE);
+    expect(adrFiles).not.toContain(TEMPLATE_FILE);
+  });
+
+  test("a Revised line needs a date and a reason", () => {
+    expect(findMalformedRevisedLines("Revised: 2026-11-16 fixed the scope")).toEqual([]);
+    expect(findMalformedRevisedLines("Revised: fixed the scope")).toEqual([
+      "Revised: fixed the scope",
+    ]);
+    expect(findMalformedRevisedLines("Revised: 2026-11-16")).toEqual(["Revised: 2026-11-16"]);
+    expect(findMalformedRevisedLines("Status: Accepted")).toEqual([]);
   });
 
   for (const name of adrFiles) {
@@ -40,6 +67,10 @@ describe("ADR form", () => {
     test(`${name} has Status and Date header lines`, () => {
       expect(text).toMatch(/^Status: \S.*$/m);
       expect(text).toMatch(/^Date: \d{4}-\d{2}-\d{2}$/m);
+    });
+
+    test(`${name} has well-formed Revised lines`, () => {
+      expect(findMalformedRevisedLines(text)).toEqual([]);
     });
 
     test(`${name} has Context, Decision and Consequences sections`, () => {

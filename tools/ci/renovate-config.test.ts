@@ -11,6 +11,7 @@ const RENOVATE_LABELS = new Set(["dependencies", "github-actions"]);
 const PIN_GROUPS: Record<string, string[]> = {
   oxc: ["oxlint", "oxlint-tsgolint", "oxfmt", "@oxlint/plugins"],
   typescript7: ["typescript7"],
+  bun: ["bun", "@types/bun"],
 };
 
 interface PackageRule {

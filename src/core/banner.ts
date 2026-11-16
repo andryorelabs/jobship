@@ -1,3 +1,5 @@
+import { colorEnabled } from "./color.ts";
+
 export const BANNER_TEXT =
   "   /|\\\n  /_|_\\    jobship\n \\_____/   Search less. Decide better.\n";
 
@@ -8,15 +10,15 @@ export const BANNER_ANSI =
 
 /**
  * Writes the banner to a stream only when it is a TTY, using the plain text
- * variant when NO_COLOR is set and non-empty. Never throws.
+ * variant when color is off (`NO_COLOR`, `--no-color`, `TERM=dumb`). Never throws.
  */
 export function writeBanner(
   stream: { isTTY?: boolean; write(chunk: string): unknown },
   env: Record<string, string | undefined>,
+  argv: readonly string[] = [],
 ): void {
   if (stream.isTTY !== true) return;
-  const noColor = env["NO_COLOR"];
-  const plain = noColor !== undefined && noColor !== "";
+  const plain = !colorEnabled(env, stream, argv);
   try {
     stream.write(plain ? BANNER_TEXT : BANNER_ANSI);
   } catch {
@@ -35,6 +37,6 @@ export function writeBannerForArgs(
 ): void {
   const [firstArg] = args;
   if (firstArg === undefined || firstArg === "--help" || firstArg === "help") {
-    writeBanner(stream, env);
+    writeBanner(stream, env, args);
   }
 }

@@ -233,7 +233,7 @@ export function isJsonValue(value: unknown): value is JsonValue {
   if (Array.isArray(value)) {
     return value.every(isJsonValue);
   }
-  return typeof value === "object" && Object.values(value ?? {}).every(isJsonValue);
+  return typeof value === "object" && Object.values(value).every(isJsonValue);
 }
 
 /** Whether `value` carries every setting of `.github/repo-settings.json` with the right type. */
