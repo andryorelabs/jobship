@@ -9,9 +9,6 @@ import { createLocalRuleLinter } from "./lint-fixture.ts";
 const config: OxlintConfig = configuration;
 const baselineDirectory = join(import.meta.dir, "baseline");
 
-const activeBaselineRules = ["typescript/no-unnecessary-condition"];
-const activeBaselineTestRules = ["local/no-unawaited-async-matcher"];
-
 /**
  * SHA-256 of the two aokit `oxc` Module 1.3.0 files under `baseline/`. A change
  * to either file means a new copy from aokit, so the hashes move with it.
@@ -50,18 +47,16 @@ describe("the copied aokit baseline", () => {
 
   test("the active baseline rules match the baseline setting", async () => {
     const { rules } = await readBaselineRules();
-    for (const ruleName of activeBaselineRules) {
-      expect(rules[ruleName]).toBe("error");
-      expect(config.rules?.[ruleName]).toBe("error");
+    for (const [ruleName, setting] of Object.entries(rules)) {
+      expect(config.rules?.[ruleName]).toEqual(setting);
     }
   });
 
   test("the active baseline test rules match the baseline setting", async () => {
     const { testRules } = await readBaselineRules();
     const override = config.overrides?.find((entry) => entry.files.includes("**/*.test.ts"));
-    for (const ruleName of activeBaselineTestRules) {
-      expect(testRules[ruleName]).toBe("error");
-      expect(override?.rules?.[ruleName]).toBe("error");
+    for (const [ruleName, setting] of Object.entries(testRules)) {
+      expect(override?.rules?.[ruleName]).toEqual(setting);
     }
   });
 });
