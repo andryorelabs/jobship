@@ -222,8 +222,11 @@ function runCli(args: string[], env: Record<string, string>): Spawned {
 function runOnTty(args: string[], env: Record<string, string>): Spawned | null {
   const script = Bun.which("script");
   if (script === null) return null;
-  const command = [process.execPath, cliPath, ...args].map((part) => `'${part}'`).join(" ");
-  const result = Bun.spawnSync([script, "-qec", command, "/dev/null"], {
+  const argv = [process.execPath, cliPath, ...args];
+  const command = argv.map((part) => `'${part}'`).join(" ");
+  const scriptArgs =
+    process.platform === "linux" ? ["-qec", command, "/dev/null"] : ["-q", "/dev/null", ...argv];
+  const result = Bun.spawnSync([script, ...scriptArgs], {
     env: { PATH: process.env["PATH"] ?? "", ...env },
   });
   return {
@@ -231,6 +234,23 @@ function runOnTty(args: string[], env: Record<string, string>): Spawned | null {
     stdout: result.stdout.toString(),
     stderr: result.stderr.toString(),
   };
+}
+
+/**
+ * Waits until the process catches SIGINT. On Linux it reads the caught-signal mask from
+ * `/proc`; elsewhere it waits a fixed, generous delay.
+ */
+async function waitForInterruptHandler(pid: number, deadline = Date.now() + 15_000): Promise<void> {
+  if (process.platform !== "linux") {
+    await Bun.sleep(5000);
+    return;
+  }
+  const status = await Bun.file(`/proc/${pid}/status`).text();
+  const caught = /^SigCgt:\s*([0-9a-f]+)$/m.exec(status)?.[1];
+  if (caught !== undefined && (BigInt(`0x${caught}`) & 2n) !== 0n) return;
+  if (Date.now() > deadline) return;
+  await Bun.sleep(50);
+  await waitForInterruptHandler(pid, deadline);
 }
 
 describe("TTY and pipe contract", () => {
@@ -291,11 +311,11 @@ describe("TTY and pipe contract", () => {
       stdout: "ignore",
       stderr: "ignore",
     });
-    await Bun.sleep(1500);
+    await waitForInterruptHandler(child.pid);
     child.kill("SIGINT");
     expect(await child.exited).toBe(130);
     expect(child.signalCode).toBeNull();
-  });
+  }, 20_000);
 
   test("cleanup", () => {
     rmSync(home, { recursive: true, force: true });
