@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 import type { FetchFunction } from "../http.ts";
-import { findCandidates } from "./finders.ts";
+import { discoverCacheDirectory, findCandidates } from "./finders.ts";
 
 function fixture(name: string): string {
   return readFileSync(path.join(import.meta.dir, "fixtures", name), "utf8");
@@ -120,5 +120,71 @@ describe("findCandidates", () => {
     served.requested.length = 0;
     await run(new Date(Date.now() + 31 * 24 * 60 * 60 * 1000));
     expect(served.requested.some((url) => url.includes("example.test"))).toBe(true);
+  });
+
+  test("reports an HN story search failure and a missing thread", async () => {
+    const failed = await findCandidates({
+      fetch: (input) =>
+        input.includes("author_whoishiring")
+          ? Promise.resolve(new Response("down", { status: 500 }))
+          : serving(served)(input),
+      env: { JOBSHIP_CACHE_DIR: cacheDir },
+      sleep: noSleep,
+    });
+    expect(failed.errors.some((message) => message.startsWith("hn:"))).toBe(true);
+    const missing = await findCandidates({
+      fetch: (input) =>
+        input.includes("author_whoishiring")
+          ? Promise.resolve(new Response('{"hits":[]}'))
+          : serving(served)(input),
+      env: { JOBSHIP_CACHE_DIR: cacheDir },
+      sleep: noSleep,
+    });
+    expect(missing.errors).toContain("hn: no Who is hiring thread found in the response");
+  });
+
+  test("reports an HN comments failure", async () => {
+    const result = await findCandidates({
+      fetch: (input) =>
+        input.includes("story_910001")
+          ? Promise.resolve(new Response("down", { status: 500 }))
+          : serving(served)(input),
+      env: { JOBSHIP_CACHE_DIR: cacheDir },
+      sleep: noSleep,
+    });
+    expect(result.errors.some((message) => message.startsWith("hn:"))).toBe(true);
+  });
+
+  test("reports a CDX page failure and a cache that cannot be written", async () => {
+    const failing = await findCandidates({
+      fetch: (input) =>
+        input.startsWith("https://index.example.test/")
+          ? Promise.resolve(new Response("down", { status: 500 }))
+          : serving(served)(input),
+      env: { JOBSHIP_CACHE_DIR: cacheDir },
+      sleep: noSleep,
+    });
+    expect(failing.errors.some((message) => message.startsWith("cdx "))).toBe(true);
+    const blocker = path.join(cacheDir, "blocker");
+    writeFileSync(blocker, "file");
+    const unwritable = await findCandidates({
+      fetch: serving(served),
+      env: { JOBSHIP_CACHE_DIR: blocker },
+      sleep: noSleep,
+    });
+    expect(unwritable.errors.some((message) => message.startsWith("cdx cache not written"))).toBe(
+      true,
+    );
+  });
+});
+
+describe("discoverCacheDirectory", () => {
+  test("prefers the cache override, then XDG_CACHE_HOME, then the home directory", () => {
+    expect(discoverCacheDirectory({ JOBSHIP_CACHE_DIR: "/c" })).toBe("/c/discover");
+    expect(discoverCacheDirectory({ XDG_CACHE_HOME: "/x" })).toBe("/x/jobship/discover");
+    expect(discoverCacheDirectory({ HOME: "/h" })).toBe("/h/.cache/jobship/discover");
+    expect(discoverCacheDirectory({})).toBe(
+      path.join(os.homedir(), ".cache", "jobship", "discover"),
+    );
   });
 });
