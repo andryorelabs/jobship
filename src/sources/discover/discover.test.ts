@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -71,6 +71,25 @@ function fakeFetch(titles: Record<string, string | null>, seen: string[] = []) {
 
 function writeCompanies(companies: unknown[]): void {
   writeFileSync(path.join(root, "companies.json"), JSON.stringify({ companies }));
+}
+
+function explodingFetch(): Promise<Response> {
+  const response = new Response("{}");
+  Object.defineProperty(response, "ok", {
+    get(): boolean {
+      throw new Error("response exploded");
+    },
+  });
+  return Promise.resolve(response);
+}
+
+function emptyCandidateDeps() {
+  return {
+    findCandidates: finder([{ ats: "greenhouse", slug: "empty" }]),
+    fetch: fakeFetch({ empty: null }),
+    now: NOW,
+    env: cacheEnv(),
+  };
 }
 
 describe("runDiscover", () => {
@@ -302,6 +321,61 @@ describe("runDiscover", () => {
     expect(peak).toBe(5);
   });
 
+  test("reports a stored company whose ATS has no adapter", async () => {
+    writeCompanies([
+      { ats: "mystery", slug: "odd", origin: "discovered", checkedAt: "2026-01-01T00:00:00Z" },
+    ]);
+    const result = await runDiscover(
+      { path: root },
+      { findCandidates: finder([]), fetch: fakeFetch({}), now: NOW, env: cacheEnv() },
+    );
+    expect(result.ok && result.value.errors).toEqual(["mystery:odd: unsupported ATS"]);
+  });
+
+  test("reports a verification whose fetch throws", async () => {
+    const broken = explodingFetch;
+    const result = await runDiscover(
+      { path: root },
+      {
+        findCandidates: finder([{ ats: "greenhouse", slug: "boom" }]),
+        fetch: broken,
+        now: NOW,
+        env: cacheEnv(),
+      },
+    );
+    expect(result.ok && result.value.errors).toEqual(["greenhouse:boom: response exploded"]);
+  });
+
+  test("ignores a rejected-candidates cache that is not valid JSON or not an object", async () => {
+    const deps = emptyCandidateDeps;
+    await runDiscover({ path: root }, deps());
+    const directory = path.join(root, "cache", "discover");
+    const file = path.join(directory, readdirSync(directory)[0] ?? "");
+    writeFileSync(file, "{broken");
+    const invalid = await runDiscover({ path: root }, deps());
+    expect(invalid.ok && invalid.value.errors[0]).toContain("rejected-candidates cache ignored");
+    writeFileSync(file, "[]");
+    const notObject = await runDiscover({ path: root }, deps());
+    expect(notObject.ok && notObject.value.errors).toContain(
+      "rejected-candidates cache ignored: not a JSON object",
+    );
+  });
+
+  test("reports a rejected-candidates cache that cannot be written", async () => {
+    const blocker = path.join(root, "blocker");
+    writeFileSync(blocker, "file");
+    const result = await runDiscover(
+      { path: root },
+      {
+        findCandidates: finder([]),
+        fetch: fakeFetch({}),
+        now: NOW,
+        env: { JOBSHIP_CACHE_DIR: blocker },
+      },
+    );
+    expect(result.ok && result.value.errors[0]).toContain("rejected-candidates cache not written");
+  });
+
   test("fails clearly without a Profile or with a malformed companies file", async () => {
     writeFileSync(path.join(root, "companies.json"), "{not json");
     const malformed = await runDiscover(
@@ -331,5 +405,33 @@ describe("discover command", () => {
   test("needs a data directory", async () => {
     const result = await run([], { dataDir: null, env: {}, cwd: root });
     expect(result.ok ? null : result.error.code).toBe("data-dir-not-found");
+  });
+
+  test("rejects a flag without a value and a non-numeric limit", async () => {
+    const context = { dataDir: { path: root }, env: {}, cwd: root };
+    const missing = await run(["--limit"], context);
+    const text = await run(["--limit", "ten"], context);
+    expect(missing.ok ? null : missing.error.code).toBe("usage");
+    expect(text.ok ? null : text.error.code).toBe("usage");
+  });
+
+  test("runs discovery with a keyword through the global fetch", async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = Object.assign(
+      () => {
+        calls += 1;
+        return Promise.resolve(new Response("", { status: 404 }));
+      },
+      { preconnect: () => undefined },
+    );
+    const result = await run(["--keyword", "typescript", "--limit", "2"], {
+      dataDir: { path: root },
+      env: cacheEnv(),
+      cwd: root,
+    });
+    globalThis.fetch = originalFetch;
+    expect(calls).toBeGreaterThan(0);
+    expect(typeof result.ok).toBe("boolean");
   });
 });
