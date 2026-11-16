@@ -13,7 +13,10 @@ interface SelfTestCase {
   readonly pass: boolean;
 }
 
-export interface SelfTestResult { readonly pass: boolean; readonly cases: SelfTestCase[] }
+export interface SelfTestResult {
+  readonly pass: boolean;
+  readonly cases: SelfTestCase[];
+}
 
 type Decide = (input: unknown, lookup?: LabelLookup) => GuardDecision;
 
@@ -128,7 +131,7 @@ function cannedLabelLookup(scope: string, uid: string): string | null {
 
 function preToolUseMatchers(hooks: unknown): string[] {
   if (!isObject(hooks) || !isObject(hooks.hooks)) return [];
-  const entries = hooks.hooks["PreToolUse"];
+  const entries = hooks.hooks.PreToolUse;
   if (!Array.isArray(entries)) return [];
   const matchers: string[] = [];
   for (const entry of entries as unknown[]) {
