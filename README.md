@@ -98,6 +98,7 @@ Details: [safety model](docs/guide/safety.md). After a release, follow the [dogf
 - [CLI reference](docs/reference/cli.md)
 - [Profile reference](docs/reference/profile.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [Privacy policy](PRIVACY_POLICY.md)
 - [Architecture decisions](docs/adr/README.md)
 - [Product](PRODUCT.md)
 - [Governance](GOVERNANCE.md)

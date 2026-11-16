@@ -1,6 +1,6 @@
 # Architecture decision records
 
-Decisions that are hard to reverse, surprising without context, and the result of a real trade-off. Terms follow [GLOSSARY.md](../../GLOSSARY.md). `tools/adr-invariants.test.ts` keeps this index and the files in sync, and checks each ADR's `Status:`, `Date:` and sections. Start a new ADR from [template.md](template.md).
+Decisions that are hard to reverse, surprising without context, and the result of a real trade-off. Terms follow [GLOSSARY.md](../../GLOSSARY.md). `tools/adr-invariants.test.ts` keeps this index and the files in sync, and checks each ADR's `Status:`, `Date:` and sections. Start a new ADR from [0000-template.md](0000-template.md).
 
 ## Index
 
