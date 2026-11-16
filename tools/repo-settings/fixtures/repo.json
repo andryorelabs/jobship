@@ -2,7 +2,9 @@
   "id": 1,
   "name": "jobship",
   "full_name": "andryorelabs/jobship",
+  "description": "Local-first job-search system for Claude Code: sweeps Sources, scores fit against your Profile, builds a Tailored CV from Fact bank facts and assists the form. You press Submit.",
   "homepage": "https://github.com/andryorelabs/jobship#readme",
+  "default_branch": "main",
   "topics": [
     "typescript",
     "bun",
@@ -19,6 +21,8 @@
   "allow_rebase_merge": false,
   "squash_merge_commit_title": "PR_TITLE",
   "squash_merge_commit_message": "PR_BODY",
+  "merge_commit_title": "PR_TITLE",
+  "merge_commit_message": "PR_BODY",
   "delete_branch_on_merge": true,
   "allow_auto_merge": true,
   "allow_update_branch": true,

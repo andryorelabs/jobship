@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import type { CommandContext } from "../core/commands.ts";
 import { isObject } from "../core/narrow.ts";
 import { resolveTypst } from "../core/tools.ts";
@@ -33,7 +34,7 @@ function payloadOf(runner: { compiled: string[] }): Record<string, unknown> {
 
 function idsOf(list: unknown): unknown[] {
   if (!Array.isArray(list)) throw new Error("expected a list");
-  return list.map((item: unknown) => (isObject(item) ? item["id"] : undefined));
+  return list.map((item: unknown) => (isObject(item) ? item.id : undefined));
 }
 
 function fakeRunner(text: string): TypstRunner & { compiled: string[] } {
@@ -456,7 +457,7 @@ variants:
     const runner = fakeRunner("x");
     const envelope = await runWith(["build", "--variant", "startup"], context(), runner);
     expect(envelope.ok).toBe(true);
-    expect(idsOf(payloadOf(runner)["bullets"])).toEqual(["b-en"]);
+    expect(idsOf(payloadOf(runner).bullets)).toEqual(["b-en"]);
   });
 
   test("an undefined variant is rejected when variants exist and no tag is given", async () => {
@@ -482,8 +483,8 @@ describe("CV structure", () => {
     const result = await buildCv(dir, { runner });
     expect(result.ok).toBe(true);
     const payload = payloadOf(runner);
-    expect(payload["experience"]).toEqual([]);
-    expect(payload["skills"]).toEqual([]);
+    expect(payload.experience).toEqual([]);
+    expect(payload.skills).toEqual([]);
   });
 
   test("groups Bullets by Entry sorted by order and keeps flat bullets", async () => {
@@ -491,16 +492,16 @@ describe("CV structure", () => {
     const result = await buildCv(dir, { name: "backend", runner });
     expect(result.ok).toBe(true);
     const payload = payloadOf(runner);
-    const header = payload["header"];
-    expect(isObject(header) ? header["name"] : undefined).toBe("Jane Example");
-    const experience: unknown = payload["experience"];
+    const header = payload.header;
+    expect(isObject(header) ? header.name : undefined).toBe("Jane Example");
+    const experience: unknown = payload.experience;
     const firstEntry: unknown = Array.isArray(experience) ? experience[0] : undefined;
-    expect(isObject(firstEntry) ? firstEntry["dates"] : undefined).toBe("Spring to Autumn");
-    expect(idsOf(isObject(firstEntry) ? firstEntry["bullets"] : undefined)).toEqual([
+    expect(isObject(firstEntry) ? firstEntry.dates : undefined).toBe("Spring to Autumn");
+    expect(idsOf(isObject(firstEntry) ? firstEntry.bullets : undefined)).toEqual([
       "b-ci",
       "b-latency",
     ]);
-    expect(idsOf(payload["bullets"])).toEqual(["b-latency", "b-ci"]);
+    expect(idsOf(payload.bullets)).toEqual(["b-latency", "b-ci"]);
   });
 
   test("fails naming a Bullet whose entry is missing", async () => {

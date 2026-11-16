@@ -3,3 +3,6 @@ contact_links:
   - name: Report a security vulnerability
     url: https://github.com/andryorelabs/jobship/security/advisories/new
     about: Do not open a public issue for security reports.
+  - name: Ask a question or read the docs
+    url: https://github.com/andryorelabs/jobship/blob/main/.github/SUPPORT.md
+    about: Usage questions and documentation links live in SUPPORT.md.

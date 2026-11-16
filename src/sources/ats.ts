@@ -26,25 +26,25 @@ const greenhouse: AdapterSpec = {
   parse: (body, query) =>
     mapRows(records(field(body, "jobs")), "jobs", (row) => {
       const slug = query.slug ?? "";
-      const id = identifier(row["id"]);
-      const title = text(row["title"]);
-      const url = text(row["absolute_url"]);
+      const id = identifier(row.id);
+      const title = text(row.title);
+      const url = text(row.absolute_url);
       if (id === undefined || title === undefined || url === undefined) return undefined;
-      const content = text(row["content"]);
-      const location = text(field(row["location"], "name"));
+      const content = text(row.content);
+      const location = text(field(row.location, "name"));
       return withOptional(
         {
           id: `greenhouse:${slug}:${id}`,
           source: "greenhouse",
           url,
-          company: text(row["company_name"]) ?? query.company ?? slug,
+          company: text(row.company_name) ?? query.company ?? slug,
           title,
         },
         {
           location,
           remote: location === undefined ? undefined : /remote/i.test(location),
           description: content === undefined ? undefined : stripHtml(content),
-          postedAt: isoDate(row["updated_at"]),
+          postedAt: isoDate(row.updated_at),
         },
       );
     }),
@@ -57,19 +57,19 @@ const lever: AdapterSpec = {
   parse: (body, query) =>
     mapRows(records(body), "postings", (row) => {
       const slug = query.slug ?? "";
-      const id = identifier(row["id"]);
-      const title = text(row["text"]);
-      const url = text(row["hostedUrl"]);
+      const id = identifier(row.id);
+      const title = text(row.text);
+      const url = text(row.hostedUrl);
       if (id === undefined || title === undefined || url === undefined) return undefined;
-      const workplace = text(row["workplaceType"]);
+      const workplace = text(row.workplaceType);
       return withOptional(
         { id: `lever:${slug}:${id}`, source: "lever", url, company: query.company ?? slug, title },
         {
-          location: text(field(row["categories"], "location")),
-          contract: text(field(row["categories"], "commitment")),
+          location: text(field(row.categories, "location")),
+          contract: text(field(row.categories, "commitment")),
           remote: workplace === undefined ? undefined : workplace === "remote",
-          description: text(row["descriptionPlain"]),
-          postedAt: isoDate(row["createdAt"]),
+          description: text(row.descriptionPlain),
+          postedAt: isoDate(row.createdAt),
         },
       );
     }),
@@ -82,18 +82,18 @@ const ashby: AdapterSpec = {
   parse: (body, query) =>
     mapRows(records(field(body, "jobs")), "jobs", (row) => {
       const slug = query.slug ?? "";
-      const id = identifier(row["id"]);
-      const title = text(row["title"]);
-      const url = text(row["jobUrl"]);
+      const id = identifier(row.id);
+      const title = text(row.title);
+      const url = text(row.jobUrl);
       if (id === undefined || title === undefined || url === undefined) return undefined;
       return withOptional(
         { id: `ashby:${slug}:${id}`, source: "ashby", url, company: query.company ?? slug, title },
         {
-          location: text(row["location"]),
-          remote: typeof row["isRemote"] === "boolean" ? row["isRemote"] : undefined,
-          contract: text(row["employmentType"]),
-          description: text(row["descriptionPlain"]),
-          postedAt: isoDate(row["publishedAt"]),
+          location: text(row.location),
+          remote: typeof row.isRemote === "boolean" ? row.isRemote : undefined,
+          contract: text(row.employmentType),
+          description: text(row.descriptionPlain),
+          postedAt: isoDate(row.publishedAt),
         },
       );
     }),
@@ -106,11 +106,11 @@ const workable: AdapterSpec = {
   parse: (body, query) =>
     mapRows(records(field(body, "jobs")), "jobs", (row) => {
       const slug = query.slug ?? "";
-      const id = identifier(row["shortcode"]);
-      const title = text(row["title"]);
-      const url = text(row["url"]);
+      const id = identifier(row.shortcode);
+      const title = text(row.title);
+      const url = text(row.url);
       if (id === undefined || title === undefined || url === undefined) return undefined;
-      const description = text(row["description"]);
+      const description = text(row.description);
       return withOptional(
         {
           id: `workable:${slug}:${id}`,
@@ -120,11 +120,11 @@ const workable: AdapterSpec = {
           title,
         },
         {
-          location: joined(text(row["city"]), text(row["country"])),
-          remote: typeof row["telecommuting"] === "boolean" ? row["telecommuting"] : undefined,
-          contract: text(row["employment_type"]),
+          location: joined(text(row.city), text(row.country)),
+          remote: typeof row.telecommuting === "boolean" ? row.telecommuting : undefined,
+          contract: text(row.employment_type),
           description: description === undefined ? undefined : stripHtml(description),
-          postedAt: isoDate(row["published_on"]),
+          postedAt: isoDate(row.published_on),
         },
       );
     }),
@@ -137,24 +137,24 @@ const smartrecruiters: AdapterSpec = {
   parse: (body, query) =>
     mapRows(records(field(body, "content")), "postings", (row) => {
       const slug = query.slug ?? "";
-      const id = identifier(row["id"]);
-      const title = text(row["name"]);
+      const id = identifier(row.id);
+      const title = text(row.name);
       if (id === undefined || title === undefined) return undefined;
-      const location = row["location"];
-      const remote = isObject(location) ? location["remote"] : undefined;
+      const location = row.location;
+      const remote = isObject(location) ? location.remote : undefined;
       return withOptional(
         {
           id: `smartrecruiters:${slug}:${id}`,
           source: "smartrecruiters",
           url: `https://jobs.smartrecruiters.com/${slug}/${id}`,
-          company: text(field(row["company"], "name")) ?? query.company ?? slug,
+          company: text(field(row.company, "name")) ?? query.company ?? slug,
           title,
         },
         {
           location: joined(text(field(location, "city")), text(field(location, "country"))),
           remote: typeof remote === "boolean" ? remote : undefined,
-          contract: text(field(row["typeOfEmployment"], "label")),
-          postedAt: isoDate(row["releasedDate"]),
+          contract: text(field(row.typeOfEmployment, "label")),
+          postedAt: isoDate(row.releasedDate),
         },
       );
     }),

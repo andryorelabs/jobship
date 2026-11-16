@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
+
 import {
   directToolCalls,
   isMinimalPermissions,
   jobsInterpolatingIntoShell,
   jobsPersistingCredentials,
   jobsWithoutTimeout,
-  lacksPullRequestConcurrency,
   misroutedJobs,
   neededJobs,
   parseWorkflow,
@@ -53,9 +53,9 @@ describe("parseWorkflow", () => {
 
   test("normalizes needs to a sorted list", () => {
     const { jobs } = parseWorkflow("jobs:\n  a:\n    needs: z\n  b:\n    needs: [y, x]\n  c: {}\n");
-    expect(neededJobs(jobs["a"])).toEqual(["z"]);
-    expect(neededJobs(jobs["b"])).toEqual(["x", "y"]);
-    expect(neededJobs(jobs["c"])).toEqual([]);
+    expect(neededJobs(jobs.a)).toEqual(["z"]);
+    expect(neededJobs(jobs.b)).toEqual(["x", "y"]);
+    expect(neededJobs(jobs.c)).toEqual([]);
     expect(neededJobs(undefined)).toEqual([]);
   });
 });
@@ -106,33 +106,6 @@ describe("isMinimalPermissions", () => {
     expect(isMinimalPermissions("write-all")).toBe(false);
     expect(isMinimalPermissions({ contents: "write" })).toBe(false);
     expect(isMinimalPermissions({ contents: "read", issues: "read" })).toBe(false);
-  });
-});
-
-describe("lacksPullRequestConcurrency", () => {
-  test("flags a pull-request workflow without a concurrency group", () => {
-    expect(lacksPullRequestConcurrency(parseWorkflow(workflowWithJob(["steps: []"])))).toBe(true);
-    const emptyGroup = workflowWithJob(
-      ["steps: []"],
-      ["concurrency:", "  cancel-in-progress: true"],
-    );
-    expect(lacksPullRequestConcurrency(parseWorkflow(emptyGroup))).toBe(true);
-  });
-
-  test("accepts a group, as a mapping or as a string", () => {
-    const mapping = workflowWithJob(
-      ["steps: []"],
-      ["concurrency:", "  group: ci-${{ github.ref }}"],
-    );
-    const short = workflowWithJob(["steps: []"], ["concurrency: ci-${{ github.ref }}"]);
-    expect(lacksPullRequestConcurrency(parseWorkflow(mapping))).toBe(false);
-    expect(lacksPullRequestConcurrency(parseWorkflow(short))).toBe(false);
-  });
-
-  test("ignores a workflow that pull requests do not trigger", () => {
-    expect(lacksPullRequestConcurrency(parseWorkflow("on:\n  schedule: []\njobs: {}\n"))).toBe(
-      false,
-    );
   });
 });
 

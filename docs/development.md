@@ -34,8 +34,8 @@ CI and the git hooks call these scripts, never the tools behind them. Do not run
 
 Repository settings live as code, not as clicks:
 
-- `.github/rulesets/develop.json`: the `develop` ruleset (no deletion, no force push, linear history, pull request required, squash only, thread resolution, the "CI passed" and "Validate PR title" checks with the up to date policy, signed commits, no bypass actors).
-- `.github/rulesets/main.json`: the `main` ruleset (no deletion, no force push, pull request required, merge commits only, thread resolution, the same two checks, signed commits, no bypass actors).
+- `.github/rulesets/develop.json`: the `develop` ruleset (no deletion, no force push, linear history, pull request required, squash only, thread resolution, the "CI passed" and "Validate PR title" checks with the up to date policy, CodeQL code scanning (no high or higher security alerts, no error alerts), signed commits, no bypass actors).
+- `.github/rulesets/main.json`: the `main` ruleset (no deletion, no force push, pull request required, merge commits only, thread resolution, the same two checks, the same CodeQL code scanning rule, signed commits, no bypass actors).
 - `.github/rulesets/tags.json`: the `refs/tags/v*` ruleset (no deletion, update or force push).
 - `.github/repo-settings.json`: the repository-level settings (squash and merge-commit merges, title and message defaults, branch cleanup, auto-merge, security features, homepage and topics).
 
@@ -51,28 +51,16 @@ Live settings are never edited in the web UI. Drift is fixed by re-applying the 
 
 ## Releasing
 
-`develop` is the trunk and `main` holds released history only ([ADR-0008](adr/0008-develop-is-the-trunk.md)). A release is a signed, annotated `v*` tag on `main`. The `release.yml` workflow does the rest.
-
-1. Move the `[Unreleased]` notes in `CHANGELOG.md` under a new `## [X.Y.Z] - YYYY-MM-DD` heading, add its compare-link reference at the bottom, and set `version` in `.claude-plugin/plugin.json`. Squash that into `develop` through a pull request titled `chore: 🔖 release X.Y.Z`.
-2. Open a pull request from `develop` to `main` with the same title and merge it with a merge commit. Then update local `main` to that merge commit.
-3. Cut the tag with your signing key:
-
-   ```sh
-   git tag -s -a vX.Y.Z -m "vX.Y.Z"
-   git push origin vX.Y.Z
-   ```
-
-4. The workflow verifies the tagged commit is on `main`, waits for a green "CI passed" on it, builds the binaries, attests build provenance for every binary and `SHA256SUMS`, and publishes the release with the body taken from the tag's `CHANGELOG.md` section. If that section is missing or empty, the notes script fails and no release is created.
-5. Follow the [dogfooding checklist](guide/dogfooding.md) against the new release.
+`develop` is the trunk and `main` holds released history only ([ADR-0008](adr/0008-develop-is-the-trunk.md)). The steps are in [Cut a release](how-to/cut-a-release.md).
 
 ## Tests
 
 - Tests sit beside the code as `*.test.ts`; tool tests sit in `tools/`.
 - Use synthetic fixtures only ([ADR-0003](adr/0003-code-and-personal-data-live-apart.md)).
-- A new `src/**/*.ts` module needs a test that imports it or a reasoned entry in the coverage exemptions file.
+- Every module under `src/` and `tools/` must show up in the coverage table of a full `bun run test`, or carry a reasoned entry in `tools/coverage/coverage-exemptions.ts`. Each one must also meet the per-file floor (97% lines, 98% functions) or carry an entry with its measured floor in `tools/coverage/coverage-exceptions.ts`.
 
 ## Docs
 
 - Every Markdown file under `docs/` is linked from [docs/README.md](README.md), except `docs/agents/`, `docs/adr/` (behind its own index) and `docs/brand/` (behind its README).
 - Every `JOBSHIP_*` variable that `src/` reads is named in [configuration.md](configuration.md).
-- A new ADR starts from [adr/template.md](adr/template.md) and gets a row in the [index](adr/README.md).
+- A new ADR starts from [adr/0000-template.md](adr/0000-template.md) and gets a row in the [index](adr/README.md).

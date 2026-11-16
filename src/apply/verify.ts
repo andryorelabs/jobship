@@ -1,4 +1,5 @@
 import path from "node:path";
+
 import type { FieldDump, IntendedField, VerifyFinding } from "./types.ts";
 
 function baseName(value: string): string {

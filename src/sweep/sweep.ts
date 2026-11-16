@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+
 import type { CommandContext } from "../core/commands.ts";
 import { loadProfile } from "../core/data-dir.ts";
 import { withLock, writeAtomic } from "../core/fs.ts";
@@ -15,10 +16,10 @@ import type {
   SourceResult,
   TrackerAdapter,
 } from "../core/types.ts";
+import { readEvents } from "../ledger/events.ts";
 import { ATS_NAMES } from "../sources/ats.ts";
 import { readCompanies } from "../sources/companies.ts";
 import { resolveBoards, type ResolvedBoard } from "../sources/index.ts";
-import { readEvents } from "../ledger/events.ts";
 import { createTracker, projectEvents } from "../tracker/index.ts";
 import { addCounts, EMPTY_COUNTS, processBatch } from "./pipeline.ts";
 import type {
@@ -33,16 +34,19 @@ import type {
 
 const ATS_SOURCES: ReadonlySet<string> = new Set(ATS_NAMES);
 
-type Prepared = { readonly dir: DataDir; readonly profile: Profile };
+interface Prepared {
+  readonly dir: DataDir;
+  readonly profile: Profile;
+}
 
-type Fetched = {
+interface Fetched {
   readonly source: string;
   readonly postings: Posting[];
   readonly errors: string[];
   readonly warnings: string[];
   readonly misconfigured: boolean;
   readonly nextCursor?: string;
-};
+}
 
 function fail<T>(code: string, message: string): Result<T> {
   return { ok: false, error: { code, message } };
@@ -64,7 +68,7 @@ function trackerFor(
 ): TrackerAdapter {
   if (injected !== undefined) return injected;
   return createTracker(prepared.profile.tracker, prepared.dir, {
-    apiKey: ctx.env["LINEAR_API_KEY"],
+    apiKey: ctx.env.LINEAR_API_KEY,
   });
 }
 
@@ -186,11 +190,11 @@ function statusOf(
   return counts.seen === 0 ? "empty" : "ok";
 }
 
-type Collected = {
+interface Collected {
   readonly reports: SourceReport[];
   readonly events: HuntEvent[];
   readonly leads: string[];
-};
+}
 
 async function ingestFetched(
   prepared: Prepared,

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import type { CommandContext } from "../core/commands.ts";
 import { isObject } from "../core/narrow.ts";
 import { loadFactBank } from "../cv/facts.ts";
@@ -77,7 +78,7 @@ describe("fact estimate", () => {
     const batchPath = await applyProposal({ facts: [{ ...estimatedFact(), estimate: ESTIMATE }] });
     expect(readFileSync(batchPath, "utf8")).toContain(ESTIMATE);
     const [stored] = listOf("facts.yaml", "facts");
-    expect(isObject(stored) && stored["estimate"]).toBe(ESTIMATE);
+    expect(isObject(stored) && stored.estimate).toBe(ESTIMATE);
   });
 
   test("an estimate-only change is an update and apply rewrites it", async () => {
@@ -92,7 +93,7 @@ describe("fact estimate", () => {
     const applied = await applyDossierBatch(context(), derived.value.batchPath);
     expect(applied).toEqual({ ok: true, value: { applied: 1 } });
     const [stored] = listOf("facts.yaml", "facts");
-    expect(isObject(stored) && stored["estimate"]).toBe(ESTIMATE);
+    expect(isObject(stored) && stored.estimate).toBe(ESTIMATE);
   });
 
   test("an unchanged estimate yields no items", async () => {
@@ -290,8 +291,8 @@ describe("applyDossierBatch comment preservation", () => {
     expect(readDataFile("bullets.yaml")).toContain("# bullets note");
     const profile = parsedFile("profile.yaml");
     expect(Object.keys(profile).slice(0, 3)).toEqual(["regions", "contractTypes", "remote"]);
-    expect(profile["regions"]).toEqual(["EU"]);
-    const factIds = listOf("facts.yaml", "facts").map((fact) => isObject(fact) && fact["id"]);
+    expect(profile.regions).toEqual(["EU"]);
+    const factIds = listOf("facts.yaml", "facts").map((fact) => isObject(fact) && fact.id);
     expect(factIds).toEqual(["checkout-latency", "ci-pipeline"]);
     expect(listOf("never-claim.yaml", "terms")).toEqual(["Kubernetes certified"]);
 
@@ -305,14 +306,14 @@ describe("applyDossierBatch comment preservation", () => {
     writeFileSync(path.join(dataDir, "facts.yaml"), "# facts note\nfacts: []\n");
     const base = loadBaseProposal();
     await applyProposal(base);
-    const stored: unknown = base["bullets"];
+    const stored: unknown = base.bullets;
     const candidate: unknown = Array.isArray(stored) ? stored[0] : {};
     const first = isObject(candidate) ? candidate : {};
     const replacement = "Cut checkout latency threefold with a cache";
     await applyProposal({ ...base, bullets: [{ ...first, text: replacement }] });
     const bullets = listOf("bullets.yaml", "bullets");
     expect(bullets).toHaveLength(1);
-    expect(isObject(bullets[0]) && bullets[0]["text"]).toBe(replacement);
+    expect(isObject(bullets[0]) && bullets[0].text).toBe(replacement);
     expect(readDataFile("facts.yaml")).toContain("# facts note");
   });
 
@@ -530,8 +531,8 @@ describe("CV data derive and apply", () => {
     const derived = await deriveRaw(loadBaseProposal());
     if (!derived.ok) throw new Error(derived.error.message);
     const raw: unknown = JSON.parse(readFileSync(derived.value.batchPath, "utf8"));
-    const items = isObject(raw) && Array.isArray(raw["items"]) ? raw["items"] : [];
-    const sections = items.map((item) => (isObject(item) ? item["section"] : null));
+    const items = isObject(raw) && Array.isArray(raw.items) ? raw.items : [];
+    const sections = items.map((item) => (isObject(item) ? item.section : null));
     expect(sections.filter((section) => section === undefined)).toHaveLength(items.length - 3);
     expect(sections.filter((section) => typeof section === "string").toSorted()).toEqual([
       "experience",
@@ -571,7 +572,7 @@ describe("CV data derive and apply", () => {
     expect(text).toContain("custom: keep-me");
     expect(text).toContain("dates: 2021-2025");
     const [stored] = listOf("facts.yaml", "experience");
-    expect(isObject(stored) && stored["role"]).toBe("Senior Backend Engineer");
+    expect(isObject(stored) && stored.role).toBe("Senior Backend Engineer");
   });
 
   test("an Entry stored under experience cannot be proposed under projects", async () => {

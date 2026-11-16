@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+
 import { ANSWER_KEYS, isTierDKey } from "../apply/answer-keys.ts";
 import type { StoredAnswer } from "../apply/answers.ts";
 import { errorMessage, isObject, isOneOf } from "../core/narrow.ts";
@@ -19,21 +20,21 @@ type EntryProposal = Entry & { readonly cites: readonly string[] };
 
 type SkillProposal = SkillGroup & { readonly cites: readonly string[] };
 
-type HeaderProposal = {
+interface HeaderProposal {
   readonly name: string;
   readonly contact: Readonly<Record<string, string>>;
   readonly cites: readonly string[];
-};
+}
 
-type Removals = {
+interface Removals {
   readonly facts: string[];
   readonly bullets: string[];
   readonly experience?: string[];
   readonly projects?: string[];
   readonly skills?: string[];
-};
+}
 
-export type DossierProposal = {
+export interface DossierProposal {
   readonly facts: FactProposal[];
   readonly bullets: Bullet[];
   readonly profile: Partial<Profile>;
@@ -44,7 +45,7 @@ export type DossierProposal = {
   readonly skills?: SkillProposal[];
   readonly header?: HeaderProposal;
   readonly removals?: Removals;
-};
+}
 
 const PROFILE_FILE = "profile.yaml";
 const PROPOSABLE_PROFILE_KEYS = new Set([
@@ -87,8 +88,8 @@ function parseFacts(value: unknown): Result<FactProposal[]> {
   const facts: FactProposal[] = [];
   for (const [index, row] of rows.value.entries()) {
     const { id, text, source, estimate } = row;
-    const tags = stringList(row["tags"]);
-    const cites = stringList(row["cites"]);
+    const tags = stringList(row.tags);
+    const cites = stringList(row.cites);
     if (typeof id !== "string" || id === "" || typeof text !== "string" || text.trim() === "") {
       return invalid(`facts[${index}] needs a non-empty string id and text`);
     }
@@ -113,8 +114,8 @@ function parseBullets(value: unknown): Result<Bullet[]> {
   const bullets: Bullet[] = [];
   for (const [index, row] of rows.value.entries()) {
     const { id, text, entry, order } = row;
-    const tags = stringList(row["tags"]);
-    const factIds = stringList(row["factIds"]);
+    const tags = stringList(row.tags);
+    const factIds = stringList(row.factIds);
     if (typeof id !== "string" || id === "" || typeof text !== "string" || text.trim() === "") {
       return invalid(`bullets[${index}] needs a non-empty string id and text`);
     }
@@ -174,11 +175,11 @@ function parseEntries(value: unknown, field: string): Result<EntryProposal[]> {
     if (!optionalString(role) || !optionalString(dates)) {
       return invalid(`${field} entry ${id}: role and dates must be strings`);
     }
-    const metadata = stringMap(row["metadata"]);
+    const metadata = stringMap(row.metadata);
     if (metadata === null) {
       return invalid(`${field} entry ${id}: metadata must map names to strings`);
     }
-    const cites = requiredCites(row["cites"], `${field} entry ${id}`);
+    const cites = requiredCites(row.cites, `${field} entry ${id}`);
     if (!cites.ok) return cites;
     entries.push({
       id,
@@ -201,9 +202,9 @@ function parseSkills(value: unknown): Result<SkillProposal[]> {
     if (typeof name !== "string" || name.trim() === "") {
       return invalid(`skills[${index}] needs a non-empty string name`);
     }
-    const items = stringList(row["items"]);
+    const items = stringList(row.items);
     if (items === null) return invalid(`skills group ${name}: items must be a list of strings`);
-    const cites = requiredCites(row["cites"], `skills group ${name}`);
+    const cites = requiredCites(row.cites, `skills group ${name}`);
     if (!cites.ok) return cites;
     groups.push({ name, items, cites: cites.value });
   }
@@ -217,9 +218,9 @@ function parseHeader(value: unknown): Result<HeaderProposal | undefined> {
   if (typeof name !== "string" || name.trim() === "") {
     return invalid("header needs a non-empty string name");
   }
-  const contact = stringMap(value["contact"]);
+  const contact = stringMap(value.contact);
   if (contact === null) return invalid("header contact must map names to strings");
-  const cites = requiredCites(value["cites"], "header");
+  const cites = requiredCites(value.cites, "header");
   if (!cites.ok) return cites;
   return { ok: true, value: { name, contact, cites: cites.value } };
 }
@@ -262,11 +263,11 @@ function parseProfilePart(value: unknown): Result<Partial<Profile>> {
 function parseRemovals(value: unknown): Result<DossierProposal["removals"]> {
   if (value === undefined) return { ok: true, value: undefined };
   if (!isObject(value)) return invalid("removals must be an object");
-  const facts = stringList(value["facts"]);
-  const bullets = stringList(value["bullets"]);
-  const experience = stringList(value["experience"]);
-  const projects = stringList(value["projects"]);
-  const skills = stringList(value["skills"]);
+  const facts = stringList(value.facts);
+  const bullets = stringList(value.bullets);
+  const experience = stringList(value.experience);
+  const projects = stringList(value.projects);
+  const skills = stringList(value.skills);
   if (
     facts === null ||
     bullets === null ||
@@ -281,9 +282,9 @@ function parseRemovals(value: unknown): Result<DossierProposal["removals"]> {
     value: {
       facts,
       bullets,
-      ...(value["experience"] === undefined ? {} : { experience }),
-      ...(value["projects"] === undefined ? {} : { projects }),
-      ...(value["skills"] === undefined ? {} : { skills }),
+      ...(value.experience === undefined ? {} : { experience }),
+      ...(value.projects === undefined ? {} : { projects }),
+      ...(value.skills === undefined ? {} : { skills }),
     },
   };
 }
@@ -291,25 +292,25 @@ function parseRemovals(value: unknown): Result<DossierProposal["removals"]> {
 /** Parses the structure of a proposal JSON document; semantic checks live in validateProposal. */
 export function parseProposal(raw: unknown): Result<DossierProposal> {
   if (!isObject(raw)) return invalid("proposal must be a JSON object");
-  const facts = parseFacts(raw["facts"]);
+  const facts = parseFacts(raw.facts);
   if (!facts.ok) return facts;
-  const bullets = parseBullets(raw["bullets"]);
+  const bullets = parseBullets(raw.bullets);
   if (!bullets.ok) return bullets;
-  const profile = parseProfilePart(raw["profile"]);
+  const profile = parseProfilePart(raw.profile);
   if (!profile.ok) return profile;
-  const neverClaim = stringList(raw["neverClaim"]);
+  const neverClaim = stringList(raw.neverClaim);
   if (neverClaim === null) return invalid("neverClaim must be a list of strings");
-  const answers = parseAnswers(raw["answers"]);
+  const answers = parseAnswers(raw.answers);
   if (!answers.ok) return answers;
-  const experience = parseEntries(raw["experience"], "experience");
+  const experience = parseEntries(raw.experience, "experience");
   if (!experience.ok) return experience;
-  const projects = parseEntries(raw["projects"], "projects");
+  const projects = parseEntries(raw.projects, "projects");
   if (!projects.ok) return projects;
-  const skills = parseSkills(raw["skills"]);
+  const skills = parseSkills(raw.skills);
   if (!skills.ok) return skills;
-  const header = parseHeader(raw["header"]);
+  const header = parseHeader(raw.header);
   if (!header.ok) return header;
-  const removals = parseRemovals(raw["removals"]);
+  const removals = parseRemovals(raw.removals);
   if (!removals.ok) return removals;
   return {
     ok: true,
@@ -319,9 +320,9 @@ export function parseProposal(raw: unknown): Result<DossierProposal> {
       profile: profile.value,
       neverClaim,
       answers: answers.value,
-      ...(raw["experience"] === undefined ? {} : { experience: experience.value }),
-      ...(raw["projects"] === undefined ? {} : { projects: projects.value }),
-      ...(raw["skills"] === undefined ? {} : { skills: skills.value }),
+      ...(raw.experience === undefined ? {} : { experience: experience.value }),
+      ...(raw.projects === undefined ? {} : { projects: projects.value }),
+      ...(raw.skills === undefined ? {} : { skills: skills.value }),
       ...(header.value === undefined ? {} : { header: header.value }),
       ...(removals.value === undefined ? {} : { removals: removals.value }),
     },
@@ -376,10 +377,10 @@ function proposedEntries(proposal: DossierProposal): EntryProposal[] {
 }
 
 /** Entry ids stored in facts.yaml, per section. */
-export type StoredEntryIds = {
+export interface StoredEntryIds {
   readonly experience: readonly string[];
   readonly projects: readonly string[];
-};
+}
 
 const NO_STORED_ENTRIES: StoredEntryIds = { experience: [], projects: [] };
 

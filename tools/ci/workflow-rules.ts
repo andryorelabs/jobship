@@ -21,6 +21,7 @@ export interface WorkflowJob {
   readonly "timeout-minutes"?: unknown;
   readonly needs?: string | readonly string[];
   readonly if?: string;
+  readonly "continue-on-error"?: unknown;
   readonly steps?: readonly WorkflowStep[];
   readonly permissions?: unknown;
 }
@@ -119,11 +120,8 @@ export function isMinimalPermissions(permissions: unknown): boolean {
   );
 }
 
-/** Whether a pull-request-triggered workflow lacks a concurrency group. */
-export function lacksPullRequestConcurrency(workflow: Workflow): boolean {
-  if (!triggerNames(workflow).includes("pull_request")) {
-    return false;
-  }
+/** Whether a workflow lacks a non-empty concurrency group. */
+export function lacksConcurrency(workflow: Workflow): boolean {
   const concurrency = workflow.concurrency;
   if (typeof concurrency === "string") {
     return concurrency === "";
@@ -135,6 +133,84 @@ export function lacksPullRequestConcurrency(workflow: Workflow): boolean {
     typeof concurrency.group === "string" &&
     concurrency.group !== ""
   );
+}
+
+/** Whether a workflow cannot be started by hand, that is it lacks the `workflow_dispatch` event. */
+export function lacksManualTrigger(workflow: Workflow): boolean {
+  return !triggerNames(workflow).includes("workflow_dispatch");
+}
+
+/** Whether a workflow does not run on pushes to the given branch. */
+export function lacksPushTo(workflow: Workflow, branch: string): boolean {
+  const triggers = workflow.on;
+  if (typeof triggers !== "object" || triggers === null || Array.isArray(triggers)) {
+    return true;
+  }
+  const push: unknown = "push" in triggers ? triggers.push : undefined;
+  if (typeof push !== "object" || push === null) {
+    return true;
+  }
+  return !("branches" in push && Array.isArray(push.branches) && push.branches.includes(branch));
+}
+
+/** Ids of the jobs whose first step is not harden-runner in audit mode. */
+export function jobsWithoutHardenRunner(workflow: Workflow): string[] {
+  return Object.entries(workflow.jobs)
+    .filter(([, job]) => job.uses === undefined)
+    .filter(([, job]) => {
+      const first = job.steps?.[0];
+      return !(
+        first?.uses?.startsWith("step-security/harden-runner@") === true &&
+        first.with?.["egress-policy"] === "audit"
+      );
+    })
+    .map(([id]) => id);
+}
+
+/** `job: step` for every artifact upload that is not guarded by `if: failure()`. */
+export function uploadsWithoutFailureGuard(workflow: Workflow): string[] {
+  return Object.entries(workflow.jobs).flatMap(([id, job]) =>
+    (job.steps ?? [])
+      .filter((step) => step.uses?.startsWith("actions/upload-artifact@") === true)
+      .filter((step) => !(step.if ?? "").includes("failure()"))
+      .map((step) => `${id}: ${step.name ?? step.uses ?? ""}`),
+  );
+}
+
+/** Whether a job's `if` skips the develop-to-main promotion pull request. */
+export function skipsPromotionPullRequest(job: WorkflowJob | undefined): boolean {
+  const condition = job?.if ?? "";
+  return (
+    condition.includes("github.head_ref") &&
+    condition.includes("develop") &&
+    condition.includes("github.base_ref") &&
+    condition.includes("main")
+  );
+}
+
+/** Ids of the jobs that install the latest Bun. */
+export function latestBunJobs(workflow: Workflow): string[] {
+  return Object.entries(workflow.jobs)
+    .filter(([, job]) =>
+      (job.steps ?? []).some(
+        (step) =>
+          step.uses?.startsWith("oven-sh/setup-bun@") === true &&
+          step.with?.["bun-version"] === "latest",
+      ),
+    )
+    .map(([id]) => id);
+}
+
+/** Whether a job may fail without failing the workflow. */
+export function isNonBlocking(job: WorkflowJob | undefined): boolean {
+  return job?.["continue-on-error"] === true;
+}
+
+/** The names of the pins (tool to exact text) that the raw workflow does not contain. */
+export function missingPins(raw: string, pins: Readonly<Record<string, string>>): string[] {
+  return Object.entries(pins)
+    .filter(([, text]) => !raw.includes(text))
+    .map(([tool]) => tool);
 }
 
 /** Ids of the jobs whose `actions/checkout` step leaves the token in the git config. */

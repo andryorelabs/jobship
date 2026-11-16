@@ -1,18 +1,34 @@
+import { writeBannerForArgs } from "./core/banner.ts";
+import { colorEnabled } from "./core/color.ts";
 import {
+  COMMAND_HELP,
   COMMANDS,
+  commandHelp,
   findUnknownFlag,
   resolveCommand,
+  withoutGlobalFlags,
   type CommandContext,
   type CommandModule,
 } from "./core/commands.ts";
 import { resolveDataDir } from "./core/data-dir.ts";
-import { readSetting } from "./core/env.ts";
 import { runDoctor } from "./core/doctor.ts";
+import { readSetting } from "./core/env.ts";
 import { exitCodeFor, failure, printEnvelope, success, type Envelope } from "./core/envelope.ts";
-import { writeBannerForArgs } from "./core/banner.ts";
+import { EXIT_CODES } from "./core/exit-codes.ts";
+import { renderHuman, resolveOutputMode, type OutputMode } from "./core/human.ts";
 import { runInit } from "./core/init.ts";
 import { errorMessage } from "./core/narrow.ts";
 import { runSetup } from "./core/setup.ts";
+import { installInterruptHandler } from "./core/shutdown.ts";
+import {
+  readCacheFile,
+  refreshUpdateCache,
+  spawnDetached,
+  UPDATE_CHECK_COMMAND,
+  updateCheckDisabled,
+  updateNoticeLine,
+  writeCacheFile,
+} from "./core/update-notice.ts";
 
 declare const JOBSHIP_BUILD_VERSION: string | undefined;
 
@@ -49,12 +65,27 @@ function buildVersion(): string {
 
 const USAGE_LINES: readonly string[] = [
   "usage: jobship <command> [flags]",
-  "global flags: --data <dir>, --version, --help",
+  "global flags: --data <dir>, --json, --no-color, --version, --help",
+  "run jobship <command> --help for the flags of one command",
 ];
 
 function usageEnvelope(): Envelope<unknown> {
   const commands = ["init", "setup", "doctor", ...Object.keys(COMMANDS)];
-  return success({ usage: USAGE_LINES.join("\n"), commands });
+  const summaries = Object.fromEntries(
+    commands.map((name) => [name, COMMAND_HELP[name]?.summary ?? ""]),
+  );
+  return success({ usage: USAGE_LINES.join("\n"), commands, summaries });
+}
+
+function helpEnvelope(argv: readonly string[]): Envelope<unknown> | null {
+  if (!argv.includes("--help")) return null;
+  const rest = withoutDataFlag(argv);
+  const [first] = rest;
+  const resolved = resolveCommand(rest);
+  const path = resolved?.path ?? first;
+  if (path === undefined) return null;
+  const help = commandHelp(path);
+  return help === null ? null : success(help);
 }
 
 function needsDataDir(path: string, rest: readonly string[]): boolean {
@@ -72,6 +103,8 @@ export async function dispatch(
   const [first] = argv;
   if (first === "--version") return success({ version: buildVersion() });
   if (first === undefined || first === "--help" || first === "help") return usageEnvelope();
+  const help = helpEnvelope(argv);
+  if (help !== null) return help;
   const dataDir = resolveDataDir(argv, env, cwd);
   const ctx: CommandContext = { dataDir: dataDir.ok ? dataDir.value : null, env, cwd };
   if (first === "init" || first === "setup" || first === "doctor") {
@@ -82,14 +115,14 @@ export async function dispatch(
       });
     }
   }
-  if (first === "init") return runInit(argv.slice(1), cwd, env);
+  if (first === "init") return runInit(withoutGlobalFlags("init", argv.slice(1)), cwd, env);
   if (first === "setup") return runSetup(env);
   if (first === "doctor") {
     const hasExplicitSource = argv.includes("--data") || readSetting(env, "HOME") !== undefined;
     if (!dataDir.ok && hasExplicitSource) {
       return failure(dataDir.error.code, dataDir.error.message);
     }
-    return await runDoctor(ctx);
+    return runDoctor(ctx);
   }
   const command = resolveCommand(withoutDataFlag(argv));
   if (command === null) {
@@ -112,17 +145,106 @@ export async function dispatch(
   }
   const sharedModule = Object.values(COMMANDS).filter((file) => file === command.file).length > 1;
   const moduleArgv = sharedModule ? [command.path, ...command.rest] : command.rest;
-  return (await load()).run(withoutDataFlag(moduleArgv), ctx);
+  return (await load()).run(withoutGlobalFlags(command.path, withoutDataFlag(moduleArgv)), ctx);
 }
 
-if (import.meta.main) {
+interface OutputStream {
+  readonly isTTY?: boolean;
+  write(chunk: string): unknown;
+}
+
+/**
+ * Writes the envelope in the chosen mode: the JSON envelope for `json`, readable lines for
+ * `human`, with the error label colored when color is on.
+ */
+export function writeOutput(
+  envelope: Envelope<unknown>,
+  mode: OutputMode,
+  stream: OutputStream,
+  color: boolean,
+): void {
+  if (mode === "json") {
+    printEnvelope(envelope, stream);
+    return;
+  }
+  const text = renderHuman(envelope);
+  const painted =
+    color && !envelope.ok ? text.replace(/^error:/, "\u001b[31merror:\u001b[0m") : text;
+  stream.write(`${painted}\n`);
+}
+
+/** The output mode for this invocation. The Guard always speaks JSON. */
+export function outputModeFor(argv: readonly string[], stdout: OutputStream): OutputMode {
+  if (argv[0] === "guard") return "json";
+  return resolveOutputMode(argv, stdout);
+}
+
+/** Everything `runMain` touches outside the process: streams, clock, disk and network. */
+export interface MainIo {
+  readonly env: Record<string, string | undefined>;
+  readonly cwd: string;
+  readonly stdout: OutputStream;
+  readonly stderr: OutputStream;
+  readonly version: string;
+  readonly now: () => number;
+  readonly fetchImpl: (url: string, init: { signal: AbortSignal }) => Promise<Response>;
+  readonly readCacheText: (file: string) => string | null;
+  readonly writeCacheText: (file: string, text: string) => void;
+  readonly spawnRefresh: () => void;
+}
+
+/**
+ * Runs one CLI invocation against injected edges and returns the exit code. The update
+ * notice appears only in human mode; the detached refresh is the only thing that fetches.
+ */
+export async function runMain(args: string[], io: MainIo): Promise<number> {
+  if (args[0] === UPDATE_CHECK_COMMAND) {
+    if (updateCheckDisabled(io.env)) return EXIT_CODES.ok;
+    await refreshUpdateCache(io);
+    return EXIT_CODES.ok;
+  }
   let envelope: Envelope<unknown>;
   try {
-    envelope = await dispatch(process.argv.slice(2), process.env, process.cwd());
+    envelope = await dispatch(args, io.env, io.cwd);
   } catch (error) {
     envelope = failure("internal", errorMessage(error), { recoverable: false });
   }
-  writeBannerForArgs(process.argv.slice(2), process.stderr, process.env);
-  printEnvelope(envelope);
-  process.exitCode = exitCodeFor(envelope);
+  const mode = outputModeFor(args, io.stdout);
+  writeBannerForArgs(args, io.stderr, io.env);
+  writeOutput(envelope, mode, io.stdout, colorEnabled(io.env, io.stdout, args));
+  if (mode === "human") {
+    const line = updateNoticeLine({
+      env: io.env,
+      currentVersion: io.version,
+      now: io.now,
+      readCacheText: io.readCacheText,
+      writeCacheText: io.writeCacheText,
+      spawnRefresh: io.spawnRefresh,
+    });
+    if (line !== null) io.stderr.write(`${line}\n`);
+  }
+  return exitCodeFor(envelope);
+}
+
+function refreshCommand(): string[] {
+  if (typeof JOBSHIP_BUILD_VERSION === "string") return [process.execPath, UPDATE_CHECK_COMMAND];
+  return [process.execPath, import.meta.path, UPDATE_CHECK_COMMAND];
+}
+
+if (import.meta.main) {
+  installInterruptHandler(process, (code) => process.exit(code));
+  process.exitCode = await runMain(process.argv.slice(2), {
+    env: process.env,
+    cwd: process.cwd(),
+    stdout: process.stdout,
+    stderr: process.stderr,
+    version: buildVersion(),
+    now: Date.now,
+    fetchImpl: fetch,
+    readCacheText: readCacheFile,
+    writeCacheText: writeCacheFile,
+    spawnRefresh: () => {
+      spawnDetached(refreshCommand());
+    },
+  });
 }

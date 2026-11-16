@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { compareSettings } from "./compare.ts";
+
 import { readExpectedSettings } from "./check.ts";
+import { compareSettings } from "./compare.ts";
 import { readLiveSettings } from "./live.ts";
 import type { GhApi, GhResult } from "./live.ts";
 
@@ -37,6 +38,11 @@ function fakeGh(overrides: Record<string, GhResult> = {}): GhApi {
     [BASE]: ok(fixture("repo.json")),
     [`${BASE}/vulnerability-alerts`]: ok(""),
     [`${BASE}/private-vulnerability-reporting`]: ok('{"enabled":true}'),
+    [`${BASE}/actions/permissions/workflow`]: ok(fixture("actions-workflow.json")),
+    [`${BASE}/actions/permissions/fork-pr-contributor-approval`]: ok(
+      fixture("actions-fork-approval.json"),
+    ),
+    [`${BASE}/code-scanning/default-setup`]: ok(fixture("code-scanning-default-setup.json")),
     [`${BASE}/rulesets`]: ok(
       JSON.stringify([
         { id: 1, name: "main" },
@@ -106,5 +112,83 @@ describe("readLiveSettings", () => {
     expect(() =>
       readLiveSettings(fakeGh({ [BASE]: ok("not json") }), "andryorelabs/jobship"),
     ).toThrow("did not return JSON");
+  });
+
+  test("reads the Actions token, fork approval and code scanning setup", () => {
+    const live = readLiveSettings(
+      fakeGh({
+        [`${BASE}/actions/permissions/workflow`]: ok(
+          '{"default_workflow_permissions":"write","can_approve_pull_request_reviews":true}',
+        ),
+        [`${BASE}/actions/permissions/fork-pr-contributor-approval`]: ok(
+          '{"approval_policy":"all_external_contributors"}',
+        ),
+        [`${BASE}/code-scanning/default-setup`]: ok('{"state":"configured"}'),
+      }),
+      "andryorelabs/jobship",
+    );
+    expect(live.repository.default_workflow_permissions).toBe("write");
+    expect(live.repository.can_approve_pull_request_reviews).toBe(true);
+    expect(live.repository.fork_pr_contributor_approval).toBe("all_external_contributors");
+    expect(live.repository.code_scanning_default_setup).toBe("configured");
+  });
+
+  test("reads merge commit title, description and default branch", () => {
+    const live = readLiveSettings(fakeGh(), "andryorelabs/jobship");
+    expect(live.repository.merge_commit_title).toBe("PR_TITLE");
+    expect(live.repository.merge_commit_message).toBe("PR_BODY");
+    expect(live.repository.default_branch).toBe("main");
+    expect(live.repository.description).toBe(readExpectedSettings().repository.description);
+  });
+
+  test("treats a 404 from code scanning default setup as not configured", () => {
+    const live = readLiveSettings(
+      fakeGh({
+        [`${BASE}/code-scanning/default-setup`]: {
+          ok: false,
+          stdout: "",
+          stderr: "gh: Not Found (HTTP 404)",
+        },
+      }),
+      "andryorelabs/jobship",
+    );
+    expect(live.repository.code_scanning_default_setup).toBe("not-configured");
+  });
+
+  test("throws when code scanning default setup fails for another reason", () => {
+    const gh = fakeGh({
+      [`${BASE}/code-scanning/default-setup`]: { ok: false, stdout: "", stderr: "HTTP 500" },
+    });
+    expect(() => readLiveSettings(gh, "andryorelabs/jobship")).toThrow("default-setup");
+  });
+
+  test("throws when the ruleset list is not a list or an entry has no id or name", () => {
+    expect(() =>
+      readLiveSettings(fakeGh({ [`${BASE}/rulesets`]: ok("{}") }), "andryorelabs/jobship"),
+    ).toThrow("did not return a list");
+    expect(() =>
+      readLiveSettings(fakeGh({ [`${BASE}/rulesets`]: ok('["x"]') }), "andryorelabs/jobship"),
+    ).toThrow("without an id");
+    expect(() =>
+      readLiveSettings(
+        fakeGh({ [`${BASE}/rulesets`]: ok('[{"id":9}]'), [`${BASE}/rulesets/9`]: ok("{}") }),
+        "andryorelabs/jobship",
+      ),
+    ).toThrow("has no name");
+  });
+
+  test("throws when an endpoint answers a non-object", () => {
+    expect(() => readLiveSettings(fakeGh({ [BASE]: ok("[]") }), "andryorelabs/jobship")).toThrow(
+      "did not return an object",
+    );
+  });
+
+  test("reads a write default permission only when the API says write", () => {
+    const live = readLiveSettings(
+      fakeGh({ [`${BASE}/actions/permissions/workflow`]: ok("{}") }),
+      "andryorelabs/jobship",
+    );
+    expect(live.repository.default_workflow_permissions).toBe("read");
+    expect(live.repository.can_approve_pull_request_reviews).toBe(false);
   });
 });

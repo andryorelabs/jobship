@@ -11,5 +11,11 @@
     "src/tracker/linear-fixture.json",
     "docs/agents/**",
     "emet.config.json"
-  ]
+  ],
+  "sortImports": {
+    "groups": ["builtin", "external", "internal", ["parent", "sibling", "index"], "unknown"],
+    "internalPattern": ["@/"],
+    "ignoreCase": true,
+    "newlinesBetween": true
+  }
 }

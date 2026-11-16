@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+
 import { PRODUCT_NAME, readSetting } from "./env.ts";
 import { errorMessage, isObject } from "./narrow.ts";
 import { validateProfileWithWarnings } from "./profile.ts";
@@ -48,7 +49,7 @@ function checkVersion(dir: DataDir): Result<DataDir> {
       },
     };
   }
-  const version = isObject(parsed) ? parsed["version"] : undefined;
+  const version = isObject(parsed) ? parsed.version : undefined;
   if (version === undefined) return { ok: true, value: dir };
   if (typeof version !== "number" || !Number.isFinite(version)) {
     return {
@@ -118,7 +119,10 @@ export function resolveDataDir(
   return checkVersion({ path: found });
 }
 
-export type LoadedProfile = { readonly profile: Profile; readonly warnings: string[] };
+export interface LoadedProfile {
+  readonly profile: Profile;
+  readonly warnings: string[];
+}
 
 export function loadProfile(dir: DataDir): Result<Profile> {
   const loaded = loadProfileWithWarnings(dir);

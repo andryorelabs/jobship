@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+
 import { readTokens } from "./palette.ts";
 
 const BRAND_DIR = path.join(import.meta.dir, "..", "..", "docs", "brand");
@@ -62,7 +63,7 @@ function findLogoProblems(fileName: string, svgText: string, palette: Set<string
   if (/\b(?:xlink:)?href\s*=|url\(|@import|<image\b/.test(svgText)) {
     problems.push(`${fileName}: references another file`);
   }
-  const external = svgText.replaceAll(`xmlns="${SVG_NAMESPACE}"`, "").match(/https?:\/\/[^\s"')]+/);
+  const external = /https?:\/\/[^\s"')]+/.exec(svgText.replaceAll(`xmlns="${SVG_NAMESPACE}"`, ""));
   if (external !== null) {
     problems.push(`${fileName}: external reference ${external[0]}`);
   }

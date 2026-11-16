@@ -1,4 +1,5 @@
 import type { CommandContext } from "../core/commands.ts";
+import { loadProfile } from "../core/data-dir.ts";
 import { failure, success, type Envelope } from "../core/envelope.ts";
 import { errorMessage, isObject, isOneOf } from "../core/narrow.ts";
 import {
@@ -8,7 +9,6 @@ import {
   type DataDir,
   type Posting,
 } from "../core/types.ts";
-import { loadProfile } from "../core/data-dir.ts";
 import { createTracker, projectEvents } from "../tracker/index.ts";
 import { findDuplicate, readLedger } from "./dedup.ts";
 import { appendEvent, readEvents, type NewEvent } from "./events.ts";
@@ -56,23 +56,23 @@ function hasStrings(value: Record<string, unknown>, fields: readonly string[]): 
 }
 
 function hasPayload(value: Record<string, unknown>): boolean {
-  switch (value["kind"]) {
+  switch (value.kind) {
     case "posting.seen":
     case "lead.created":
-      return isPostingInput(value["posting"]) && isOneOf(ELIGIBILITIES, value["eligibility"]);
+      return isPostingInput(value.posting) && isOneOf(ELIGIBILITIES, value.eligibility);
     case "posting.dismissed":
-      return isPostingInput(value["posting"]) && isOneOf(REJECTION_REASONS, value["reason"]);
+      return isPostingInput(value.posting) && isOneOf(REJECTION_REASONS, value.reason);
     case "score.recorded":
       return (
-        typeof value["score"] === "number" &&
-        Array.isArray(value["reasons"]) &&
-        value["reasons"].every((reason) => typeof reason === "string") &&
-        typeof value["liveness"] === "string"
+        typeof value.score === "number" &&
+        Array.isArray(value.reasons) &&
+        value.reasons.every((reason) => typeof reason === "string") &&
+        typeof value.liveness === "string"
       );
     case "status.changed":
       return (
-        isOneOf(APPLICATION_STATES, value["to"]) &&
-        (value["from"] === undefined || isOneOf(APPLICATION_STATES, value["from"]))
+        isOneOf(APPLICATION_STATES, value.to) &&
+        (value.from === undefined || isOneOf(APPLICATION_STATES, value.from))
       );
     case "blocker.opened":
       return hasStrings(value, ["blockerId", "scope", "detail"]);
@@ -92,19 +92,19 @@ function hasPayload(value: Record<string, unknown>): boolean {
 }
 
 function isNewEvent(value: unknown): value is NewEvent {
-  if (!isObject(value) || !isOneOf(EVENT_KINDS, value["kind"])) return false;
+  if (!isObject(value) || !isOneOf(EVENT_KINDS, value.kind)) return false;
   if ("id" in value || "at" in value) return false;
-  if (value["key"] !== undefined && typeof value["key"] !== "string") return false;
+  if (value.key !== undefined && typeof value.key !== "string") return false;
   return hasPayload(value);
 }
 
 function isPostingInput(value: unknown): value is Posting {
   return (
     isObject(value) &&
-    typeof value["id"] === "string" &&
-    typeof value["source"] === "string" &&
-    typeof value["company"] === "string" &&
-    typeof value["title"] === "string"
+    typeof value.id === "string" &&
+    typeof value.source === "string" &&
+    typeof value.company === "string" &&
+    typeof value.title === "string"
   );
 }
 
@@ -162,7 +162,7 @@ async function setStatus(
   const profile = loadProfile(dir);
   if (!profile.ok) return failure(profile.error.code, profile.error.message);
   const projected = await projectEvents(
-    createTracker(profile.value.tracker, dir, { apiKey: ctx.env["LINEAR_API_KEY"] }),
+    createTracker(profile.value.tracker, dir, { apiKey: ctx.env.LINEAR_API_KEY }),
     dir,
     await readEvents(dir, key),
   );

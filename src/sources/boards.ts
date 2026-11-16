@@ -7,6 +7,13 @@ import type {
   SourceResult,
 } from "../core/types.ts";
 import {
+  defineAdapter,
+  mapRows,
+  matchesKeywords,
+  withOptional,
+  type AdapterSpec,
+} from "./adapter.ts";
+import {
   getJson,
   field,
   identifier,
@@ -17,13 +24,6 @@ import {
   text,
   type FetchFunction,
 } from "./http.ts";
-import {
-  defineAdapter,
-  mapRows,
-  matchesKeywords,
-  withOptional,
-  type AdapterSpec,
-} from "./adapter.ts";
 
 function salaryOf(
   min: unknown,
@@ -71,10 +71,10 @@ const getonboard: AdapterSpec = {
     `https://www.getonbrd.com/api/v0/search/jobs?query=${keywordQuery(query)}&per_page=100`,
   parse: (body) =>
     mapRows(records(field(body, "data")), "jobs", (row) => {
-      const id = identifier(row["id"]);
-      const attributes = row["attributes"];
+      const id = identifier(row.id);
+      const attributes = row.attributes;
       const title = text(field(attributes, "title"));
-      const url = text(field(row["links"], "public_url"));
+      const url = text(field(row.links, "public_url"));
       const company = text(
         field(field(field(field(attributes, "company"), "data"), "attributes"), "name"),
       );
@@ -110,26 +110,26 @@ const himalayas: AdapterSpec = {
   parse: (body, query) =>
     filterByKeywords(
       mapRows(records(field(body, "jobs")), "jobs", (row) => {
-        const id = identifier(row["guid"]);
-        const title = text(row["title"]);
-        const url = text(row["applicationLink"]);
-        const company = text(row["companyName"]);
+        const id = identifier(row.guid);
+        const title = text(row.title);
+        const url = text(row.applicationLink);
+        const company = text(row.companyName);
         if (id === undefined || title === undefined || url === undefined || company === undefined)
           return undefined;
-        const restrictions = row["locationRestrictions"];
+        const restrictions = row.locationRestrictions;
         const location = Array.isArray(restrictions)
           ? restrictions.filter((entry): entry is string => typeof entry === "string").join(", ")
           : undefined;
-        const description = text(row["description"]);
+        const description = text(row.description);
         return withOptional(
           { id: `himalayas:${id}`, source: "himalayas", url, company, title },
           {
             location: location === "" ? undefined : location,
             remote: true,
-            contract: text(row["employmentType"]),
-            salary: salaryOf(row["minSalary"], row["maxSalary"], row["currency"], "year"),
+            contract: text(row.employmentType),
+            salary: salaryOf(row.minSalary, row.maxSalary, row.currency, "year"),
             description: description === undefined ? undefined : stripHtml(description),
-            postedAt: isoDate(row["pubDate"]),
+            postedAt: isoDate(row.pubDate),
           },
         );
       }),
@@ -145,30 +145,30 @@ const workableSearch: AdapterSpec = {
   url: (query) => `${WORKABLE_SEARCH_URL}?query=${keywordQuery(query)}`,
   parse: (body) =>
     mapRows(records(field(body, "jobs")), "jobs", (row) => {
-      const id = identifier(row["id"]);
-      const title = text(row["title"]);
-      const url = text(row["url"]);
+      const id = identifier(row.id);
+      const title = text(row.title);
+      const url = text(row.url);
       if (id === undefined || title === undefined || url === undefined) return undefined;
       const location = field(row, "location");
       const place = [text(field(location, "city")), text(field(location, "countryName"))]
         .filter((part): part is string => part !== undefined)
         .join(", ");
-      const workplace = text(row["workplace"]);
-      const description = text(row["description"]);
+      const workplace = text(row.workplace);
+      const description = text(row.description);
       return withOptional(
         {
           id: `workable-search:${id}`,
           source: "workable-search",
           url,
-          company: text(field(row["company"], "title")) ?? "unknown",
+          company: text(field(row.company, "title")) ?? "unknown",
           title,
         },
         {
           location: place === "" ? undefined : place,
           remote: workplace === undefined ? undefined : workplace === "remote",
-          contract: text(row["employmentType"]),
+          contract: text(row.employmentType),
           description: description === undefined ? undefined : stripHtml(description),
-          postedAt: isoDate(row["created"]),
+          postedAt: isoDate(row.created),
         },
       );
     }),
@@ -184,25 +184,25 @@ const remoteok: AdapterSpec = {
         records(body)?.filter((row) => "id" in row),
         "jobs",
         (row) => {
-          const id = identifier(row["id"]);
-          const title = text(row["position"]);
-          const url = text(row["url"]);
-          const company = text(row["company"]);
+          const id = identifier(row.id);
+          const title = text(row.position);
+          const url = text(row.url);
+          const company = text(row.company);
           if (id === undefined || title === undefined || url === undefined || company === undefined)
             return undefined;
-          const tags = Array.isArray(row["tags"])
-            ? row["tags"].filter((entry): entry is string => typeof entry === "string")
+          const tags = Array.isArray(row.tags)
+            ? row.tags.filter((entry): entry is string => typeof entry === "string")
             : undefined;
-          const description = text(row["description"]);
+          const description = text(row.description);
           return withOptional(
             { id: `remoteok:${id}`, source: "remoteok", url, company, title },
             {
-              location: text(row["location"]),
+              location: text(row.location),
               remote: true,
               stack: tags,
-              salary: salaryOf(row["salary_min"], row["salary_max"], "USD", "year"),
+              salary: salaryOf(row.salary_min, row.salary_max, "USD", "year"),
               description: description === undefined ? undefined : stripHtml(description),
-              postedAt: isoDate(row["date"]),
+              postedAt: isoDate(row.date),
             },
           );
         },
@@ -220,14 +220,14 @@ function hnCommentsUrl(storyId: string): string {
 
 function latestHiringStory(body: unknown): string | undefined {
   const story = records(field(body, "hits"))?.find((hit) =>
-    /who is hiring/i.test(text(hit["title"]) ?? ""),
+    /who is hiring/i.test(text(hit.title) ?? ""),
   );
-  return story === undefined ? undefined : identifier(story["objectID"]);
+  return story === undefined ? undefined : identifier(story.objectID);
 }
 
 function hnPosting(row: Record<string, unknown>): Posting | undefined {
-  const id = identifier(row["objectID"]);
-  const raw = text(row["comment_text"]);
+  const id = identifier(row.objectID);
+  const raw = text(row.comment_text);
   if (id === undefined || raw === undefined) return undefined;
   const lines = stripHtml(raw)
     .split("\n")
@@ -248,7 +248,7 @@ function hnPosting(row: Record<string, unknown>): Posting | undefined {
     {
       remote: /remote/i.test(headline) ? true : undefined,
       description: lines.join("\n"),
-      postedAt: isoDate(row["created_at"]),
+      postedAt: isoDate(row.created_at),
     },
   );
 }

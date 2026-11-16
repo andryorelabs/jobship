@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
+import { readExpectedSettings } from "./check.ts";
+
 const REPO_ROOT = path.join(import.meta.dir, "..", "..");
 const RULESETS_DIRECTORY = path.join(REPO_ROOT, ".github", "rulesets");
 const WORKFLOWS_DIRECTORY = path.join(REPO_ROOT, ".github", "workflows");
@@ -81,6 +83,13 @@ describe("rulesets", () => {
     }
   });
 
+  test("develop and main block merges on CodeQL code scanning results", () => {
+    for (const name of ["main", "develop"]) {
+      const rule = findRule(readRuleset(name), "code_scanning");
+      expect(JSON.stringify(rule?.parameters)).toContain('"tool":"CodeQL"');
+    }
+  });
+
   test("a required check missing from the workflows is detected", () => {
     const jobNames = readJobNames();
     expect(jobNames.has("No such job")).toBe(false);
@@ -121,6 +130,36 @@ describe("rulesets", () => {
     expect(
       findRule(ruleset, "required_status_checks")?.parameters?.strict_required_status_checks_policy,
     ).toBe(true);
+  });
+
+  test("promotion invariants: rulesets agree with repo-settings.json", () => {
+    const settings = readExpectedSettings().repository;
+    const developMethods = findRule(readRuleset("develop"), "pull_request")?.parameters
+      ?.allowed_merge_methods;
+    const mainMethods = findRule(readRuleset("main"), "pull_request")?.parameters
+      ?.allowed_merge_methods;
+    const allowed = new Set([...(developMethods ?? []), ...(mainMethods ?? [])]);
+    expect(settings.allow_squash_merge).toBe(allowed.has("squash"));
+    expect(settings.allow_merge_commit).toBe(allowed.has("merge"));
+    expect(settings.allow_rebase_merge).toBe(allowed.has("rebase"));
+    expect(readRuleset("main").conditions.ref_name.include).toEqual(["~DEFAULT_BRANCH"]);
+    expect(settings.default_branch).toBe("main");
+    expect([
+      settings.squash_merge_commit_title,
+      settings.squash_merge_commit_message,
+      settings.merge_commit_title,
+      settings.merge_commit_message,
+    ]).toEqual(["PR_TITLE", "PR_BODY", "PR_TITLE", "PR_BODY"]);
+  });
+
+  test("promotion invariants: docs describe the rulesets and the settings file", () => {
+    const docs = readFileSync(path.join(REPO_ROOT, "docs", "development.md"), "utf8");
+    for (const file of ["develop.json", "main.json", "tags.json", "repo-settings.json"]) {
+      expect(docs).toContain(`.github/${file.includes("settings") ? "" : "rulesets/"}${file}`);
+    }
+    for (const context of requiredContexts(readRuleset("develop"))) {
+      expect(docs).toContain(`"${context}"`);
+    }
   });
 
   test("tags protects refs/tags/v* from deletion, update and force push", () => {

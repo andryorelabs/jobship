@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
+
 import { withLock, writeAtomic } from "../core/fs.ts";
 import { errorMessage, isObject, isOneOf } from "../core/narrow.ts";
 import {
@@ -124,9 +125,9 @@ function parseContact(value: unknown, index: number): Result<ContactDetail> {
   if (email.value === undefined && emailConfidence !== undefined) {
     return invalid(`${where} has emailConfidence without an email`);
   }
-  const sources = parseSources(value["sources"], where);
+  const sources = parseSources(value.sources, where);
   if (!sources.ok) return sources;
-  const recentItems = parseRecentItems(value["recentItems"], where);
+  const recentItems = parseRecentItems(value.recentItems, where);
   if (!recentItems.ok) return recentItems;
   return {
     ok: true,

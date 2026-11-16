@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { isObject } from "../src/core/narrow.ts";
 import {
   binaryName,
@@ -68,7 +69,9 @@ describe.skipIf(process.platform !== "linux" || process.arch !== "x64")(
       binary = await buildBinary("bun-linux-x64", path.join(workdir, "out"), "0.2.0");
       chmodSync(binary, 0o755);
     }, 120_000);
-    afterAll(() => rmSync(workdir, { recursive: true, force: true }));
+    afterAll(() => {
+      rmSync(workdir, { recursive: true, force: true });
+    });
 
     const run = (...args: string[]) =>
       Bun.spawnSync([binary, ...args], { cwd: workdir, env: { HOME: workdir, PATH: "" } });
@@ -97,7 +100,7 @@ describe.skipIf(process.platform !== "linux" || process.arch !== "x64")(
         if (!Array.isArray(rows)) throw new Error(`fixture ${name} is not an array`);
         return rows.map((row: unknown) => {
           if (!isObject(row)) throw new Error(`fixture ${name} has a non-object row`);
-          return { messageId: row["messageId"], classification: row["label"] };
+          return { messageId: row.messageId, classification: row.label };
         });
       });
       const file = path.join(workdir, "classifications.json");
@@ -115,9 +118,9 @@ describe.skipIf(process.platform !== "linux" || process.arch !== "x64")(
       expect(result.exitCode).not.toBe(0);
       const envelope: unknown = JSON.parse(result.stdout.toString());
       if (!isObject(envelope)) throw new Error("envelope is not an object");
-      expect(envelope["ok"]).toBe(false);
-      const error = envelope["error"];
-      expect(isObject(error) ? error["code"] : undefined).not.toBe("not-implemented");
+      expect(envelope.ok).toBe(false);
+      const error = envelope.error;
+      expect(isObject(error) ? error.code : undefined).not.toBe("not-implemented");
     });
   },
 );

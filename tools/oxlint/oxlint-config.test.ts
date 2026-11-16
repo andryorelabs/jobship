@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+
 import type { OxlintConfig } from "oxlint";
+
 import configuration from "../../oxlint.config.ts";
 
 const config: OxlintConfig = configuration;
@@ -49,6 +51,7 @@ describe("oxlint.config.ts", () => {
       "promise",
       "node",
       "jest",
+      "jsdoc",
     ]);
     expect(config.jsPlugins).toEqual(["./tools/oxlint/local-plugin.ts"]);
     expect(existsSync(join(repositoryRoot, "tools", "oxlint", "local-plugin.ts"))).toBe(true);
@@ -58,10 +61,7 @@ describe("oxlint.config.ts", () => {
     for (const ruleName of rulesCarriedOverFromTheJsonConfig) {
       expect(config.rules?.[ruleName]).toBe("error");
     }
-    expect(config.rules?.["typescript/return-await"]).toEqual([
-      "error",
-      "error-handling-correctness-only",
-    ]);
+    expect(config.rules?.["typescript/return-await"]).toEqual(["error", "in-try-catch"]);
   });
 
   test("denies the two local rules", () => {
@@ -77,6 +77,8 @@ describe("oxlint.config.ts", () => {
       "jest/no-focused-tests": "error",
       "jest/no-identical-title": "error",
       "jest/no-disabled-tests": "error",
+      "local/no-bun-test-only": "error",
+      "local/no-unawaited-async-matcher": "error",
     });
   });
 

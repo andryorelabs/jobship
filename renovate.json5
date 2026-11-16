@@ -73,11 +73,6 @@
       addLabels: ["github-actions"],
     },
     {
-      matchPackageNames: ["bun"],
-      matchManagers: ["npm"],
-      enabled: false,
-    },
-    {
       matchDepTypes: ["devDependencies"],
       matchUpdateTypes: ["patch", "minor"],
       automerge: true,
@@ -100,6 +95,12 @@
     {
       groupName: "typescript7",
       matchDepNames: ["typescript7"],
+      rangeStrategy: "pin",
+      automerge: false,
+    },
+    {
+      groupName: "bun",
+      matchDepNames: ["bun", "@types/bun"],
       rangeStrategy: "pin",
       automerge: false,
     },

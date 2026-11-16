@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { approvalHash, batchKey, IdempotencyMap, lookupBatchHash } from "./approval.ts";
 import { COMMANDS, resolveCommand } from "./commands.ts";
 import { loadProfile, resolveDataDir } from "./data-dir.ts";
@@ -249,7 +250,9 @@ describe("approval", () => {
     map.record("lead-1", "issue-9");
     map.record("lead-1", "issue-9");
     expect(map.lookup("lead-1")).toBe("issue-9");
-    expect(() => map.record("lead-1", "issue-10")).toThrow("refusing");
+    expect(() => {
+      map.record("lead-1", "issue-10");
+    }).toThrow("refusing");
   });
 
   test("batchKey is data-dir-relative with slashes and cwd independent", () => {

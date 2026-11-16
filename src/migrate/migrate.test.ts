@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import type { CommandContext } from "../core/commands.ts";
-import { foldState } from "../ledger/state.ts";
 import { readEvents } from "../ledger/events.ts";
+import { foldState } from "../ledger/state.ts";
 import type { FetchLike } from "../tracker/linear.ts";
 import { run } from "./command.ts";
 import { importLegacy } from "./legacy.ts";
@@ -85,8 +86,8 @@ describe("importLegacy", () => {
     const leads = events.filter((event) => event.kind === "lead.created");
     expect(
       leads
-        .map((event) => event.kind === "lead.created" && event.posting.company)
-        .toSorted((left, right) => String(left).localeCompare(String(right))),
+        .map((event) => event.posting.company)
+        .toSorted((left, right) => left.localeCompare(right)),
     ).toEqual(["Acme Corp", "Globex", "Hooli", "Initech", "Pied Piper", "Umbrella"]);
     const acme = events.filter((event) => event.key?.startsWith("acme|"));
     expect(foldState(acme)).toBe("interviewing");
@@ -223,7 +224,10 @@ describe("importLinear", () => {
     const events = await readEvents(ctx.dataDir ?? { path: "" });
     expect(
       foldState(
-        events.filter((event) => event.key?.startsWith("lever:") || event.key?.includes("sre")),
+        events.filter(
+          (event) =>
+            event.key?.startsWith("lever:") === true || event.key?.includes("sre") === true,
+        ),
       ),
     ).not.toBeNull();
     const states = events.flatMap((event) => (event.kind === "status.changed" ? [event.to] : []));

@@ -1,3 +1,4 @@
+import { isObject } from "../core/narrow.ts";
 import type {
   Posting,
   Salary,
@@ -7,7 +8,13 @@ import type {
   SourceResult,
   WorkMode,
 } from "../core/types.ts";
-import { isObject } from "../core/narrow.ts";
+import {
+  mapRows,
+  matchesKeywords,
+  withOptional,
+  type Parsed,
+  type ParseFailure,
+} from "./adapter.ts";
 import {
   field,
   getJson,
@@ -21,13 +28,6 @@ import {
   type FetchFunction,
   type JsonOutcome,
 } from "./http.ts";
-import {
-  mapRows,
-  matchesKeywords,
-  withOptional,
-  type Parsed,
-  type ParseFailure,
-} from "./adapter.ts";
 
 type ApiParse = (body: unknown, query: SourceQuery) => Parsed | ParseFailure;
 
@@ -151,28 +151,28 @@ function remotiveParse(endpoint: string): ApiParse {
   return (body) => {
     const rows = records(field(body, "jobs"))?.filter(
       (row) =>
-        category === undefined || text(row["category"])?.toLowerCase().includes(category) === true,
+        category === undefined || text(row.category)?.toLowerCase().includes(category) === true,
     );
     return mapRows(rows, "jobs", (row) => {
-      const id = identifier(row["id"]);
-      const title = text(row["title"]);
-      const url = text(row["url"]);
+      const id = identifier(row.id);
+      const title = text(row.title);
+      const url = text(row.url);
       if (id === undefined || title === undefined || url === undefined) return undefined;
       return withOptional(
         {
           id: `remotive:${id}`,
           source: "remotive",
           url,
-          company: text(row["company_name"]) ?? "unknown",
+          company: text(row.company_name) ?? "unknown",
           title,
         },
         {
-          location: text(row["candidate_required_location"]),
+          location: text(row.candidate_required_location),
           remote: true,
           workMode: "remote",
-          contract: text(row["job_type"]),
-          description: described(row["description"]),
-          postedAt: isoDate(row["publication_date"]),
+          contract: text(row.job_type),
+          description: described(row.description),
+          postedAt: isoDate(row.publication_date),
         },
       );
     });
@@ -181,32 +181,32 @@ function remotiveParse(endpoint: string): ApiParse {
 
 const parseJobicy: ApiParse = (body) =>
   mapRows(records(field(body, "jobs")), "jobs", (row) => {
-    const id = identifier(row["id"]);
-    const title = text(row["jobTitle"]);
-    const url = text(row["url"]);
+    const id = identifier(row.id);
+    const title = text(row.jobTitle);
+    const url = text(row.url);
     if (id === undefined || title === undefined || url === undefined) return undefined;
-    const types = row["jobType"];
+    const types = row.jobType;
     return withOptional(
       {
         id: `jobicy:${id}`,
         source: "jobicy",
         url,
-        company: text(row["companyName"]) ?? "unknown",
+        company: text(row.companyName) ?? "unknown",
         title,
       },
       {
-        location: text(row["jobGeo"]),
+        location: text(row.jobGeo),
         remote: true,
         workMode: "remote",
         contract: Array.isArray(types) ? text(types[0]) : text(types),
         salary: salaryOf(
-          row["salaryMin"],
-          row["salaryMax"],
-          text(row["salaryCurrency"]),
-          periodOf(row["salaryPeriod"]),
+          row.salaryMin,
+          row.salaryMax,
+          text(row.salaryCurrency),
+          periodOf(row.salaryPeriod),
         ),
-        description: described(row["jobExcerpt"]),
-        postedAt: isoDate(row["pubDate"]),
+        description: described(row.jobExcerpt),
+        postedAt: isoDate(row.pubDate),
       },
     );
   });
@@ -226,31 +226,31 @@ const parseArbeitnow = (endpoint: string): ApiParse => {
 
 const parseArbeitnowRows = (body: unknown, onlyRemote: boolean): Parsed | ParseFailure =>
   mapRows(
-    records(field(body, "data"))?.filter((row) => !onlyRemote || row["remote"] === true),
+    records(field(body, "data"))?.filter((row) => !onlyRemote || row.remote === true),
     "jobs",
     (row) => {
-      const slug = identifier(row["slug"]);
-      const title = text(row["title"]);
-      const url = text(row["url"]);
+      const slug = identifier(row.slug);
+      const title = text(row.title);
+      const url = text(row.url);
       if (slug === undefined || title === undefined || url === undefined) return undefined;
-      const jobTypes = row["job_types"];
-      const tags = row["tags"];
+      const jobTypes = row.job_types;
+      const tags = row.tags;
       return withOptional(
         {
           id: `arbeitnow:${slug}`,
           source: "arbeitnow",
           url,
-          company: text(row["company_name"]) ?? "unknown",
+          company: text(row.company_name) ?? "unknown",
           title,
         },
         {
-          location: text(row["location"]),
-          remote: typeof row["remote"] === "boolean" ? row["remote"] : undefined,
-          workMode: booleanMode(row["remote"], "remote"),
+          location: text(row.location),
+          remote: typeof row.remote === "boolean" ? row.remote : undefined,
+          workMode: booleanMode(row.remote, "remote"),
           contract: Array.isArray(jobTypes) ? text(jobTypes[0]) : undefined,
           stack: Array.isArray(tags) ? tags.filter((tag) => typeof tag === "string") : undefined,
-          description: described(row["description"]),
-          postedAt: isoDate(row["created_at"]),
+          description: described(row.description),
+          postedAt: isoDate(row.created_at),
         },
       );
     },
@@ -258,45 +258,46 @@ const parseArbeitnowRows = (body: unknown, onlyRemote: boolean): Parsed | ParseF
 
 const parseWorkingNomads: ApiParse = (body) =>
   mapRows(Array.isArray(body) ? records(body) : undefined, "jobs", (row) => {
-    const url = text(row["url"]);
-    const title = text(row["title"]);
+    const url = text(row.url);
+    const title = text(row.title);
     if (url === undefined || title === undefined) return undefined;
     return withOptional(
       {
         id: `workingnomads:${url}`,
         source: "workingnomads",
         url,
-        company: text(row["company_name"]) ?? "unknown",
+        company: text(row.company_name) ?? "unknown",
         title,
       },
       {
-        location: text(row["location"]),
+        location: text(row.location),
         remote: true,
         workMode: "remote",
-        description: described(row["description"]),
-        postedAt: isoDate(row["pub_date"]),
+        description: described(row.description),
+        postedAt: isoDate(row.pub_date),
       },
     );
   });
 
 function hnCompany(title: string): string {
   const match = /^(.+?)\s+(?:\(.*?\)\s+)?is hiring/i.exec(title);
-  return match?.[1]?.trim() || "unknown";
+  const company = match?.[1]?.trim();
+  return company === undefined || company === "" ? "unknown" : company;
 }
 
 function hnPosting(row: Record<string, unknown>): Posting | undefined {
-  const id = identifier(row["id"]);
-  const title = text(row["title"]);
-  if (id === undefined || title === undefined || row["type"] !== "job") return undefined;
+  const id = identifier(row.id);
+  const title = text(row.title);
+  if (id === undefined || title === undefined || row.type !== "job") return undefined;
   return withOptional(
     {
       id: `hnjobs:${id}`,
       source: "hnjobs",
-      url: text(row["url"]) ?? `https://news.ycombinator.com/item?id=${id}`,
+      url: text(row.url) ?? `https://news.ycombinator.com/item?id=${id}`,
       company: hnCompany(title),
       title,
     },
-    { description: described(row["text"]), postedAt: isoDate(row["time"]) },
+    { description: described(row.text), postedAt: isoDate(row.time) },
   );
 }
 
@@ -325,11 +326,11 @@ function hnJobs(endpoint: string, fetchFunction: FetchFunction): SourceAdapter {
 
 const parseJobTech: ApiParse = (body) =>
   mapRows(records(field(body, "hits")), "hits", (row) => {
-    const id = identifier(row["id"]);
-    const title = text(row["headline"]);
-    const url = text(row["webpage_url"]);
+    const id = identifier(row.id);
+    const title = text(row.headline);
+    const url = text(row.webpage_url);
     if (id === undefined || title === undefined || url === undefined) return undefined;
-    const address = row["workplace_address"];
+    const address = row.workplace_address;
     const location = [text(field(address, "municipality")), text(field(address, "country"))]
       .filter((part) => part !== undefined)
       .join(", ");
@@ -338,33 +339,33 @@ const parseJobTech: ApiParse = (body) =>
         id: `jobtech:${id}`,
         source: "jobtech",
         url,
-        company: text(field(row["employer"], "name")) ?? "unknown",
+        company: text(field(row.employer, "name")) ?? "unknown",
         title,
       },
       {
         location: location === "" ? undefined : location,
-        remote: typeof row["remote"] === "boolean" ? row["remote"] : undefined,
-        workMode: booleanMode(row["remote"], "remote"),
-        description: described(field(row["description"], "text")),
-        postedAt: isoDate(row["publication_date"]),
+        remote: typeof row.remote === "boolean" ? row.remote : undefined,
+        workMode: booleanMode(row.remote, "remote"),
+        description: described(field(row.description, "text")),
+        postedAt: isoDate(row.publication_date),
       },
     );
   });
 
 const parseMyCareersFuture: ApiParse = (body) =>
   mapRows(records(field(body, "results")), "jobs", (row) => {
-    const id = identifier(row["uuid"]);
-    const title = text(row["title"]);
-    const metadata = row["metadata"];
+    const id = identifier(row.uuid);
+    const title = text(row.title);
+    const metadata = row.metadata;
     const url = text(field(metadata, "jobDetailsUrl"));
     if (id === undefined || title === undefined || url === undefined) return undefined;
-    const salary = row["salary"];
+    const salary = row.salary;
     return withOptional(
       {
         id: `mycareersfuture:${id}`,
         source: "mycareersfuture",
         url,
-        company: text(field(row["postedCompany"], "name")) ?? "unknown",
+        company: text(field(row.postedCompany, "name")) ?? "unknown",
         title,
       },
       {
@@ -374,7 +375,7 @@ const parseMyCareersFuture: ApiParse = (body) =>
           "SGD",
           periodOf(field(field(salary, "type"), "salaryType")),
         ),
-        description: described(row["description"]),
+        description: described(row.description),
         postedAt: isoDate(field(metadata, "newPostingDate")),
       },
     );
@@ -382,10 +383,10 @@ const parseMyCareersFuture: ApiParse = (body) =>
 
 const parseBundesagentur: ApiParse = (body) =>
   mapRows(records(field(body, "ergebnisliste")), "jobs", (row) => {
-    const reference = identifier(row["referenznummer"]);
-    const title = text(row["stellenangebotsTitel"]) ?? text(row["hauptberuf"]);
+    const reference = identifier(row.referenznummer);
+    const title = text(row.stellenangebotsTitel) ?? text(row.hauptberuf);
     if (reference === undefined || title === undefined) return undefined;
-    const locations = row["stellenlokationen"];
+    const locations = row.stellenlokationen;
     const address = field(Array.isArray(locations) ? locations[0] : undefined, "adresse");
     const location = [text(field(address, "ort")), text(field(address, "region"))]
       .filter((part) => part !== undefined)
@@ -395,13 +396,13 @@ const parseBundesagentur: ApiParse = (body) =>
         id: `bundesagentur:${reference}`,
         source: "bundesagentur",
         url: `https://www.arbeitsagentur.de/jobsuche/jobdetail/${encodeURIComponent(reference)}`,
-        company: text(row["firma"]) ?? "unknown",
+        company: text(row.firma) ?? "unknown",
         title,
       },
       {
         location: location === "" ? undefined : location,
         postedAt: isoDate(
-          row["datumErsteVeroeffentlichung"] ?? field(row["veroeffentlichungszeitraum"], "von"),
+          row.datumErsteVeroeffentlichung ?? field(row.veroeffentlichungszeitraum, "von"),
         ),
       },
     );
@@ -409,22 +410,22 @@ const parseBundesagentur: ApiParse = (body) =>
 
 const parseEures: ApiParse = (body) =>
   mapRows(records(field(body, "jvs")), "jobs", (row) => {
-    const id = identifier(row["id"]);
-    const title = text(row["title"]);
+    const id = identifier(row.id);
+    const title = text(row.title);
     if (id === undefined || title === undefined) return undefined;
-    const places = Object.values(isObject(row["locationMap"]) ? row["locationMap"] : {}).flat();
+    const places = Object.values(isObject(row.locationMap) ? row.locationMap : {}).flat();
     return withOptional(
       {
         id: `eures:${id}`,
         source: "eures",
         url: `https://europa.eu/eures/portal/jv-se/jv-details/${encodeURIComponent(id)}`,
-        company: text(field(row["employer"], "name")) ?? "unknown",
+        company: text(field(row.employer, "name")) ?? "unknown",
         title,
       },
       {
         location: places.filter((place) => typeof place === "string").join(", ") || undefined,
-        description: described(row["description"]),
-        postedAt: isoDate(row["creationDate"]),
+        description: described(row.description),
+        postedAt: isoDate(row.creationDate),
       },
     );
   });
@@ -450,22 +451,22 @@ function polishDate(value: unknown): string | undefined {
 const parseCbop: ApiParse = (body) => {
   const page = field(field(body, "payload"), "ofertyPracyPage");
   return mapRows(records(field(page, "content")), "jobs", (row) => {
-    const id = identifier(row["id"]);
-    const title = text(row["stanowisko"]);
+    const id = identifier(row.id);
+    const title = text(row.stanowisko);
     if (id === undefined || title === undefined) return undefined;
     return withOptional(
       {
         id: `cbop:${id}`,
         source: "cbop",
         url: `https://oferty.praca.gov.pl/portal/index.cbop#/szczegolyOferty/${encodeURIComponent(id)}`,
-        company: text(row["pracodawca"]) ?? "unknown",
+        company: text(row.pracodawca) ?? "unknown",
         title,
       },
       {
-        location: text(row["miejscePracy"]),
-        contract: text(row["rodzajUmowy"]),
-        description: described(row["zakresObowiazkow"]),
-        postedAt: polishDate(row["dataDodaniaCbop"]),
+        location: text(row.miejscePracy),
+        contract: text(row.rodzajUmowy),
+        description: described(row.zakresObowiazkow),
+        postedAt: polishDate(row.dataDodaniaCbop),
       },
     );
   });

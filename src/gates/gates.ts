@@ -9,11 +9,11 @@ import {
   type SalaryPeriod,
 } from "../core/types.ts";
 
-export type GateEvaluation = {
+export interface GateEvaluation {
   readonly eligibility: Record<Dimension, Eligibility>;
   readonly dismissed: boolean;
   readonly reason?: RejectionReason;
-};
+}
 
 const DISMISSAL_ORDER: readonly Dimension[] = [
   "company",
@@ -67,7 +67,10 @@ const COMPOSITE_REGION_ALIASES: Readonly<Record<string, readonly string[]>> = {
   "central america": ["latam"],
 };
 
-type AliasEntry = { readonly alias: string; readonly groups: readonly string[] };
+interface AliasEntry {
+  readonly alias: string;
+  readonly groups: readonly string[];
+}
 
 const ALIAS_ENTRIES: readonly AliasEntry[] = [
   ...Object.entries(REGION_ALIAS_GROUPS).flatMap(([group, aliases]) =>

@@ -1,9 +1,12 @@
-import type { JsonValue, RepoSettings } from "./compare.ts";
 import { readExpectedSettings } from "./check.ts";
+import type { JsonValue, RepoSettings } from "./compare.ts";
+import type { GhResult } from "./live.ts";
 import {
   assertExpectedRepository,
   readPackageRepository,
+  consoleOutput,
   resolveRepository,
+  spawnGhApi,
 } from "./repository.ts";
 
 export type HttpMethod = "PATCH" | "PUT" | "POST" | "DELETE";
@@ -24,12 +27,16 @@ export interface LiveRulesetRef {
 /** The repository settings that `PATCH /repos/{o}/{r}` accepts directly. */
 function repositoryPatchBody(settings: RepoSettings["repository"]): JsonValue {
   return {
+    description: settings.description,
     homepage: settings.homepage,
+    default_branch: settings.default_branch,
     allow_squash_merge: settings.allow_squash_merge,
     allow_merge_commit: settings.allow_merge_commit,
     allow_rebase_merge: settings.allow_rebase_merge,
     squash_merge_commit_title: settings.squash_merge_commit_title,
     squash_merge_commit_message: settings.squash_merge_commit_message,
+    merge_commit_title: settings.merge_commit_title,
+    merge_commit_message: settings.merge_commit_message,
     delete_branch_on_merge: settings.delete_branch_on_merge,
     allow_auto_merge: settings.allow_auto_merge,
     allow_update_branch: settings.allow_update_branch,
@@ -66,6 +73,24 @@ export function planApply(
       method: settings.private_vulnerability_reporting ? "PUT" : "DELETE",
       endpoint: `${base}/private-vulnerability-reporting`,
     },
+    {
+      method: "PUT",
+      endpoint: `${base}/actions/permissions/workflow`,
+      body: {
+        default_workflow_permissions: settings.default_workflow_permissions,
+        can_approve_pull_request_reviews: settings.can_approve_pull_request_reviews,
+      },
+    },
+    {
+      method: "PUT",
+      endpoint: `${base}/actions/permissions/fork-pr-contributor-approval`,
+      body: { approval_policy: settings.fork_pr_contributor_approval },
+    },
+    {
+      method: "PATCH",
+      endpoint: `${base}/code-scanning/default-setup`,
+      body: { state: settings.code_scanning_default_setup },
+    },
     { method: "PUT", endpoint: `${base}/topics`, body: { names: settings.topics } },
     { method: "PATCH", endpoint: base, body: repositoryPatchBody(settings) },
   ];
@@ -98,24 +123,28 @@ function isLiveRulesetRef(value: unknown): value is LiveRulesetRef {
   );
 }
 
-/** Runs `gh` and returns its result. */
-function runGh(args: string[], input?: string): { ok: boolean; stdout: string; stderr: string } {
-  const result = Bun.spawnSync(["gh", ...args], {
-    stdout: "pipe",
-    stderr: "pipe",
-    ...(input === undefined ? {} : { stdin: Buffer.from(input) }),
-  });
-  return {
-    ok: result.exitCode === 0,
-    stdout: result.stdout.toString(),
-    stderr: result.stderr.toString(),
-  };
+/** What `runApply` reads and writes through; injected so tests never touch the network. */
+export interface ApplyDependencies {
+  runGh: (args: string[], input?: string) => GhResult;
+  resolveRepository: () => string;
+  packageRepository: () => string;
+  readExpected: () => RepoSettings;
+  log: (line: string) => void;
+  logError: (line: string) => void;
 }
 
+const defaultDependencies: ApplyDependencies = {
+  runGh: spawnGhApi,
+  resolveRepository,
+  packageRepository: () => readPackageRepository(),
+  readExpected: () => readExpectedSettings(),
+  ...consoleOutput,
+};
+
 /** Reads the live ruleset list; a read, never a write. */
-function readLiveRulesets(repository: string): LiveRulesetRef[] {
+function readLiveRulesets(dependencies: ApplyDependencies, repository: string): LiveRulesetRef[] {
   const endpoint = `repos/${repository}/rulesets`;
-  const result = runGh(["api", endpoint]);
+  const result = dependencies.runGh(["api", endpoint]);
   if (!result.ok) {
     throw new Error(`gh api ${endpoint} failed: ${result.stderr.trim() || "no output"}`);
   }
@@ -127,35 +156,47 @@ function readLiveRulesets(repository: string): LiveRulesetRef[] {
 }
 
 /** Executes one call with `gh api`, sending the body on stdin. */
-function executeCall(call: ApiCall): void {
+function executeCall(dependencies: ApplyDependencies, call: ApiCall): void {
   const args = ["api", "--method", call.method, call.endpoint];
   const input = call.body === undefined ? undefined : JSON.stringify(call.body);
-  const result = runGh(input === undefined ? args : [...args, "--input", "-"], input);
+  const result =
+    input === undefined
+      ? dependencies.runGh(args)
+      : dependencies.runGh([...args, "--input", "-"], input);
   if (!result.ok) {
     throw new Error(`${call.method} ${call.endpoint} failed: ${result.stderr.trim()}`);
   }
 }
 
 /** Plans and, unless `--dry-run`, applies the settings; exit 0 on success, 1 on any failure. */
-function main(argv: string[]): number {
+export function runApply(
+  argv: string[],
+  dependencies: ApplyDependencies = defaultDependencies,
+): number {
   const dryRun = argv.includes("--dry-run");
   try {
-    const repository = resolveRepository();
-    assertExpectedRepository(repository, readPackageRepository());
-    const calls = planApply(repository, readExpectedSettings(), readLiveRulesets(repository));
+    const repository = dependencies.resolveRepository();
+    assertExpectedRepository(repository, dependencies.packageRepository());
+    const calls = planApply(
+      repository,
+      dependencies.readExpected(),
+      readLiveRulesets(dependencies, repository),
+    );
     for (const call of calls) {
-      console.log(formatCall(call));
+      dependencies.log(formatCall(call));
       if (!dryRun) {
-        executeCall(call);
+        executeCall(dependencies, call);
       }
     }
     return 0;
   } catch (error) {
-    console.error(`apply failed: ${error instanceof Error ? error.message : String(error)}`);
+    dependencies.logError(
+      `apply failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return 1;
   }
 }
 
 if (import.meta.main) {
-  process.exit(main(process.argv.slice(2)));
+  process.exit(runApply(process.argv.slice(2)));
 }

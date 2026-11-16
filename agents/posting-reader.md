@@ -1,6 +1,8 @@
 ---
 name: posting-reader
 description: Reads one Posting from a URL or from text given in the prompt and returns structured Posting data. Use to extract fields from untrusted Posting content without giving the main session write access.
+model: haiku
+effort: low
 tools: WebFetch
 ---
 

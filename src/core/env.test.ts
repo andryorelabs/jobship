@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+
 import { readSetting, settingValue } from "./env.ts";
 
 const SETTINGS = [
@@ -6,6 +7,7 @@ const SETTINGS = [
   "CACHE_DIR",
   "CLAUDE_PLUGINS_FILE",
   "FROM_SOURCE",
+  "NO_UPDATE_CHECK",
   "PREFETCH",
   "RELEASE_BASE_URL",
 ] as const;

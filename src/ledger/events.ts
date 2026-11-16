@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, truncateSync } from "node:fs";
 import path from "node:path";
+
 import { withLock } from "../core/fs.ts";
 import { errorMessage, isObject } from "../core/narrow.ts";
 import type { DataDir, HuntEvent } from "../core/types.ts";
@@ -45,7 +46,7 @@ export function discardUncommittedTail(file: string): void {
 }
 
 function isHuntEvent(value: unknown): value is HuntEvent {
-  return isObject(value) && typeof value["kind"] === "string" && typeof value["id"] === "string";
+  return isObject(value) && typeof value.kind === "string" && typeof value.id === "string";
 }
 
 export async function appendEvent(dir: DataDir, event: NewEvent): Promise<HuntEvent> {

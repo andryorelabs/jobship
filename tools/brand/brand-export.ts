@@ -12,7 +12,8 @@ import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promise
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { chromium, type Page } from "playwright";
+
+import { chromium } from "playwright";
 import sharp from "sharp";
 
 import {
@@ -95,32 +96,30 @@ async function readSource(brandDir: string, source: string): Promise<Uint8Array>
   }
 }
 
-async function prepareMarks(brandDir: string): Promise<PendingWrite[]> {
-  const sizes = [...new Set([...MARK_TARGETS.map((target) => target.width), ...ICO_SIZES])];
-  const renders = new Map(
-    await Promise.all(
-      sizes.map(async (size): Promise<[number, Uint8Array]> => {
-        const svg = await readSource(brandDir, markSourceFor(size));
-        return [size, await renderMark(svg, size)];
-      }),
-    ),
-  );
-  const renderOf = (size: number): Uint8Array => {
-    const png = renders.get(size);
-    if (png === undefined) {
-      throw new Error(`no ${size} px mark render`);
+async function prepareMarks(
+  brandDir: string,
+  icoMaxBytes: number = ICO_TARGET.maxBytes,
+): Promise<PendingWrite[]> {
+  const renders = new Map<number, Promise<Uint8Array>>();
+  const renderOf = (size: number): Promise<Uint8Array> => {
+    let render = renders.get(size);
+    if (render === undefined) {
+      render = readSource(brandDir, markSourceFor(size)).then((svg) => renderMark(svg, size));
+      renders.set(size, render);
     }
-    return png;
+    return render;
   };
-  const pending = MARK_TARGETS.map((target): PendingWrite => {
-    const png = renderOf(target.width);
-    assertRaster(target, png);
-    return [target.output, png];
-  });
-  const ico = encodeIco(ICO_SIZES.map((size) => renderOf(size)));
-  if (ico.length > ICO_TARGET.maxBytes) {
+  const pending = await Promise.all(
+    MARK_TARGETS.map(async (target): Promise<PendingWrite> => {
+      const png = await renderOf(target.width);
+      assertRaster(target, png);
+      return [target.output, png];
+    }),
+  );
+  const ico = encodeIco(await Promise.all(ICO_SIZES.map((size) => renderOf(size))));
+  if (ico.length > icoMaxBytes) {
     throw new Error(
-      `${ICO_TARGET.output}: ${ico.length} bytes exceeds the ${ICO_TARGET.maxBytes} byte budget`,
+      `${ICO_TARGET.output}: ${ico.length} bytes exceeds the ${icoMaxBytes} byte budget`,
     );
   }
   pending.push([ICO_TARGET.output, ico]);
@@ -128,9 +127,9 @@ async function prepareMarks(brandDir: string): Promise<PendingWrite[]> {
 }
 
 /** Regenerates the mark PNGs and `favicon.ico` under `<root>/docs/brand/`. */
-export async function exportMarks(options: { root: string }): Promise<void> {
+export async function exportMarks(options: { root: string; icoMaxBytes?: number }): Promise<void> {
   const brandDir = brandDirOf(options.root);
-  await writeAtomically(brandDir, await prepareMarks(brandDir));
+  await writeAtomically(brandDir, await prepareMarks(brandDir, options.icoMaxBytes));
 }
 
 async function assertNoRemoteUrls(brandDir: string): Promise<void> {
@@ -150,24 +149,21 @@ async function prepareOg(
 ): Promise<PendingWrite[]> {
   await assertNoRemoteUrls(brandDir);
   const renderer = await (openRenderer ?? openChromiumRenderer)();
-  let captures: PageCapture[];
+  let captures: [target: (typeof OG_TARGETS)[number], capture: PageCapture][];
   try {
     captures = await Promise.all(
-      OG_TARGETS.map((target) =>
-        renderer.capture(pathToFileURL(join(brandDir, target.source)).href, {
+      OG_TARGETS.map(async (target): Promise<[(typeof OG_TARGETS)[number], PageCapture]> => [
+        target,
+        await renderer.capture(pathToFileURL(join(brandDir, target.source)).href, {
           width: target.width,
           height: target.height,
         }),
-      ),
+      ]),
     );
   } finally {
     await renderer.close();
   }
-  const pending = OG_TARGETS.map((target, index): PendingWrite => {
-    const capture = captures[index];
-    if (capture === undefined) {
-      throw new Error(`${target.source}: no capture`);
-    }
+  return captures.map(([target, capture]): PendingWrite => {
     const [blocked] = capture.blockedUrls;
     if (blocked !== undefined) {
       throw new Error(`${target.source}: blocked non-file request ${blocked}`);
@@ -179,7 +175,6 @@ async function prepareOg(
     assertRaster(target, capture.png);
     return [target.output, capture.png];
   });
-  return pending;
 }
 
 /** Renders the covers and social previews from `og/*.html` under `<root>/docs/brand/`. */
@@ -204,7 +199,38 @@ const FONT_CHECK_SCRIPT = `(async (required) => {
   return missing;
 })(${JSON.stringify(REQUIRED_FONTS)})`;
 
-async function findMissingFonts(page: Page): Promise<string[]> {
+/** The slice of a Playwright page the renderer drives. */
+export interface ChromiumPage {
+  route(
+    matcher: (url: URL) => boolean,
+    handler: (route: {
+      request(): { url(): string };
+      abort(errorCode: string): Promise<void>;
+    }) => Promise<void>,
+  ): Promise<unknown>;
+  setViewportSize(size: { width: number; height: number }): Promise<void>;
+  goto(url: string, options: { waitUntil: "load" }): Promise<unknown>;
+  evaluate(script: string): Promise<unknown>;
+  screenshot(options: { type: "png"; animations: "disabled" }): Promise<Uint8Array>;
+  close(): Promise<void>;
+}
+
+/** The slice of a Playwright browser the renderer drives. */
+export interface ChromiumBrowser {
+  newContext(options: {
+    deviceScaleFactor: number;
+    reducedMotion: "reduce";
+  }): Promise<{ newPage(): Promise<ChromiumPage> }>;
+  close(): Promise<void>;
+}
+
+/** Where `findChromium` looks: the bundled executable and the Playwright cache. */
+export interface ChromiumLookup {
+  bundledPath: string;
+  cacheDir: string;
+}
+
+async function findMissingFonts(page: ChromiumPage): Promise<string[]> {
   const result: unknown = await page.evaluate(FONT_CHECK_SCRIPT);
   if (!Array.isArray(result) || !result.every((entry) => typeof entry === "string")) {
     throw new Error("font check returned an unexpected value");
@@ -212,18 +238,23 @@ async function findMissingFonts(page: Page): Promise<string[]> {
   return result;
 }
 
+function defaultLookup(): ChromiumLookup {
+  return {
+    bundledPath: chromium.executablePath(),
+    cacheDir: process.env.PLAYWRIGHT_BROWSERS_PATH ?? join(homedir(), ".cache", "ms-playwright"),
+  };
+}
+
 /**
  * Chromium to launch: Playwright's own build when installed, else the newest
  * Chromium or headless shell in the Playwright cache, so the export never
  * downloads a browser.
  */
-async function findChromium(): Promise<string> {
-  const bundled = chromium.executablePath();
+export async function findChromium(lookup: ChromiumLookup = defaultLookup()): Promise<string> {
+  const { bundledPath: bundled, cacheDir: cache } = lookup;
   if (existsSync(bundled)) {
     return bundled;
   }
-  const cache =
-    process.env["PLAYWRIGHT_BROWSERS_PATH"] ?? join(homedir(), ".cache", "ms-playwright");
   const entries = await readdir(cache).catch(() => [] as string[]);
   const candidates = entries
     .flatMap((entry) => {
@@ -255,9 +286,15 @@ async function findChromium(): Promise<string> {
  * container or root user where the Chromium sandbox cannot start; the pages are
  * local files and every network request is blocked.
  */
-async function openChromiumRenderer(): Promise<PageRenderer> {
-  const browser = await chromium.launch({
-    executablePath: await findChromium(),
+export async function openChromiumRenderer(
+  launch: (options: {
+    executablePath: string;
+    args: string[];
+  }) => Promise<ChromiumBrowser> = chromium.launch.bind(chromium),
+  lookup?: ChromiumLookup,
+): Promise<PageRenderer> {
+  const browser = await launch({
+    executablePath: await findChromium(lookup),
     args: ["--no-sandbox"],
   });
   const context = await browser.newContext({ deviceScaleFactor: 1, reducedMotion: "reduce" });
@@ -287,10 +324,13 @@ async function openChromiumRenderer(): Promise<PageRenderer> {
 }
 
 /** Regenerates every raster of the kit under `<root>/docs/brand/`. */
-export async function exportBrand(options: { root: string }): Promise<void> {
+export async function exportBrand(options: {
+  root: string;
+  openRenderer?: () => Promise<PageRenderer>;
+}): Promise<void> {
   const brandDir = brandDirOf(options.root);
   const marks = await prepareMarks(brandDir);
-  const og = await prepareOg(brandDir);
+  const og = await prepareOg(brandDir, options.openRenderer);
   await writeAtomically(brandDir, [...marks, ...og]);
 }
 

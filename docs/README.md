@@ -11,17 +11,24 @@
 - [Dogfooding checklist](guide/dogfooding.md)
 - [Troubleshooting](troubleshooting.md)
 
+## How-to
+
+- [How-to guides](how-to/README.md)
+- [Cut a release](how-to/cut-a-release.md)
+
 ## Reference
 
 - [CLI reference](reference/cli.md)
 - [Profile reference](reference/profile.md)
 - [Onboarding research](reference/onboarding-research.md)
+- [Dependencies](reference/dependencies.md)
 
 ## Project
 
 - [Architecture](architecture.md)
 - [Development](development.md)
 - [Security](security.md)
+- [Privacy policy](../PRIVACY_POLICY.md)
 - [Configuration](configuration.md)
 - [Product](../PRODUCT.md)
 - [Governance](../GOVERNANCE.md)

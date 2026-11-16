@@ -1,11 +1,12 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { errorMessage, isObject, isOneOf } from "../core/narrow.ts";
-import type { DataDir, Result } from "../core/types.ts";
+
 import careerTemplate from "../../templates/dossier/career.md" with { type: "text" };
 import identityTemplate from "../../templates/dossier/identity.md" with { type: "text" };
 import presenceTemplate from "../../templates/dossier/presence.md" with { type: "text" };
 import searchTemplate from "../../templates/dossier/search.md" with { type: "text" };
+import { errorMessage, isObject, isOneOf } from "../core/narrow.ts";
+import type { DataDir, Result } from "../core/types.ts";
 
 export const DOSSIER_SECTION_NAMES = ["career", "search", "presence", "identity"] as const;
 export type DossierSectionName = (typeof DOSSIER_SECTION_NAMES)[number];
@@ -19,20 +20,20 @@ export type DossierSource = (typeof DOSSIER_SOURCES)[number];
 const IDENTITY_TIERS = ["A", "B", "C", "D"] as const;
 export type IdentityTier = (typeof IDENTITY_TIERS)[number];
 
-export type IdentityField = {
+export interface IdentityField {
   readonly name: string;
   readonly tier: IdentityTier;
   readonly value: string;
   readonly line: number;
-};
+}
 
-export type DossierSection = {
+export interface DossierSection {
   readonly name: DossierSectionName;
   readonly file: string;
   readonly status: SectionStatus;
   readonly sources: DossierSource[];
   readonly lines: string[];
-};
+}
 
 const DOSSIER_DIRECTORY = "dossier";
 const READINESS_VALUE = /^ready: (yes|no)$/;
@@ -70,7 +71,10 @@ function frontMatterEnd(lines: readonly string[]): number {
   return -1;
 }
 
-type FrontMatter = { readonly status: SectionStatus; readonly sources: DossierSource[] };
+interface FrontMatter {
+  readonly status: SectionStatus;
+  readonly sources: DossierSource[];
+}
 
 function parseFrontMatter(file: string, lines: readonly string[]): Result<FrontMatter> {
   if (lines.every((line) => line.trim() === "")) return invalid(file, "file is empty");

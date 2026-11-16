@@ -1,4 +1,12 @@
+import { resolve } from "node:path";
+
+import { checkPerFile, parseFileCoverage } from "./check-per-file.ts";
 import { checkThreshold, COVERAGE_LIMITS } from "./check-threshold.ts";
+import { coverageExceptions } from "./coverage-exceptions.ts";
+import { coverageExemptions } from "./coverage-exemptions.ts";
+import { findCoverageProblems, listRepositoryModules } from "./coverage-manifest.ts";
+
+const repoRoot = resolve(import.meta.dir, "../..");
 
 /**
  * Runs `bun test` with any extra arguments, mirrors its output, then gates coverage on a full
@@ -21,7 +29,15 @@ async function main(): Promise<number> {
   if (exitCode !== 0 || extraArguments.length > 0) return exitCode;
   const result = checkThreshold(output, COVERAGE_LIMITS);
   for (const failure of result.failures) console.error(failure);
-  return result.ok ? 0 : 1;
+  const perFile = checkPerFile(output, coverageExceptions);
+  for (const failure of perFile.failures) console.error(failure);
+  const manifest = findCoverageProblems({
+    modules: listRepositoryModules(repoRoot),
+    loadedModules: new Set(parseFileCoverage(output).map((row) => row.path)),
+    exemptions: coverageExemptions,
+  });
+  for (const problem of manifest) console.error(problem);
+  return result.ok && perFile.ok && manifest.length === 0 ? 0 : 1;
 }
 
 process.exit(await main());

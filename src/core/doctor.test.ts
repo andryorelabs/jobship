@@ -11,12 +11,12 @@ import {
 import os from "node:os";
 import path from "node:path";
 
+import { listAnswers } from "../apply/answers.ts";
 import type { FetchLike } from "../tracker/linear.ts";
 import type { CommandContext } from "./commands.ts";
-import { listAnswers } from "../apply/answers.ts";
 import { runDoctor } from "./doctor.ts";
-import { runInit } from "./init.ts";
 import { exitCodeFor } from "./envelope.ts";
+import { runInit } from "./init.ts";
 import { isObject } from "./narrow.ts";
 
 const RECOVERY =
@@ -72,7 +72,7 @@ function withEnv(ctx: CommandContext, env: Record<string, string>): CommandConte
 function guardOf(envelope: Awaited<ReturnType<typeof runDoctor>>): Record<string, unknown> {
   if (!envelope.ok) throw new Error(`doctor failed: ${envelope.error.message}`);
   const data = envelope.data;
-  const guard = isObject(data) ? data["guard"] : undefined;
+  const guard = isObject(data) ? data.guard : undefined;
   if (!isObject(guard)) throw new Error("doctor data has no guard section");
   return guard;
 }
@@ -82,11 +82,11 @@ function warningsOf(
 ): { code: string; recoveryAction: string }[] {
   if (!envelope.ok) throw new Error("doctor failed");
   const data = envelope.data;
-  const warnings: unknown = isObject(data) ? data["warnings"] : undefined;
+  const warnings: unknown = isObject(data) ? data.warnings : undefined;
   if (!Array.isArray(warnings)) throw new Error("doctor data has no warnings");
   return warnings.map((warning: unknown) => {
     if (!isObject(warning)) throw new Error("warning is not an object");
-    return { code: String(warning["code"]), recoveryAction: String(warning["recoveryAction"]) };
+    return { code: String(warning.code), recoveryAction: String(warning.recoveryAction) };
   });
 }
 
@@ -130,7 +130,7 @@ describe("doctor guard readiness", () => {
       withEnv(writeDataDir({ kind: "local" }), { JOBSHIP_CLAUDE_PLUGINS_FILE: file }),
     );
     expect(envelope.ok).toBe(true);
-    expect(guardOf(envelope)["pluginInstalled"]).toBe(false);
+    expect(guardOf(envelope).pluginInstalled).toBe(false);
     expect(warningsOf(envelope)[0]?.recoveryAction).toBe(RECOVERY);
   });
 
@@ -154,7 +154,7 @@ describe("doctor guard readiness", () => {
     const envelope = await runDoctor(
       withEnv(writeDataDir({ kind: "local" }), { JOBSHIP_CLAUDE_PLUGINS_FILE: file }),
     );
-    expect(guardOf(envelope)["pluginInstalled"]).toBe(false);
+    expect(guardOf(envelope).pluginInstalled).toBe(false);
   });
 
   test("a malformed plugins file warns instead of crashing", async () => {
@@ -167,7 +167,7 @@ describe("doctor guard readiness", () => {
     );
     for (const envelope of envelopes) {
       expect(envelope.ok).toBe(true);
-      expect(guardOf(envelope)["pluginInstalled"]).toBe(false);
+      expect(guardOf(envelope).pluginInstalled).toBe(false);
       expect(warningsOf(envelope).length).toBeGreaterThan(0);
     }
   });
@@ -179,7 +179,7 @@ describe("doctor guard readiness", () => {
       path.join(workDir, ".claude/plugins/installed_plugins.json"),
       JSON.stringify({ plugins: { "jobship@acme-market": [] } }),
     );
-    expect(guardOf(await runDoctor(ctx))["pluginInstalled"]).toBe(true);
+    expect(guardOf(await runDoctor(ctx)).pluginInstalled).toBe(true);
   });
 });
 
@@ -263,7 +263,7 @@ describe("doctor data checks", () => {
     const result = await runDoctor(ctx);
     expect(result.ok).toBe(true);
     const data = result.ok && isObject(result.data) ? result.data : {};
-    expect(JSON.stringify(data["warnings"])).toContain("foo");
+    expect(JSON.stringify(data.warnings)).toContain("foo");
   });
 
   test("fails naming the events.jsonl line that is not JSON", async () => {
@@ -327,7 +327,11 @@ describe("doctor onboarding checks", () => {
   test("a freshly scaffolded data dir fails dossier-incomplete listing all four sections", async () => {
     const fresh = path.join(workDir, "fresh");
     await runInit(["--data", fresh], workDir);
-    const result = await runDoctor({ dataDir: { path: fresh }, env: {}, cwd: workDir });
+    const result = await runDoctor({
+      dataDir: { path: fresh },
+      env: { HOME: workDir, JOBSHIP_CATALOG_URL: "off" },
+      cwd: workDir,
+    });
     expect(result.ok).toBe(false);
     const error = result.ok ? null : result.error;
     expect(error?.code).toBe("dossier-incomplete");
@@ -438,7 +442,7 @@ describe("init scaffold of the Dossier", () => {
     expect(added.ok).toBe(true);
     expect(readFileSync(path.join(fresh, "profile.yaml"), "utf8")).toBe("kept: true\n");
     expect(readFileSync(path.join(fresh, "dossier/career.md"), "utf8")).toContain("status: empty");
-    const written = added.ok && isObject(added.data) ? added.data["written"] : [];
+    const written = added.ok && isObject(added.data) ? added.data.written : [];
     expect(written).not.toContain("profile.yaml");
   });
 
@@ -451,13 +455,13 @@ describe("init scaffold of the Dossier", () => {
     expect(readFileSync(path.join(fresh, ".gitignore"), "utf8")).toBe(
       "*.pdf\ndossier/identity.md\n",
     );
-    const updated = added.ok && isObject(added.data) ? added.data["updated"] : [];
+    const updated = added.ok && isObject(added.data) ? added.data.updated : [];
     expect(updated).toEqual([".gitignore"]);
     const again = await runInit(["--data", fresh, "--missing"], workDir);
     expect(readFileSync(path.join(fresh, ".gitignore"), "utf8")).toBe(
       "*.pdf\ndossier/identity.md\n",
     );
-    expect(again.ok && isObject(again.data) ? again.data["updated"] : null).toEqual([]);
+    expect(again.ok && isObject(again.data) ? again.data.updated : null).toEqual([]);
   });
 
   test("--missing and --force together are a usage error", async () => {
@@ -479,5 +483,62 @@ describe("doctor on a data dir without a Dossier", () => {
       expect(result.ok ? "" : result.error.message).toContain(`${section} (missing)`);
     }
     expect(result.ok ? "" : (result.error.recoveryAction ?? "")).toContain("--missing");
+  });
+});
+
+describe("doctor failure paths", () => {
+  test("fails data-dir-not-found without a data directory", async () => {
+    const result = await runDoctor({ dataDir: null, env: {}, cwd: workDir });
+    expect(result.ok ? "" : result.error.code).toBe("data-dir-not-found");
+    expect(result.ok ? "" : result.error.message).toContain("no data directory");
+  });
+
+  test("fails with the profile error when profile.yaml is invalid", async () => {
+    const ctx = writeDataDir({ kind: "local" });
+    rewriteProfile(ctx, { regions: "LATAM" });
+    const result = await runDoctor(ctx);
+    expect(result.ok).toBe(false);
+    expect(result.ok ? "" : (result.error.recoveryAction ?? "")).toContain("profile.yaml");
+  });
+
+  test("fails when boards.json cannot be read", async () => {
+    const ctx = writeDataDir({ kind: "local" });
+    writeFileSync(dataFile(ctx, "boards.json"), "{oops");
+    const result = await runDoctor(ctx);
+    expect(result.ok).toBe(false);
+    expect(result.ok ? "" : (result.error.recoveryAction ?? "")).toContain("boards.json");
+  });
+
+  test("fails with the Dossier error when a Dossier file is unknown", async () => {
+    const ctx = writeDataDir({ kind: "local" });
+    writeFileSync(path.join(dataFile(ctx, "dossier"), "stray.md"), "x\n");
+    const result = await runDoctor(ctx);
+    expect(result.ok).toBe(false);
+    expect(result.ok ? "" : (result.error.recoveryAction ?? "")).toBe("fix the named Dossier file");
+  });
+
+  test("fails cv-data-invalid when never-claim.yaml is malformed", async () => {
+    const ctx = writeDataDir({ kind: "local" });
+    writeFileSync(dataFile(ctx, "never-claim.yaml"), "terms:\n  - 5\n");
+    const result = await runDoctor(ctx);
+    expect(result.ok ? "" : result.error.code).toBe("cv-data-invalid");
+    expect(result.ok ? "" : result.error.message).toContain("never-claim.yaml");
+  });
+
+  test("fails cv-data-invalid when a Bullet cites a missing fact", async () => {
+    const ctx = writeDataDir({ kind: "local" });
+    writeFileSync(
+      dataFile(ctx, "bullets.yaml"),
+      "bullets:\n  - id: b1\n    text: Built a thing\n    facts: [ghost]\n",
+    );
+    const result = await runDoctor(ctx);
+    expect(result.ok ? "" : result.error.message).toContain("cites missing fact ghost");
+  });
+
+  test("accepts a valid events.jsonl and answers.json", async () => {
+    const ctx = writeDataDir({ kind: "local" });
+    writeFileSync(dataFile(ctx, "events.jsonl"), '{"a":1}\n\n{"b":2}\n');
+    writeFileSync(dataFile(ctx, "answers.json"), "[]");
+    expect((await runDoctor(ctx)).ok).toBe(true);
   });
 });

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import {
   DOSSIER_TEMPLATES,
   dossierLineExists,
@@ -199,5 +200,19 @@ describe("dossierLineExists", () => {
     expect(dossierLineExists(dir, "dossier/career.md:0")).toBe(false);
     expect(dossierLineExists(dir, "dossier/unknown.md:1")).toBe(false);
     expect(dossierLineExists(dir, "career.md:1")).toBe(false);
+  });
+});
+
+describe("unreadable section files", () => {
+  test("loadDossier reports a section file that cannot be read", () => {
+    rmSync(path.join(root, "dossier", "career.md"));
+    mkdirSync(path.join(root, "dossier", "career.md"));
+    expect(loadDossier(dir).ok).toBe(false);
+  });
+
+  test("loadIdentityFields reports an identity file that cannot be read", () => {
+    rmSync(path.join(root, "dossier", "identity.md"));
+    mkdirSync(path.join(root, "dossier", "identity.md"));
+    expect(loadIdentityFields(dir).ok).toBe(false);
   });
 });

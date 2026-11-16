@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import {
   existsSync,
   mkdirSync,
@@ -10,12 +10,14 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { runSetup } from "./setup.ts";
 import {
   ensureTypst,
   installTypst,
   pdftotextInstallHint,
   resolveTypst,
+  systemInstallDeps,
   toolStatus,
   TYPST_VERSION,
   type Downloader,
@@ -103,7 +105,7 @@ describe("cache dir after the rename", () => {
 
   test("defaults to ~/.cache/jobship", () => {
     const binary = placeTypst(path.join(root, ".cache", "jobship"));
-    expect(resolveTypst({ HOME: root, PATH: env["PATH"] })).toEqual({
+    expect(resolveTypst({ HOME: root, PATH: env.PATH })).toEqual({
       path: binary,
       source: "cache",
     });
@@ -171,5 +173,148 @@ describe("toolStatus and setup", () => {
     expect(envelope.ok).toBe(true);
     if (envelope.ok)
       expect(envelope.data).toMatchObject({ typst: { found: true, source: "path" } });
+  });
+});
+
+const SYNTHETIC_ASSETS = { "linux-x64": { asset: "typst-test.tar.xz", sha256: ARCHIVE_SHA } };
+
+const failingExtract: Extractor = () =>
+  Promise.resolve({ ok: false, error: { code: "tool-extract-failed", message: "bad tar" } });
+const emptyExtract: Extractor = () => Promise.resolve({ ok: true, value: undefined });
+const throwingExtract: Extractor = () => Promise.reject(new Error("disk on fire"));
+
+describe("installTypst failure paths", () => {
+  test("surfaces an extraction failure with the manual hint", async () => {
+    const result = await installTypst(
+      env,
+      deps({ assets: SYNTHETIC_ASSETS, extract: failingExtract }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("tool-extract-failed");
+      expect(result.error.message).toContain("bad tar; install typst yourself");
+    }
+  });
+
+  test("reports a missing binary inside the archive", async () => {
+    const result = await installTypst(
+      env,
+      deps({ assets: SYNTHETIC_ASSETS, extract: emptyExtract }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.message).toContain("typst binary missing");
+  });
+
+  test("turns a throwing extractor into tool-install-failed and cleans the staging dir", async () => {
+    const result = await installTypst(
+      env,
+      deps({ assets: SYNTHETIC_ASSETS, extract: throwingExtract }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("tool-install-failed");
+      expect(result.error.message).toContain("disk on fire");
+    }
+    expect(readdirSync(path.join(root, "cache", "tools"))).toEqual([]);
+  });
+});
+
+describe("system downloader", () => {
+  const { download } = systemInstallDeps();
+
+  test("refuses a non-https url without fetching", async () => {
+    const fetchSpy = spyOn(globalThis, "fetch").mockRejectedValue(new Error("network forbidden"));
+    try {
+      const result = await download("http://example.invalid/typst");
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.message).toContain("refusing non-https url");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  test("returns the response bytes on success", async () => {
+    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(new Response("payload"));
+    const result = await download("https://example.invalid/typst");
+    fetchSpy.mockRestore();
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(new TextDecoder().decode(result.value)).toBe("payload");
+  });
+
+  test("reports a non-ok status", async () => {
+    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("no", { status: 404 }),
+    );
+    const result = await download("https://example.invalid/typst");
+    fetchSpy.mockRestore();
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.message).toContain("answered 404");
+  });
+
+  test("reports a network error", async () => {
+    const fetchSpy = spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
+    const result = await download("https://example.invalid/typst");
+    fetchSpy.mockRestore();
+    expect(result.ok).toBe(false);
+    if (!result.ok)
+      expect(result.error).toEqual({ code: "tool-download-failed", message: "offline" });
+  });
+});
+
+describe("system extractor", () => {
+  const { extract } = systemInstallDeps();
+
+  test("unpacks a real tar.xz archive", async () => {
+    const source = path.join(root, "src");
+    mkdirSync(source);
+    writeFileSync(path.join(source, "typst"), "binary");
+    const archive = path.join(root, "bundle.tar.xz");
+    expect(Bun.spawnSync(["tar", "-cJf", archive, "-C", source, "typst"]).exitCode).toBe(0);
+    const destination = path.join(root, "out");
+    mkdirSync(destination);
+    expect(await extract(archive, destination)).toEqual({ ok: true, value: undefined });
+    expect(existsSync(path.join(destination, "typst"))).toBe(true);
+  });
+
+  test("reports tar's exit code and stderr for a corrupt archive", async () => {
+    const archive = path.join(root, "broken.tar.xz");
+    writeFileSync(archive, "not an archive");
+    const destination = path.join(root, "out");
+    mkdirSync(destination);
+    const result = await extract(archive, destination);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.message).toContain("tar exited");
+  });
+
+  test("reports a spawn failure", async () => {
+    const originalPath = process.env.PATH;
+    process.env.PATH = path.join(root, "empty-bin");
+    try {
+      const result = await extract(path.join(root, "x.tar.xz"), root);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error.code).toBe("tool-extract-failed");
+    } finally {
+      process.env.PATH = originalPath;
+    }
+  });
+});
+
+describe("setup without typst", () => {
+  test("fails cv-tool-missing with the manual recovery action when the install fails", async () => {
+    const envelope = await runSetup(env, deps({ download: failingDownload }), LINUX);
+    expect(envelope.ok).toBe(false);
+    if (!envelope.ok) {
+      expect(envelope.error.code).toBe("cv-tool-missing");
+      expect(envelope.error.recoveryAction).toContain("mise, cargo or brew");
+    }
+  });
+
+  test("defaults to the system install deps and the current platform", async () => {
+    const bin = path.join(root, "bin");
+    mkdirSync(bin);
+    for (const name of ["typst", "pdftotext"])
+      writeFileSync(path.join(bin, name), "#!/bin/sh\n", { mode: 0o755 });
+    expect((await runSetup({ ...env, PATH: bin })).ok).toBe(true);
   });
 });

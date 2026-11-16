@@ -91,7 +91,11 @@ function proposedTransition(
   return PROGRESSION.indexOf(target) > currentRank ? target : null;
 }
 
-type Candidate = { readonly key: string; readonly band: MatchBand; readonly reason: MatchReason };
+interface Candidate {
+  readonly key: string;
+  readonly band: MatchBand;
+  readonly reason: MatchReason;
+}
 
 function foldAccents(value: string): string {
   return value
@@ -172,12 +176,12 @@ function candidateFor(email: ClassifiedEmail, application: ApplicationRecord): C
   return null;
 }
 
-type Resolution = {
+interface Resolution {
   readonly key: string | null;
   readonly keys: string[];
   readonly band: MatchBand;
   readonly reason: MatchReason;
-};
+}
 
 function resolveCandidates(candidates: readonly Candidate[]): Resolution {
   const high = candidates.filter((candidate) => candidate.band === "high");
@@ -198,7 +202,7 @@ export function applicationsFromEvents(events: readonly HuntEvent[]): Applicatio
   const records: ApplicationRecord[] = [];
   for (const [key, group] of byKey) {
     const seed = group.find((event) => event.kind === "lead.created");
-    if (seed === undefined || seed.kind !== "lead.created") continue;
+    if (seed === undefined) continue;
     records.push({ key, company: seed.posting.company, state: foldState(group) });
   }
   return records;
@@ -220,8 +224,7 @@ function finalize(
     band: resolution.band,
     reason: resolution.reason,
     confirmed,
-    targetState:
-      confirmed && application !== undefined ? proposedTransition(application.state, target) : null,
+    targetState: confirmed ? proposedTransition(application.state, target) : null,
   };
 }
 

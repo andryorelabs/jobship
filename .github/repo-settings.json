@@ -1,5 +1,7 @@
 {
+  "description": "Local-first job-search system for Claude Code: sweeps Sources, scores fit against your Profile, builds a Tailored CV from Fact bank facts and assists the form. You press Submit.",
   "homepage": "https://github.com/andryorelabs/jobship#readme",
+  "default_branch": "main",
   "topics": [
     "bun",
     "claude-code",
@@ -16,6 +18,8 @@
   "allow_rebase_merge": false,
   "squash_merge_commit_title": "PR_TITLE",
   "squash_merge_commit_message": "PR_BODY",
+  "merge_commit_title": "PR_TITLE",
+  "merge_commit_message": "PR_BODY",
   "delete_branch_on_merge": true,
   "allow_auto_merge": true,
   "allow_update_branch": true,
@@ -26,5 +30,9 @@
   "secret_scanning_push_protection": "enabled",
   "dependabot_alerts": true,
   "dependabot_security_updates": "enabled",
-  "private_vulnerability_reporting": true
+  "private_vulnerability_reporting": true,
+  "default_workflow_permissions": "read",
+  "can_approve_pull_request_reviews": false,
+  "fork_pr_contributor_approval": "first_time_contributors",
+  "code_scanning_default_setup": "not-configured"
 }

@@ -1,4 +1,5 @@
 import path from "node:path";
+
 import { IdempotencyMap } from "../core/approval.ts";
 import { withLock } from "../core/fs.ts";
 import { errorMessage } from "../core/narrow.ts";
@@ -9,7 +10,7 @@ import type { ImportResult } from "./types.ts";
 
 const LOCK_DIRECTORY = ".migrate";
 
-export type Importer = {
+export interface Importer {
   lead(posting: Posting, preferredKey?: string): string;
   hadLead(key: string): boolean;
   existingNotes(): ReadonlyMap<string, readonly string[]>;
@@ -18,14 +19,14 @@ export type Importer = {
   score(key: string, score: number, reasons: readonly string[], discriminator: string): void;
   unknownState(description: string): void;
   warn(message: string): void;
-};
+}
 
-type Counters = {
+interface Counters {
   created: number;
   skipped: number;
   unknownStates: string[];
   warnings: string[];
-};
+}
 
 type Operation = () => Promise<void>;
 
@@ -139,7 +140,10 @@ export async function withImporter(
 const LEGACY_ID_NOTE = /^legacy id (\S+)$/;
 const LINEAR_NOTE = /^linear ([^\s;]+);/;
 
-export type KeyedId = { readonly id: string; readonly key: string };
+export interface KeyedId {
+  readonly id: string;
+  readonly key: string;
+}
 
 export function legacyIdNote(legacyId: string): string {
   return `legacy id ${legacyId}`;

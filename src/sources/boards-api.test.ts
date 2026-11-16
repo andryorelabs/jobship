@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+
 import type { SourceAdapter } from "../core/types.ts";
 import { createApiBoardAdapters, type ApiBoardName } from "./boards-api.ts";
 import type { FetchFunction } from "./http.ts";
@@ -10,7 +11,10 @@ function fixture(name: string): string {
   return readFileSync(path.join(import.meta.dir, "fixtures", "api", name), "utf8");
 }
 
-type Call = { readonly url: string; readonly init: RequestInit | undefined };
+interface Call {
+  readonly url: string;
+  readonly init: RequestInit | undefined;
+}
 
 function recordingFetch(routes: Record<string, string>, calls: Call[] = []): FetchFunction {
   return (input, init) => {

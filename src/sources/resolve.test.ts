@@ -1,11 +1,12 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import type { Profile } from "../core/types.ts";
+import { ATS_NAMES } from "./ats.ts";
 import type { Board } from "./catalog.ts";
 import { readCustomBoards, writeCustomBoards } from "./custom-boards.ts";
-import { ATS_NAMES } from "./ats.ts";
 import { detectAts } from "./detect.ts";
 import { resolveBoards } from "./resolve.ts";
 
@@ -70,6 +71,57 @@ describe("resolveBoards", () => {
     );
     if (!optioned.ok) throw new Error(optioned.error.message);
     expect(optioned.value[0]?.problem).toContain("does not support options");
+  });
+
+  test("an option on a nav board with declared options is rejected", async () => {
+    const navBoard = {
+      id: "nav-opts",
+      name: "Nav with options",
+      homepage: "https://nav.example.test",
+      access: "feed",
+      regions: ["global"],
+      workModes: ["remote"],
+      jobTypes: ["general"],
+      parser: "nav",
+      endpoint: "https://nav.example.test/feed",
+      options: { area: ["oslo"] },
+    };
+    const resolved = await resolveBoards(
+      profileWith({ sources: ["nav-opts:oslo"] }),
+      { path: root },
+      { env: OFF, catalog: { bundled: [navBoard] } },
+    );
+    if (!resolved.ok) throw new Error(resolved.error.message);
+    expect(resolved.value[0]?.problem).toContain("does not support options");
+  });
+
+  test("an existing source name with an option is rejected", async () => {
+    const resolved = await resolveBoards(
+      profileWith({ sources: ["greenhouse:x"] }),
+      { path: root },
+      { env: OFF },
+    );
+    if (!resolved.ok) throw new Error(resolved.error.message);
+    expect(resolved.value[0]?.problem).toBe("greenhouse:x: this source does not support options");
+  });
+
+  test("uses the global fetch when none is injected", async () => {
+    const stub = Object.assign(() => Promise.resolve(new Response("{}")), {
+      preconnect: () => undefined,
+    });
+    const spy = spyOn(globalThis, "fetch").mockImplementation(stub);
+    try {
+      const resolved = await resolveBoards(
+        profileWith({ sources: ["remoteok"] }),
+        { path: root },
+        { env: OFF },
+      );
+      if (!resolved.ok) throw new Error(resolved.error.message);
+      await resolved.value[0]?.adapter?.fetch({});
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   test("empty sources select feed boards matching the Profile regions and remote", async () => {

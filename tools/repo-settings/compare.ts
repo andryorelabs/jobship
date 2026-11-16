@@ -8,15 +8,23 @@ export type JsonValue =
 
 export type FeatureStatus = "enabled" | "disabled";
 
+export type WorkflowPermissions = "read" | "write";
+
+export type CodeScanningSetup = "configured" | "not-configured";
+
 /** The repository settings kept as code in `.github/repo-settings.json`. */
 export interface RepositorySettings {
+  description: string;
   homepage: string;
+  default_branch: string;
   topics: string[];
   allow_squash_merge: boolean;
   allow_merge_commit: boolean;
   allow_rebase_merge: boolean;
   squash_merge_commit_title: string;
   squash_merge_commit_message: string;
+  merge_commit_title: string;
+  merge_commit_message: string;
   delete_branch_on_merge: boolean;
   allow_auto_merge: boolean;
   allow_update_branch: boolean;
@@ -28,6 +36,10 @@ export interface RepositorySettings {
   dependabot_alerts: boolean;
   dependabot_security_updates: FeatureStatus;
   private_vulnerability_reporting: boolean;
+  default_workflow_permissions: WorkflowPermissions;
+  can_approve_pull_request_reviews: boolean;
+  fork_pr_contributor_approval: string;
+  code_scanning_default_setup: CodeScanningSetup;
 }
 
 /** Repository settings plus every ruleset, keyed by ruleset name. */
@@ -55,7 +67,7 @@ const VOLATILE_RULESET_KEYS = new Set([
 ]);
 
 /** Whether `value` is a plain JSON object. */
-function isObject(value: JsonValue | undefined): value is { [key: string]: JsonValue } {
+function isObject(value: JsonValue | undefined): value is Record<string, JsonValue> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -67,7 +79,7 @@ function compareSerialized(left: JsonValue, right: JsonValue): number {
 /** Reads the sort key of a rule or status check, falling back to the serialized value. */
 function sortKeyOf(entry: JsonValue): string {
   if (isObject(entry)) {
-    const key = entry["type"] ?? entry["context"];
+    const key = entry.type ?? entry.context;
     if (typeof key === "string") {
       return key;
     }
@@ -82,13 +94,13 @@ function sortKeyOf(entry: JsonValue): string {
 export function normalizeRuleset(value: JsonValue): JsonValue {
   if (Array.isArray(value)) {
     const items = value.map(normalizeRuleset);
-    const keyed = items.every((item) => isObject(item) && (item["type"] ?? item["context"]));
+    const keyed = items.every((item) => isObject(item) && (item.type ?? item.context));
     return keyed
       ? items.toSorted((left, right) => sortKeyOf(left).localeCompare(sortKeyOf(right)))
       : items;
   }
   if (isObject(value)) {
-    const result: { [key: string]: JsonValue } = {};
+    const result: Record<string, JsonValue> = {};
     for (const [key, child] of Object.entries(value)) {
       if (!VOLATILE_RULESET_KEYS.has(key)) {
         result[key] = normalizeRuleset(child);
@@ -100,8 +112,8 @@ export function normalizeRuleset(value: JsonValue): JsonValue {
 }
 
 /** Sorts the ref patterns and merge-method lists inside a normalized object. */
-function sortStringArrays(value: { [key: string]: JsonValue }): { [key: string]: JsonValue } {
-  const result: { [key: string]: JsonValue } = {};
+function sortStringArrays(value: Record<string, JsonValue>): Record<string, JsonValue> {
+  const result: Record<string, JsonValue> = {};
   for (const [key, child] of Object.entries(value)) {
     const sortable =
       Array.isArray(child) && child.every((item): item is string => typeof item === "string");
@@ -200,9 +212,14 @@ export function formatDifference(difference: SettingDifference): string {
 }
 
 const STRING_KEYS = [
+  "description",
   "homepage",
+  "default_branch",
   "squash_merge_commit_title",
   "squash_merge_commit_message",
+  "merge_commit_title",
+  "merge_commit_message",
+  "fork_pr_contributor_approval",
 ] as const;
 
 const BOOLEAN_KEYS = [
@@ -217,6 +234,7 @@ const BOOLEAN_KEYS = [
   "has_discussions",
   "dependabot_alerts",
   "private_vulnerability_reporting",
+  "can_approve_pull_request_reviews",
 ] as const;
 
 const STATUS_KEYS = [
@@ -233,7 +251,7 @@ export function isJsonValue(value: unknown): value is JsonValue {
   if (Array.isArray(value)) {
     return value.every(isJsonValue);
   }
-  return typeof value === "object" && Object.values(value ?? {}).every(isJsonValue);
+  return typeof value === "object" && Object.values(value).every(isJsonValue);
 }
 
 /** Whether `value` carries every setting of `.github/repo-settings.json` with the right type. */
@@ -248,6 +266,8 @@ export function isRepositorySettings(value: unknown): value is RepositorySetting
     topics.every((topic) => typeof topic === "string") &&
     STRING_KEYS.every((key) => typeof record.get(key) === "string") &&
     BOOLEAN_KEYS.every((key) => typeof record.get(key) === "boolean") &&
-    STATUS_KEYS.every((key) => ["enabled", "disabled"].includes(String(record.get(key))))
+    STATUS_KEYS.every((key) => ["enabled", "disabled"].includes(String(record.get(key)))) &&
+    ["read", "write"].includes(String(record.get("default_workflow_permissions"))) &&
+    ["configured", "not-configured"].includes(String(record.get("code_scanning_default_setup")))
   );
 }

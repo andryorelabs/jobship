@@ -1,32 +1,39 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+
 import { writeAtomic } from "../core/fs.ts";
 import { errorMessage } from "../core/narrow.ts";
-import { ensureTypst, systemInstallDeps, toolStatus } from "../core/tools.ts";
+import {
+  ensureTypst,
+  systemInstallDeps,
+  toolStatus,
+  type InstallDeps,
+  type ToolEnv,
+} from "../core/tools.ts";
 import type { DataDir, Result } from "../core/types.ts";
 import { loadBullets, loadFactBank, loadVariants } from "./facts.ts";
 import { selectBullets } from "./select.ts";
 import type { Bullet, Entry } from "./types.ts";
 
-type CompileRequest = {
+interface CompileRequest {
   readonly root: string;
   readonly template: string;
   readonly dataFile: string;
   readonly output: string;
-};
+}
 
-export type TypstRunner = {
+export interface TypstRunner {
   compile(request: CompileRequest): Promise<Result<void>>;
   extractText(pdf: string): Promise<Result<string>>;
-};
+}
 
-export type BuildOptions = {
+export interface BuildOptions {
   readonly name?: string;
   readonly tags?: string[];
   readonly requirements?: string[];
   readonly template?: string;
   readonly runner?: TypstRunner;
-};
+}
 
 const CV_DIRECTORY = "cv";
 const CV_OUTPUT_DIRECTORY = "out";
@@ -61,39 +68,47 @@ async function runProcess(command: string[]): Promise<Result<string>> {
   }
 }
 
-export const systemRunner: TypstRunner = {
-  async compile(request) {
-    const dataInput = path.relative(request.root, request.dataFile);
-    const typst = await ensureTypst(process.env, systemInstallDeps());
-    if (!typst.ok) {
-      return { ok: false, error: { code: "cv-tool-missing", message: typst.error.message } };
-    }
-    const result = await runProcess([
-      typst.value,
-      "compile",
-      "--root",
-      request.root,
-      "--input",
-      `data=${dataInput}`,
-      request.template,
-      request.output,
-    ]);
-    return result.ok ? { ok: true, value: undefined } : result;
-  },
-  extractText(pdf) {
-    const pdftotext = toolStatus(process.env).pdftotext;
-    if (!pdftotext.found) {
-      return Promise.resolve({
-        ok: false,
-        error: {
-          code: "cv-tool-missing",
-          message: `pdftotext (poppler) is not installed; run: ${pdftotext.installHint}`,
-        },
-      });
-    }
-    return runProcess(["pdftotext", "-layout", pdf, "-"]);
-  },
-};
+/**
+ * Builds the Typst runner over an environment and install dependencies, so
+ * tests can point it at fake tools without touching the network.
+ */
+export function createSystemRunner(env: ToolEnv, installDeps: () => InstallDeps): TypstRunner {
+  return {
+    async compile(request) {
+      const dataInput = path.relative(request.root, request.dataFile);
+      const typst = await ensureTypst(env, installDeps());
+      if (!typst.ok) {
+        return { ok: false, error: { code: "cv-tool-missing", message: typst.error.message } };
+      }
+      const result = await runProcess([
+        typst.value,
+        "compile",
+        "--root",
+        request.root,
+        "--input",
+        `data=${dataInput}`,
+        request.template,
+        request.output,
+      ]);
+      return result.ok ? { ok: true, value: undefined } : result;
+    },
+    extractText(pdf) {
+      const pdftotext = toolStatus(env).pdftotext;
+      if (!pdftotext.found || pdftotext.path === null) {
+        return Promise.resolve({
+          ok: false,
+          error: {
+            code: "cv-tool-missing",
+            message: `pdftotext (poppler) is not installed; run: ${pdftotext.installHint}`,
+          },
+        });
+      }
+      return runProcess([pdftotext.path, "-layout", pdf, "-"]);
+    },
+  };
+}
+
+export const systemRunner: TypstRunner = createSystemRunner(process.env, systemInstallDeps);
 
 const VARIANT_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+
 import type { CommandContext } from "../core/commands.ts";
 import type { DataDir, Posting } from "../core/types.ts";
 import { appendEvent, readEvents } from "../ledger/events.ts";
@@ -35,7 +36,9 @@ beforeEach(() => {
   dir = { path: root };
   ctx = { dataDir: dir, env: {}, cwd: root };
 });
-afterEach(() => rmSync(root, { recursive: true, force: true }));
+afterEach(() => {
+  rmSync(root, { recursive: true, force: true });
+});
 
 async function createLead(key: string): Promise<void> {
   await appendEvent(dir, { kind: "lead.created", key, posting, eligibility: "eligible" });

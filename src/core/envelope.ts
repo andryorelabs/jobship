@@ -1,3 +1,5 @@
+import { EXIT_CODES, type ExitCodeValue } from "./exit-codes.ts";
+
 export type Envelope<T> =
   | { readonly ok: true; readonly data: T }
   | {
@@ -10,17 +12,17 @@ export type Envelope<T> =
       };
     };
 
-export type ExitCode = 0 | 1 | 2 | 3;
+export type ExitCode = Exclude<ExitCodeValue, typeof EXIT_CODES.interrupted>;
 
 const EXIT_CODE_BY_ERROR: Readonly<Record<string, ExitCode>> = {
-  "not-implemented": 1,
-  "already-exists": 1,
-  "unknown-command": 2,
-  usage: 2,
-  "data-dir-not-found": 2,
-  "profile-missing": 2,
-  "profile-malformed": 2,
-  internal: 3,
+  "not-implemented": EXIT_CODES.findings,
+  "already-exists": EXIT_CODES.findings,
+  "unknown-command": EXIT_CODES.usage,
+  usage: EXIT_CODES.usage,
+  "data-dir-not-found": EXIT_CODES.usage,
+  "profile-missing": EXIT_CODES.usage,
+  "profile-malformed": EXIT_CODES.usage,
+  internal: EXIT_CODES.internal,
 };
 
 export function success<T>(data: T): Envelope<T> {
@@ -43,10 +45,13 @@ export function failure(
 }
 
 export function exitCodeFor(envelope: Envelope<unknown>): ExitCode {
-  if (envelope.ok) return 0;
-  return EXIT_CODE_BY_ERROR[envelope.error.code] ?? 1;
+  if (envelope.ok) return EXIT_CODES.ok;
+  return EXIT_CODE_BY_ERROR[envelope.error.code] ?? EXIT_CODES.findings;
 }
 
-export function printEnvelope(envelope: Envelope<unknown>): void {
-  process.stdout.write(`${JSON.stringify(envelope)}\n`);
+export function printEnvelope(
+  envelope: Envelope<unknown>,
+  stream: { write(chunk: string): unknown } = process.stdout,
+): void {
+  stream.write(`${JSON.stringify(envelope)}\n`);
 }

@@ -6,11 +6,11 @@ export const LINEAR_ENDPOINT = "https://api.linear.app/graphql";
 
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
-export type LinearMapping = {
+export interface LinearMapping {
   readonly states: Readonly<Record<ApplicationState, string>>;
   readonly channelLabelPrefix: string;
   readonly channelLabels?: Readonly<Record<string, string>>;
-};
+}
 
 export const DEFAULT_LINEAR_MAPPING: LinearMapping = {
   states: {
@@ -28,22 +28,25 @@ export const DEFAULT_LINEAR_MAPPING: LinearMapping = {
   channelLabelPrefix: "channel:",
 };
 
-export type LinearOptions = {
+export interface LinearOptions {
   readonly apiKey: string | undefined;
   readonly team: string | undefined;
   readonly idempotency: IdempotencyMap;
   readonly fetch?: FetchLike;
   readonly mapping?: LinearMapping;
   readonly titleFormat?: TitleFormat;
-};
+}
 
-type Named = { readonly id: string; readonly name: string };
+interface Named {
+  readonly id: string;
+  readonly name: string;
+}
 
-type TeamMetadata = {
+interface TeamMetadata {
   readonly id: string;
   readonly states: readonly Named[];
   readonly labels: readonly Named[];
-};
+}
 
 const TEAM_QUERY = `query Team($key: String!) {
   teams(filter: { key: { eq: $key } }) {
@@ -78,11 +81,11 @@ function fail<T>(code: string, message: string): Result<T> {
 }
 
 function readNamed(value: unknown): Named[] {
-  if (!isObject(value) || !Array.isArray(value["nodes"])) return [];
+  if (!isObject(value) || !Array.isArray(value.nodes)) return [];
   const named: Named[] = [];
-  for (const node of value["nodes"]) {
-    if (isObject(node) && typeof node["id"] === "string" && typeof node["name"] === "string") {
-      named.push({ id: node["id"], name: node["name"] });
+  for (const node of value.nodes) {
+    if (isObject(node) && typeof node.id === "string" && typeof node.name === "string") {
+      named.push({ id: node.id, name: node.name });
     }
   }
   return named;
@@ -142,16 +145,14 @@ export function createLinearTracker(options: LinearOptions): TrackerAdapter {
       return fail("tracker-linear-malformed", errorMessage(error));
     }
     if (!isObject(body)) return fail("tracker-linear-malformed", "response is not an object");
-    const errors = body["errors"];
+    const errors = body.errors;
     if (Array.isArray(errors) && errors.length > 0) {
       const first: unknown = errors[0];
       const message =
-        isObject(first) && typeof first["message"] === "string"
-          ? first["message"]
-          : "unknown error";
+        isObject(first) && typeof first.message === "string" ? first.message : "unknown error";
       return fail("tracker-linear-graphql", message);
     }
-    return { ok: true, value: body["data"] };
+    return { ok: true, value: body.data };
   }
 
   async function loadTeam(): Promise<Result<TeamMetadata>> {
@@ -163,13 +164,13 @@ export function createLinearTracker(options: LinearOptions): TrackerAdapter {
     if (!result.ok) return result;
     const nodes = pathValue(result.value, ["teams", "nodes"]);
     const team: unknown = Array.isArray(nodes) ? nodes[0] : undefined;
-    if (!isObject(team) || typeof team["id"] !== "string") {
+    if (!isObject(team) || typeof team.id !== "string") {
       return fail("tracker-linear-no-team", `Linear team ${options.team} was not found`);
     }
     metadata = {
-      id: team["id"],
-      states: readNamed(team["states"]),
-      labels: readNamed(team["labels"]),
+      id: team.id,
+      states: readNamed(team.states),
+      labels: readNamed(team.labels),
     };
     return { ok: true, value: metadata };
   }
@@ -219,9 +220,9 @@ export function createLinearTracker(options: LinearOptions): TrackerAdapter {
     if (!found.ok) return found;
     const nodes = pathValue(found.value, ["issues", "nodes"]);
     const first: unknown = Array.isArray(nodes) ? nodes[0] : undefined;
-    if (!isObject(first) || typeof first["id"] !== "string") return { ok: true, value: null };
-    options.idempotency.record(mapKey(key), first["id"]);
-    return { ok: true, value: first["id"] };
+    if (!isObject(first) || typeof first.id !== "string") return { ok: true, value: null };
+    options.idempotency.record(mapKey(key), first.id);
+    return { ok: true, value: first.id };
   }
 
   async function createIssue(lead: Lead): Promise<Result<string>> {

@@ -46,7 +46,7 @@ function declaredLabels(): string[] {
   const parsed: unknown = Bun.YAML.parse(readGithubFile("labels.yml"));
   if (!Array.isArray(parsed)) throw new Error("labels.yml must be a list");
   return (parsed as unknown[]).map((entry) => {
-    const name = isRecord(entry) ? entry["name"] : undefined;
+    const name = isRecord(entry) ? entry.name : undefined;
     if (typeof name !== "string") throw new Error("every labels.yml entry needs a string name");
     return name;
   });
@@ -55,7 +55,7 @@ function declaredLabels(): string[] {
 /** The labels an issue form applies. */
 function formLabels(file: string): string[] {
   const parsed: unknown = Bun.YAML.parse(readGithubFile(`ISSUE_TEMPLATE/${file}`));
-  const labels = isRecord(parsed) ? parsed["labels"] : undefined;
+  const labels = isRecord(parsed) ? parsed.labels : undefined;
   if (!Array.isArray(labels)) throw new Error(`${file} applies no labels`);
   return (labels as unknown[]).map(String);
 }
@@ -91,6 +91,96 @@ function missingFrom(declared: string[], names: string[]): string[] {
   const known = new Set(declared);
   return names.filter((name) => !known.has(name));
 }
+
+const STANDARD_LABELS = [
+  "Type: Bug",
+  "Type: Feature",
+  "Type: Enhancement",
+  "Type: Docs",
+  "Type: Security",
+  "Status: Needs Info",
+  "Status: Needs Decision",
+  "Status: Blocked",
+  "Status: In Progress",
+  "Priority: Critical",
+  "Priority: High",
+  "Priority: Medium",
+  "Priority: Low",
+  "Resolution: Duplicate",
+  "Resolution: Won't Fix",
+  "Resolution: Invalid",
+  "dependencies",
+  "github-actions",
+  "security",
+  "breaking-change",
+  "good first issue",
+  "help wanted",
+];
+
+const STANDARD_COLORS: Record<string, string> = {
+  "Type: Bug": "d73a4a",
+  "Type: Feature": "a2eeef",
+  "Type: Enhancement": "84b6eb",
+  "Type: Docs": "0075ca",
+  "Type: Security": "b60205",
+  "Priority: Critical": "b60205",
+  "Priority: High": "d93f0b",
+  "Priority: Medium": "fbca04",
+  "Priority: Low": "0e8a16",
+  "Status: Needs Info": "d876e3",
+  "Status: Needs Decision": "e99695",
+  "Status: Blocked": "000000",
+  "Status: In Progress": "1d76db",
+  "Resolution: Duplicate": "cfd3d7",
+  "Resolution: Won't Fix": "ffffff",
+  "Resolution: Invalid": "e4e669",
+  dependencies: "0366d6",
+  "github-actions": "000000",
+  security: "b60205",
+  "breaking-change": "e11d21",
+  "good first issue": "7057ff",
+  "help wanted": "008672",
+};
+
+const OWN_LABEL_PATTERN =
+  /^(Area: .+|needs-triage|needs-info|ready-for-agent|ready-for-human|wontfix|status:(todo|in-progress|in-review))$/;
+
+/** Every `labels.yml` entry as name, color and description. */
+function declaredEntries(): { name: string; color: string; description: string }[] {
+  const parsed: unknown = Bun.YAML.parse(readGithubFile("labels.yml"));
+  if (!Array.isArray(parsed)) throw new Error("labels.yml must be a list");
+  return (parsed as unknown[]).map((entry) => {
+    if (!isRecord(entry)) throw new Error("every labels.yml entry must be a mapping");
+    return {
+      name: String(entry.name),
+      color: String(entry.color).toLowerCase(),
+      description: String(entry.description),
+    };
+  });
+}
+
+describe("labels.yml standard set", () => {
+  test("declares every standard label with its exact name and color", () => {
+    const entries = declaredEntries();
+    for (const name of STANDARD_LABELS) {
+      expect({ name, color: entries.find((entry) => entry.name === name)?.color }).toEqual({
+        name,
+        color: STANDARD_COLORS[name],
+      });
+    }
+  });
+
+  test("holds only the standard set, the Area labels and the workflow labels", () => {
+    const extras = declaredEntries()
+      .map((entry) => entry.name)
+      .filter((name) => !STANDARD_LABELS.includes(name) && !OWN_LABEL_PATTERN.test(name));
+    expect(extras).toEqual([]);
+  });
+
+  test("gives every label a description", () => {
+    expect(declaredEntries().filter((entry) => entry.description.trim() === "")).toEqual([]);
+  });
+});
 
 describe("labels.yml", () => {
   test("has no duplicate names", () => {
@@ -139,9 +229,20 @@ describe("issue forms", () => {
   test("config.yml disables blank issues, links the security advisory and not Discussions", () => {
     const parsed: unknown = Bun.YAML.parse(readGithubFile("ISSUE_TEMPLATE/config.yml"));
     if (!isRecord(parsed)) throw new Error("config.yml must be a mapping");
-    expect(parsed["blank_issues_enabled"]).toBe(false);
-    const links = JSON.stringify(parsed["contact_links"]);
+    expect(parsed.blank_issues_enabled).toBe(false);
+    const links = JSON.stringify(parsed.contact_links);
     expect(links).toContain("/security/advisories/new");
     expect(links.toLowerCase()).not.toContain("discussions");
+  });
+
+  test("config.yml adds a support and docs contact link", () => {
+    const parsed: unknown = Bun.YAML.parse(readGithubFile("ISSUE_TEMPLATE/config.yml"));
+    const links =
+      isRecord(parsed) && Array.isArray(parsed.contact_links) ? parsed.contact_links : [];
+    expect(JSON.stringify(links)).toContain("SUPPORT.md");
+  });
+
+  test("a form that applies an undeclared label is detected", () => {
+    expect(missingFrom(declaredLabels(), ["Type: Bug", "Type: Nope"])).toEqual(["Type: Nope"]);
   });
 });

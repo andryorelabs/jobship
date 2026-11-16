@@ -1,5 +1,12 @@
 import { isJsonValue } from "./compare.ts";
-import type { FeatureStatus, JsonValue, RepoSettings, RepositorySettings } from "./compare.ts";
+import type {
+  CodeScanningSetup,
+  FeatureStatus,
+  JsonValue,
+  RepoSettings,
+  RepositorySettings,
+  WorkflowPermissions,
+} from "./compare.ts";
 
 /** The outcome of one `gh api` call. */
 export interface GhResult {
@@ -50,14 +57,14 @@ function text(source: Record<string, unknown>, key: string): string {
 
 /** Reads `security_and_analysis.<feature>.status`, treating a missing feature as disabled. */
 function featureStatus(repo: Record<string, unknown>, feature: string): FeatureStatus {
-  const analysis = repo["security_and_analysis"];
+  const analysis = repo.security_and_analysis;
   const entry = isRecord(analysis) ? analysis[feature] : undefined;
-  return isRecord(entry) && entry["status"] === "enabled" ? "enabled" : "disabled";
+  return isRecord(entry) && entry.status === "enabled" ? "enabled" : "disabled";
 }
 
 /** Reads the topic list, treating a missing list as empty. */
 function topicsOf(repo: Record<string, unknown>): string[] {
-  const topics = repo["topics"];
+  const topics = repo.topics;
   return Array.isArray(topics)
     ? topics.filter((topic): topic is string => typeof topic === "string")
     : [];
@@ -78,18 +85,41 @@ function readDependabotAlerts(callGh: GhApi, base: string): boolean {
   throw new Error(`gh api ${base}/vulnerability-alerts failed: ${result.stderr.trim()}`);
 }
 
-/** Maps the repository payload and the security endpoints to `RepositorySettings`. */
+/**
+ * Reads the code scanning default setup state. A 404 means code scanning was
+ * never configured; any other failure is unreadable, not "not configured".
+ */
+function readCodeScanningSetup(callGh: GhApi, base: string): CodeScanningSetup {
+  const endpoint = `${base}/code-scanning/default-setup`;
+  const result = callGh(endpoint);
+  if (!result.ok && /\b404\b|Not Found/i.test(result.stderr)) {
+    return "not-configured";
+  }
+  return readObject(() => result, endpoint).state === "configured"
+    ? "configured"
+    : "not-configured";
+}
+
+/** Maps the repository payload and the security and Actions endpoints to `RepositorySettings`. */
 function readRepositorySettings(callGh: GhApi, base: string): RepositorySettings {
   const repo = readObject(callGh, base);
   const reporting = readObject(callGh, `${base}/private-vulnerability-reporting`);
+  const workflow = readObject(callGh, `${base}/actions/permissions/workflow`);
+  const approval = readObject(callGh, `${base}/actions/permissions/fork-pr-contributor-approval`);
+  const permissions: WorkflowPermissions =
+    workflow.default_workflow_permissions === "write" ? "write" : "read";
   return {
+    description: text(repo, "description"),
     homepage: text(repo, "homepage"),
+    default_branch: text(repo, "default_branch"),
     topics: topicsOf(repo),
     allow_squash_merge: flag(repo, "allow_squash_merge"),
     allow_merge_commit: flag(repo, "allow_merge_commit"),
     allow_rebase_merge: flag(repo, "allow_rebase_merge"),
     squash_merge_commit_title: text(repo, "squash_merge_commit_title"),
     squash_merge_commit_message: text(repo, "squash_merge_commit_message"),
+    merge_commit_title: text(repo, "merge_commit_title"),
+    merge_commit_message: text(repo, "merge_commit_message"),
     delete_branch_on_merge: flag(repo, "delete_branch_on_merge"),
     allow_auto_merge: flag(repo, "allow_auto_merge"),
     allow_update_branch: flag(repo, "allow_update_branch"),
@@ -101,6 +131,10 @@ function readRepositorySettings(callGh: GhApi, base: string): RepositorySettings
     dependabot_alerts: readDependabotAlerts(callGh, base),
     dependabot_security_updates: featureStatus(repo, "dependabot_security_updates"),
     private_vulnerability_reporting: flag(reporting, "enabled"),
+    default_workflow_permissions: permissions,
+    can_approve_pull_request_reviews: flag(workflow, "can_approve_pull_request_reviews"),
+    fork_pr_contributor_approval: text(approval, "approval_policy"),
+    code_scanning_default_setup: readCodeScanningSetup(callGh, base),
   };
 }
 
@@ -113,13 +147,13 @@ function readRulesets(callGh: GhApi, base: string): Record<string, JsonValue> {
   }
   const rulesets: Record<string, JsonValue> = {};
   for (const entry of list as unknown[]) {
-    if (!isRecord(entry) || typeof entry["id"] !== "number") {
+    if (!isRecord(entry) || typeof entry.id !== "number") {
       throw new Error(`gh api ${listEndpoint} returned a ruleset without an id`);
     }
-    const detail = readObject(callGh, `${listEndpoint}/${entry["id"]}`);
-    const name = detail["name"];
+    const detail = readObject(callGh, `${listEndpoint}/${entry.id}`);
+    const name = detail.name;
     if (typeof name !== "string") {
-      throw new Error(`ruleset ${entry["id"]} has no name`);
+      throw new Error(`ruleset ${entry.id} has no name`);
     }
     if (!isJsonValue(detail)) {
       throw new Error(`ruleset ${name} is not JSON data`);

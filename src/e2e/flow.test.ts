@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { isObject } from "../core/narrow.ts";
 
 const REPO_ROOT = path.resolve(import.meta.dir, "../..");
@@ -64,11 +65,11 @@ const DUPLICATE_KEY = "acme|backend engineer|";
 const DISMISSED_KEY = "globex|designer|us only";
 const SECOND_LEAD_KEY = "initech|platform engineer|";
 
-type CliResult = {
+interface CliResult {
   readonly code: number;
   readonly stdout: string;
   readonly envelope: Record<string, unknown>;
-};
+}
 
 let workDir = "";
 let dataDir = "";
@@ -86,7 +87,7 @@ function runCli(
     {
       cwd: workDir,
       env: {
-        PATH: `${binDir}:${process.env["PATH"] ?? ""}`,
+        PATH: `${binDir}:${process.env.PATH ?? ""}`,
         HOME: workDir,
         JOBSHIP_CATALOG_URL: "off",
         ...extraEnv,
@@ -104,17 +105,17 @@ function runCli(
 }
 
 function dataOf(result: CliResult): Record<string, unknown> {
-  expect(result.envelope["ok"]).toBe(true);
-  const data = result.envelope["data"];
+  expect(result.envelope.ok).toBe(true);
+  const data = result.envelope.data;
   if (typeof data !== "object" || data === null) throw new Error("envelope has no data");
   return { ...data };
 }
 
 function errorCodeOf(result: CliResult): string {
-  expect(result.envelope["ok"]).toBe(false);
-  const error = result.envelope["error"];
+  expect(result.envelope.ok).toBe(false);
+  const error = result.envelope.error;
   if (!isObject(error)) throw new Error("envelope has no error");
-  return String(error["code"]);
+  return String(error.code);
 }
 
 function ok(args: string[]): Record<string, unknown> {
@@ -224,22 +225,22 @@ describe("end-to-end sweep over a fixture Source", () => {
     const first = runCli(["sweep"], {}, ["--preload", FETCH_STUB]);
     expect(first.code).toBe(0);
     const firstData = dataOf(first);
-    expect(firstData["failed"]).toEqual([]);
-    expect(firstData["leads"]).toHaveLength(1);
+    expect(firstData.failed).toEqual([]);
+    expect(firstData.leads).toHaveLength(1);
     const second = dataOf(runCli(["sweep"], {}, ["--preload", FETCH_STUB]));
-    expect(second["leads"]).toEqual([]);
-    expect(second["failed"]).toEqual([]);
+    expect(second.leads).toEqual([]);
+    expect(second.failed).toEqual([]);
   });
 });
 
 describe("end-to-end flow with the local tracker", () => {
   test("doctor, sweep, ingest, score, cv, apply, inbox and status", () => {
     const doctor = ok(["doctor"]);
-    expect(doctor["tracker"]).toBe("local");
+    expect(doctor.tracker).toBe("local");
 
     const sweep = ok(["sweep"]);
-    expect(sweep["failed"]).toEqual([]);
-    expect(sweep["leads"]).toEqual([]);
+    expect(sweep.failed).toEqual([]);
+    expect(sweep.leads).toEqual([]);
 
     const ingest = ok([
       "ingest",
@@ -248,25 +249,25 @@ describe("end-to-end flow with the local tracker", () => {
       "--json",
       JSON.stringify(FIXTURE_POSTINGS),
     ]);
-    expect(ingest["leads"]).toEqual([LEAD_KEY, SECOND_LEAD_KEY]);
-    expect(ingest["dismissed"]).toBe(1);
+    expect(ingest.leads).toEqual([LEAD_KEY, SECOND_LEAD_KEY]);
+    expect(ingest.dismissed).toBe(1);
 
     const ledger = ok(["ledger", "list"]);
-    const entries: unknown = ledger["entries"];
+    const entries: unknown = ledger.entries;
     if (!Array.isArray(entries)) throw new Error("ledger entries is not a list");
     const outcomes = new Map(
       entries.map((entry: unknown) => {
         if (!isObject(entry)) throw new Error("ledger entry is not an object");
-        return [String(entry["key"]), entry] as const;
+        return [String(entry.key), entry] as const;
       }),
     );
-    expect(outcomes.get(DUPLICATE_KEY)?.["outcome"]).toBe("duplicate");
-    expect(outcomes.get(DISMISSED_KEY)?.["outcome"]).toBe("dismissed");
-    expect(outcomes.get(DISMISSED_KEY)?.["reason"]).toBe("region");
+    expect(outcomes.get(DUPLICATE_KEY)?.outcome).toBe("duplicate");
+    expect(outcomes.get(DISMISSED_KEY)?.outcome).toBe("dismissed");
+    expect(outcomes.get(DISMISSED_KEY)?.reason).toBe("region");
 
     const rerun = ok(["ingest", "--source", "fixture", "--json", JSON.stringify(FIXTURE_POSTINGS)]);
-    expect(rerun["new"]).toBe(0);
-    expect(rerun["leads"]).toEqual([]);
+    expect(rerun.new).toBe(0);
+    expect(rerun.leads).toEqual([]);
 
     const scored = ok([
       "score",
@@ -278,18 +279,18 @@ describe("end-to-end flow with the local tracker", () => {
       "--liveness",
       "live",
     ]);
-    expect(scored["score"]).toBe(82);
-    expect(scored["liveness"]).toBe("live");
+    expect(scored.score).toBe(82);
+    expect(scored.liveness).toBe("live");
 
     const coverage = ok(["cv", "coverage", LEAD_KEY, "--requirement", "TypeScript,Kubernetes"]);
-    expect(coverage["missing"]).toEqual(["Kubernetes"]);
+    expect(coverage.missing).toEqual(["Kubernetes"]);
 
     const built = ok(["cv", "build", "--variant", "acme", "--tag", "backend"]);
-    expect(String(built["pdf"])).toEndWith("cv/out/acme.pdf");
-    const cvText = readFileSync(String(built["text"]), "utf8");
+    expect(String(built.pdf)).toEndWith("cv/out/acme.pdf");
+    const cvText = readFileSync(String(built.text), "utf8");
     expect(cvText).toContain("Reduced checkout API p95 latency");
     expect(cvText).not.toContain("Kubernetes");
-    expect(ok(["cv", "lint", "--variant", "acme"])["findings"]).toEqual([]);
+    expect(ok(["cv", "lint", "--variant", "acme"]).findings).toEqual([]);
 
     const intended = writeJson("intended.json", [
       { name: "email", value: "ada@example.com" },
@@ -303,7 +304,7 @@ describe("end-to-end flow with the local tracker", () => {
       { name: "email", value: "ada@example.com" },
       { name: "resume", value: "other.pdf" },
     ]);
-    expect(ok(["apply", "verify", "--intended", intended, "--dump", matching])["verified"]).toBe(2);
+    expect(ok(["apply", "verify", "--intended", intended, "--dump", matching]).verified).toBe(2);
     const mismatch = runCli(["apply", "verify", "--intended", intended, "--dump", wrongFile]);
     expect(mismatch.code).toBe(1);
     expect(errorCodeOf(mismatch)).toBe("verify-mismatch");
@@ -315,16 +316,16 @@ describe("end-to-end flow with the local tracker", () => {
       "--key",
       LEAD_KEY,
     ]);
-    expect(abstained["status"]).toBe("abstain");
+    expect(abstained.status).toBe("abstain");
     const needs = ok(["needs"]);
-    expect(needs["groups"]).toHaveLength(1);
+    expect(needs.groups).toHaveLength(1);
 
     expect(ok(["status", LEAD_KEY, "--set", "applied"])).toEqual({
       key: LEAD_KEY,
       from: "lead",
       to: "applied",
     });
-    expect(ok(["status", LEAD_KEY])["state"]).toBe("applied");
+    expect(ok(["status", LEAD_KEY]).state).toBe("applied");
     expect(errorCodeOf(runCli(["status", LEAD_KEY, "--set", "bogus"]))).toBe("usage");
 
     const emails = writeJson("emails.json", [
@@ -337,15 +338,15 @@ describe("end-to-end flow with the local tracker", () => {
       },
     ]);
     const proposed = ok(["inbox", "propose", "--emails", emails]);
-    expect(proposed["confirmed"]).toBe(1);
-    const batchPath = String(proposed["batchPath"]);
+    expect(proposed.confirmed).toBe(1);
+    const batchPath = String(proposed.batchPath);
 
     const applied = ok(["inbox", "apply", batchPath]);
-    expect(applied["applied"]).toBe(1);
-    expect(ok(["inbox", "apply", batchPath])["applied"]).toBe(0);
-    expect(ok(["status", LEAD_KEY])["state"]).toBe("rejected");
+    expect(applied.applied).toBe(1);
+    expect(ok(["inbox", "apply", batchPath]).applied).toBe(0);
+    expect(ok(["status", LEAD_KEY]).state).toBe("rejected");
 
-    const eventCount = ok(["events", "list"])["count"];
+    const eventCount = ok(["events", "list"]).count;
     expect(eventCount).toBeGreaterThan(5);
   });
 
@@ -366,12 +367,12 @@ describe("end-to-end flow with the local tracker", () => {
         classification: "rejection",
       },
     ]);
-    const batchPath = String(ok(["inbox", "propose", "--emails", emails])["batchPath"]);
+    const batchPath = String(ok(["inbox", "propose", "--emails", emails]).batchPath);
     writeFileSync(batchPath, `${readFileSync(batchPath, "utf8")}\n `);
     const refused = runCli(["inbox", "apply", batchPath]);
     expect(refused.code).toBe(1);
     expect(errorCodeOf(refused)).toBe("batch-changed");
-    expect(ok(["status", LEAD_KEY])["state"]).toBe("applied");
+    expect(ok(["status", LEAD_KEY]).state).toBe("applied");
   });
 
   test("a Never-claim term fails cv lint with exit 1", () => {

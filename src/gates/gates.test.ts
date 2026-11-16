@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+
 import type { Dimension, Eligibility, Posting, Profile } from "../core/types.ts";
 import { evaluateGates } from "./gates.ts";
 
@@ -22,13 +23,13 @@ const base: Posting = {
   title: "Engineer",
 };
 
-type Row = {
+interface Row {
   name: string;
   dimension: Dimension;
   posting: Partial<Posting>;
   expected: Eligibility;
   reason?: Dimension;
-};
+}
 
 const rows: Row[] = [
   { name: "remote true", dimension: "remote", posting: { remote: true }, expected: "eligible" },

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { lintCv, normalizeNumber } from "./lint.ts";
+
 import type { IdentityField } from "../dossier/dossier.ts";
+import { lintCv, normalizeNumber } from "./lint.ts";
 import type { FactBank } from "./types.ts";
 
 function bankWith(text: string): FactBank {

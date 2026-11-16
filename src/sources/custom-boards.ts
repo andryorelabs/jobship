@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+
 import { withLock, writeAtomic } from "../core/fs.ts";
 import { errorMessage } from "../core/narrow.ts";
 import type { Result } from "../core/types.ts";
@@ -45,7 +46,10 @@ export async function readCustomBoards(dir: string): Promise<Result<Board[]>> {
 }
 
 /** What an {@link updateCustomBoards} change returns: the new board list and a value for the caller. */
-export type CustomBoardsChange<T> = { readonly boards: readonly Board[]; readonly value: T };
+export interface CustomBoardsChange<T> {
+  readonly boards: readonly Board[];
+  readonly value: T;
+}
 
 /**
  * Reads `<dir>/boards.json`, applies `change` and writes the result, all under one data-dir

@@ -1,53 +1,53 @@
-export type Fact = {
+export interface Fact {
   readonly id: string;
   readonly text: string;
   readonly tags: readonly string[];
   /** The arithmetic and assumptions behind an estimated figure in `text`. */
   readonly estimate?: string;
-};
+}
 
-export type Profile = {
+export interface Profile {
   readonly name: string;
   readonly contact: Readonly<Record<string, string>>;
-};
+}
 
-export type Entry = {
+export interface Entry {
   readonly id: string;
   readonly name: string;
   readonly role?: string;
   readonly dates?: string;
   readonly metadata: Readonly<Record<string, string>>;
-};
+}
 
-export type SkillGroup = {
+export interface SkillGroup {
   readonly name: string;
   readonly items: readonly string[];
-};
+}
 
-export type FactBank = {
+export interface FactBank {
   readonly facts: readonly Fact[];
   readonly profile?: Profile;
   readonly experience?: readonly Entry[];
   readonly projects?: readonly Entry[];
   readonly skills?: readonly SkillGroup[];
-};
+}
 
-type VariantRule = {
+interface VariantRule {
   readonly all?: readonly string[];
   readonly any?: readonly string[];
   readonly none?: readonly string[];
-};
+}
 
 export type Variant = VariantRule & { readonly name: string };
 
-export type Bullet = {
+export interface Bullet {
   readonly id: string;
   readonly text: string;
   readonly tags: readonly string[];
   readonly factIds: readonly string[];
   readonly entry?: string;
   readonly order?: number;
-};
+}
 
 type LintRule =
   | "never-claim"
@@ -57,15 +57,15 @@ type LintRule =
   | "unlabeled-estimate"
   | "placeholder";
 
-export type LintFinding = {
+export interface LintFinding {
   readonly rule: LintRule;
   readonly term: string;
   readonly line: number;
   readonly column: number;
   readonly message: string;
-};
+}
 
-export type Coverage = {
+export interface Coverage {
   readonly covered: { requirement: string; factIds: string[] }[];
   readonly missing: string[];
-};
+}

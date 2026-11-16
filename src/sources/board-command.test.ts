@@ -1,7 +1,8 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import type { CommandContext } from "../core/commands.ts";
 import { isObject } from "../core/narrow.ts";
 import { run } from "./board-command.ts";
@@ -20,21 +21,31 @@ function serving(fixture: string): FetchFunction {
   return () => Promise.resolve(new Response(readFileSync(path.join(FIXTURES, fixture))));
 }
 
+const offline: FetchFunction = () => Promise.reject(new Error("offline"));
+
+const emptyFeed: FetchFunction = () =>
+  Promise.resolve(new Response("<rss><channel></channel></rss>"));
+
 function errorCode(envelope: Awaited<ReturnType<typeof run>>): string | null {
   return envelope.ok ? null : envelope.error.code;
 }
 
-type ListedBoard = { id: string; access: string; active: boolean; custom: boolean };
+interface ListedBoard {
+  id: string;
+  access: string;
+  active: boolean;
+  custom: boolean;
+}
 
 function listedBoards(envelope: Awaited<ReturnType<typeof run>>): ListedBoard[] {
   if (!envelope.ok) return [];
   const data = envelope.data;
-  if (!isObject(data) || !Array.isArray(data["boards"])) return [];
-  return data["boards"].filter(isObject).map((entry) => ({
-    id: String(entry["id"]),
-    access: String(entry["access"]),
-    active: entry["active"] === true,
-    custom: entry["custom"] === true,
+  if (!isObject(data) || !Array.isArray(data.boards)) return [];
+  return data.boards.filter(isObject).map((entry) => ({
+    id: String(entry.id),
+    access: String(entry.access),
+    active: entry.active === true,
+    custom: entry.custom === true,
   }));
 }
 
@@ -90,6 +101,54 @@ describe("board add", () => {
       .map((entry) => entry.id)
       .toSorted();
     expect(ids).toEqual(["first", "second"]);
+  });
+
+  test("rejects a URL that does not parse and a non-http protocol", async () => {
+    const unparseable = await run(
+      ["add", "not a url", "--name", "Bad"],
+      context(),
+      serving("rss.xml"),
+    );
+    expect(errorCode(unparseable)).toBe("board-invalid");
+    const ftp = await run(
+      ["add", "ftp://x.test/feed", "--name", "Ftp"],
+      context(),
+      serving("rss.xml"),
+    );
+    expect(errorCode(ftp)).toBe("board-invalid");
+  });
+
+  test("uses the global fetch when none is injected", async () => {
+    const stub = Object.assign(
+      () => Promise.resolve(new Response(readFileSync(path.join(FIXTURES, "rss.xml")))),
+      { preconnect: () => undefined },
+    );
+    const spy = spyOn(globalThis, "fetch").mockImplementation(stub);
+    try {
+      const result = await run(["add", FEED_URL, "--name", "Global"], context());
+      expect(result.ok).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("rejects a feed whose fetch fails", async () => {
+    const result = await run(["add", FEED_URL, "--name", "Down"], context(), offline);
+    expect(errorCode(result)).toBe("board-invalid");
+  });
+
+  test("rejects a feed with no items", async () => {
+    const result = await run(["add", FEED_URL, "--name", "Empty"], context(), emptyFeed);
+    expect(errorCode(result)).toBe("board-invalid");
+  });
+
+  test("keeps one board when two adds with the same name race", async () => {
+    const results = await Promise.all([
+      run(["add", FEED_URL, "--name", "Twin"], context(), serving("rss.xml")),
+      run(["add", FEED_URL, "--name", "Twin"], context(), serving("rss.xml")),
+    ]);
+    expect(results.filter((entry) => entry.ok)).toHaveLength(1);
+    expect(results.map(errorCode)).toContain("board-invalid");
   });
 
   test("rejects a duplicate id and a missing name", async () => {

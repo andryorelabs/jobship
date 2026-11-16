@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+
 import { loadProfile } from "../../core/data-dir.ts";
 import { errorMessage } from "../../core/narrow.ts";
 import type { DataDir, Posting, Profile, Result, SourceAdapter } from "../../core/types.ts";
@@ -25,28 +26,31 @@ export type FindCandidates = (options: {
   readonly now?: Date;
 }) => Promise<{ candidates: AtsRef[]; errors: string[] }>;
 
-export type DiscoverDeps = {
+export interface DiscoverDeps {
   readonly findCandidates: FindCandidates;
   readonly fetch: FetchFunction;
   readonly now: Date;
   readonly env: Record<string, string | undefined>;
   readonly sleep?: (milliseconds: number) => Promise<void>;
-};
+}
 
-export type DiscoverOptions = {
+export interface DiscoverOptions {
   readonly limit?: number;
   readonly keyword?: string;
-};
+}
 
-export type DiscoverReport = {
+export interface DiscoverReport {
   readonly candidates: number;
   readonly checked: number;
   readonly kept: number;
   readonly removed: number;
   readonly errors: string[];
-};
+}
 
-type Verdict = { readonly target: AtsRef; readonly passes: boolean };
+interface Verdict {
+  readonly target: AtsRef;
+  readonly passes: boolean;
+}
 
 function companyKey(company: AtsRef): string {
   return `${company.ats}:${company.slug}`;

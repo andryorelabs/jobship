@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import type { HuntEvent, Posting } from "../core/types.ts";
 import { run } from "./command.ts";
 import { dedupKey, findDuplicate, ledgerRecord, readLedger } from "./dedup.ts";
@@ -342,7 +343,7 @@ describe("review regressions", () => {
           "--json",
           JSON.stringify({ kind: "note", key: "k", text }),
         ],
-        { env: { PATH: process.env["PATH"] ?? "", HOME: dir.path }, stdout: "pipe" },
+        { env: { PATH: process.env.PATH ?? "", HOME: dir.path }, stdout: "pipe" },
       );
     const children = Array.from({ length: 6 }, (_, index) => spawn(`n${index}`));
     const codes = await Promise.all(children.map((child) => child.exited));

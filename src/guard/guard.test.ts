@@ -29,8 +29,8 @@ const nestedLookup: LabelLookup = (scope, uid) =>
 function permissionDecisionOf(stdout: string): string {
   if (stdout === "") return "none";
   const parsed: unknown = JSON.parse(stdout);
-  const output = isObject(parsed) ? parsed["hookSpecificOutput"] : undefined;
-  const decision = isObject(output) ? output["permissionDecision"] : undefined;
+  const output = isObject(parsed) ? parsed.hookSpecificOutput : undefined;
+  const decision = isObject(output) ? output.permissionDecision : undefined;
   if (typeof decision !== "string") throw new Error("hook output has no permissionDecision");
   return decision;
 }

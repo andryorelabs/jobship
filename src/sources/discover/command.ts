@@ -5,7 +5,10 @@ import { findCandidates } from "./finders.ts";
 
 const USAGE = "usage: jobship discover [--limit <n>] [--keyword <text>]";
 
-type ParsedArgs = { readonly limit: number; readonly keyword?: string };
+interface ParsedArgs {
+  readonly limit: number;
+  readonly keyword?: string;
+}
 
 function parseArgs(argv: readonly string[]): ParsedArgs | null {
   let limit = DEFAULT_LIMIT;

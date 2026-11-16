@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+
 import { approvalHash, batchKey, IdempotencyMap, lookupBatchHash } from "../core/approval.ts";
 import type { CommandContext } from "../core/commands.ts";
 import { loadProfile } from "../core/data-dir.ts";
@@ -22,10 +23,10 @@ const THREADS_FILE = "inbox-threads.json";
 const LOCK_DIRECTORY = ".inbox";
 const BATCH_VERSION = 1;
 
-type Failure = {
+interface Failure {
   readonly ok: false;
   readonly error: { readonly code: string; readonly message: string };
-};
+}
 
 function fail(code: string, message: string): Failure {
   return { ok: false, error: { code, message } };
@@ -137,9 +138,9 @@ function parseItem(value: unknown): ProposedChange | null {
 
 function parseBatch(content: string): ProposedChange[] | null {
   const parsed: unknown = JSON.parse(content);
-  if (!isObject(parsed) || !Array.isArray(parsed["items"])) return null;
+  if (!isObject(parsed) || !Array.isArray(parsed.items)) return null;
   const items: ProposedChange[] = [];
-  for (const raw of parsed["items"]) {
+  for (const raw of parsed.items) {
     const item = parseItem(raw);
     if (item === null) return null;
     items.push(item);
@@ -176,7 +177,7 @@ async function projectKeys(
     (event) => event.key !== undefined && keys.includes(event.key),
   );
   const projected = await projectEvents(
-    createTracker(profile.value.tracker, dir, { apiKey: ctx.env["LINEAR_API_KEY"] }),
+    createTracker(profile.value.tracker, dir, { apiKey: ctx.env.LINEAR_API_KEY }),
     dir,
     events,
   );

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+
 import { exitCodeFor } from "../core/envelope.ts";
 import type { Profile } from "../core/types.ts";
 import { readEvents } from "../ledger/events.ts";
@@ -27,7 +28,9 @@ let root: string;
 beforeEach(() => {
   root = mkdtempSync(path.join(tmpdir(), "outreach-"));
 });
-afterEach(() => rmSync(root, { recursive: true, force: true }));
+afterEach(() => {
+  rmSync(root, { recursive: true, force: true });
+});
 
 describe("lintDraft", () => {
   test("320-character LinkedIn Draft fails, 300 passes", () => {

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+
 import { writeAtomic } from "../core/fs.ts";
 import { errorMessage } from "../core/narrow.ts";
 import type { ApplicationState, DataDir, Lead, Result, TrackerAdapter } from "../core/types.ts";
@@ -12,7 +13,10 @@ const EVENTS_HEADING = "## Events";
 
 type Frontmatter = Record<string, string | number | null>;
 
-type ParsedFile = { readonly frontmatter: Frontmatter; readonly events: string[] };
+interface ParsedFile {
+  readonly frontmatter: Frontmatter;
+  readonly events: string[];
+}
 
 function fail<T>(code: string, message: string): Result<T> {
   return { ok: false, error: { code, message } };
@@ -78,8 +82,8 @@ async function derivedFields(
 }
 
 function titleOf(parsed: ParsedFile, key: string): string {
-  const company = parsed.frontmatter["company"];
-  const title = parsed.frontmatter["title"];
+  const company = parsed.frontmatter.company;
+  const title = parsed.frontmatter.title;
   return typeof company === "string" && typeof title === "string" ? `${title} at ${company}` : key;
 }
 
@@ -107,8 +111,8 @@ export function createLocalTracker(directory: string | undefined, dir: DataDir):
     const derived = await derivedFields(dir, key);
     const frontmatter: Frontmatter = {
       ...parsed.frontmatter,
-      score: derived.score ?? parsed.frontmatter["score"] ?? null,
-      rejection_reason: derived.rejection ?? parsed.frontmatter["rejection_reason"] ?? null,
+      score: derived.score ?? parsed.frontmatter.score ?? null,
+      rejection_reason: derived.rejection ?? parsed.frontmatter.rejection_reason ?? null,
     };
     writeAtomic(
       fileFor(key),

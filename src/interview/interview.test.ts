@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+
 import { run } from "./command.ts";
 import { scaffoldPrepPack, validatePrepPack, type FactIndex } from "./pack.ts";
 
@@ -20,7 +21,9 @@ let root: string;
 beforeEach(() => {
   root = mkdtempSync(path.join(tmpdir(), "interview-"));
 });
-afterEach(() => rmSync(root, { recursive: true, force: true }));
+afterEach(() => {
+  rmSync(root, { recursive: true, force: true });
+});
 
 describe("prep pack", () => {
   test("scaffold references only existing fact ids", () => {

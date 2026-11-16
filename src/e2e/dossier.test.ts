@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
 import { isObject } from "../core/narrow.ts";
 
 const REPO_ROOT = path.resolve(import.meta.dir, "../..");
@@ -10,12 +11,15 @@ const FIXTURES = path.join(REPO_ROOT, "fixtures/dossier");
 
 let dataDir = "";
 
-type CliResult = { readonly code: number; readonly envelope: Record<string, unknown> };
+interface CliResult {
+  readonly code: number;
+  readonly envelope: Record<string, unknown>;
+}
 
 function runCli(args: string[]): CliResult {
   const result = Bun.spawnSync([process.execPath, CLI_ENTRY, ...args, "--data", dataDir], {
     cwd: dataDir,
-    env: { PATH: process.env["PATH"] ?? "", HOME: dataDir },
+    env: { PATH: process.env.PATH ?? "", HOME: dataDir },
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -36,15 +40,15 @@ function useFixture(variant: "complete" | "partial"): void {
 }
 
 function errorOf(result: CliResult): Record<string, unknown> {
-  const error = result.envelope["error"];
+  const error = result.envelope.error;
   if (!isObject(error)) throw new Error("envelope has no error");
   return error;
 }
 
 function sectionsOf(result: CliResult): Record<string, unknown>[] {
-  const data = result.envelope["data"];
-  if (!isObject(data) || !Array.isArray(data["sections"])) throw new Error("no sections");
-  return data["sections"].filter(isObject);
+  const data = result.envelope.data;
+  if (!isObject(data) || !Array.isArray(data.sections)) throw new Error("no sections");
+  return data.sections.filter(isObject);
 }
 
 beforeEach(() => {
@@ -72,7 +76,7 @@ describe("jobship dossier check", () => {
     useFixture("partial");
     const result = runCli(["dossier", "check"]);
     expect(result.code).toBe(0);
-    expect(sectionsOf(result).map((section) => section["status"])).toEqual([
+    expect(sectionsOf(result).map((section) => section.status)).toEqual([
       "complete",
       "partial",
       "empty",
@@ -90,8 +94,8 @@ describe("jobship dossier check", () => {
     );
     const bad = runCli(["dossier", "check"]);
     expect(bad.code).toBe(1);
-    expect(errorOf(bad)["code"]).toBe("dossier-invalid");
-    expect(String(errorOf(bad)["message"])).toContain("dossier/identity.md");
+    expect(errorOf(bad).code).toBe("dossier-invalid");
+    expect(String(errorOf(bad).message)).toContain("dossier/identity.md");
     writeFileSync(identityPath, original);
     expect(runCli(["dossier", "check"]).code).toBe(0);
   });
@@ -104,13 +108,13 @@ describe("jobship dossier check", () => {
     );
     const result = runCli(["dossier", "check"]);
     expect(result.code).toBe(1);
-    expect(String(errorOf(result)["message"])).toContain("dossier/hobbies.md");
+    expect(String(errorOf(result).message)).toContain("dossier/hobbies.md");
   });
 
   test("fails usage without a subcommand", () => {
     useFixture("complete");
     const result = runCli(["dossier"]);
     expect(result.code).toBe(2);
-    expect(errorOf(result)["code"]).toBe("usage");
+    expect(errorOf(result).code).toBe("usage");
   });
 });

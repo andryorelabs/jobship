@@ -1,6 +1,6 @@
 # CLI reference
 
-Every command prints exactly one JSON envelope on stdout.
+Every command prints exactly one JSON envelope on stdout when stdout is not a terminal.
 
 ```json
 {"ok":true,"data":{}}
@@ -8,6 +8,17 @@ Every command prints exactly one JSON envelope on stdout.
 ```
 
 `--data <dir>` selects the data dir; otherwise `JOBSHIP_HOME`, then the nearest `jobship.json` upward from the working directory. `jobship --version` prints the version.
+
+## Output and flags
+
+- Piped or redirected stdout prints the JSON envelope, even when stderr is a terminal. A terminal on stdout prints readable lines instead. `--json` forces JSON on a terminal. `jobship guard` always prints JSON.
+- Color follows `--no-color`, `NO_COLOR`, `FORCE_COLOR` (anything but `0` turns it on) and `TERM=dumb`; otherwise it is on when the stream is a terminal.
+- `--data <dir>`, `--json` and `--no-color` are accepted by every command. Any other undeclared flag exits 2 `usage`.
+- `jobship --help` lists the commands. `jobship <command> --help` lists that command's flags, each with a one-line description.
+
+## Update notice
+
+In human mode only, `jobship` prints at most one line on stderr when the latest GitHub release is newer than the running version. The check runs at most once a day in a detached process and caches its answer in `update-check.json` under the cache dir. It never runs in JSON mode, when `JOBSHIP_NO_UPDATE_CHECK=1` or when `CI` is set. A corrupt cache or a clock that went backwards just triggers a fresh check.
 
 ## Exit codes
 
@@ -17,6 +28,7 @@ Every command prints exactly one JSON envelope on stdout.
 | 1    | The command ran and found a problem to fix: `lint-failed`, `verify-mismatch`, `batch-changed`, `bullet-fact-missing`, `not-found`, `already-exists` and similar. |
 | 2    | Usage or configuration error: `usage`, `unknown-command`, `data-dir-not-found`, `profile-missing`, `profile-malformed`.                                          |
 | 3    | Internal error (`internal`).                                                                                                                                     |
+| 130  | Interrupted by SIGINT.                                                                                                                                           |
 
 ## Commands
 
