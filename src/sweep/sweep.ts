@@ -21,7 +21,7 @@ import { ATS_NAMES } from "../sources/ats.ts";
 import { readCompanies } from "../sources/companies.ts";
 import { resolveBoards, type ResolvedBoard } from "../sources/index.ts";
 import { createTracker, projectEvents } from "../tracker/index.ts";
-import { addCounts, EMPTY_COUNTS, processBatch } from "./pipeline.ts";
+import { addCounts, EMPTY_COUNTS, processBatch, processBatches } from "./pipeline.ts";
 import type {
   IngestReport,
   SourceCounts,
@@ -196,27 +196,27 @@ interface Collected {
   readonly leads: string[];
 }
 
-async function ingestFetched(
-  prepared: Prepared,
-  fetched: readonly Fetched[],
-  index: number,
-  collected: Collected,
-): Promise<Collected> {
-  const current = fetched[index];
-  if (current === undefined) return collected;
-  const batch = await processBatch(prepared.dir, prepared.profile, current.postings);
-  const report: SourceReport = {
-    source: current.source,
-    ...batch.counts,
-    status: statusOf(current.errors, batch.counts, current.misconfigured),
-    errors: current.errors,
-    warnings: current.warnings,
-  };
-  return ingestFetched(prepared, fetched, index + 1, {
-    reports: [...collected.reports, report],
-    events: [...collected.events, ...batch.events],
-    leads: [...collected.leads, ...batch.leadKeys],
-  });
+async function ingestFetched(prepared: Prepared, fetched: readonly Fetched[]): Promise<Collected> {
+  const batches = await processBatches(
+    prepared.dir,
+    prepared.profile,
+    fetched.map((current) => current.postings),
+  );
+  const collected: Collected = { reports: [], events: [], leads: [] };
+  for (const [position, current] of fetched.entries()) {
+    const batch = batches[position];
+    if (batch === undefined) continue;
+    collected.reports.push({
+      source: current.source,
+      ...batch.counts,
+      status: statusOf(current.errors, batch.counts, current.misconfigured),
+      errors: current.errors,
+      warnings: current.warnings,
+    });
+    collected.events.push(...batch.events);
+    collected.leads.push(...batch.leadKeys);
+  }
+  return collected;
 }
 
 function summarize(
@@ -424,11 +424,7 @@ export async function runSweep(
   recordRuns(prepared.value.dir, runs, searchable, now);
 
   try {
-    const collected = await ingestFetched(prepared.value, fetched, 0, {
-      reports: [],
-      events: [],
-      leads: [],
-    });
+    const collected = await ingestFetched(prepared.value, fetched);
     await recordCursors(prepared.value.dir, searchable, fetched);
     const tracker = await projectLeads(
       trackerFor(ctx, prepared.value, options.tracker),

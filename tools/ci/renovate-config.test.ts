@@ -19,6 +19,7 @@ interface PackageRule {
   readonly matchDepNames?: readonly string[];
   readonly matchManagers?: readonly string[];
   readonly rangeStrategy?: string;
+  readonly allowedVersions?: string;
   readonly automerge?: boolean;
   readonly minimumReleaseAge?: string;
   readonly labels?: readonly string[];
@@ -169,6 +170,15 @@ describe("renovate.json5", () => {
 
   test("pins the oxc and typescript7 groups exactly and never automerges them", () => {
     expect(brokenPinGroups(config)).toEqual([]);
+  });
+
+  test("never proposes typescript7 nightly builds", () => {
+    const rule = config.packageRules.find((candidate) => candidate.groupName === "typescript7");
+    const pattern = /^!\/(.+)\/$/.exec(rule?.allowedVersions ?? "")?.[1] ?? "";
+    const excluded = new RegExp(pattern);
+    expect(excluded.test("7.1.0-dev.20261109.1")).toBe(true);
+    expect(excluded.test("7.1.0-beta")).toBe(false);
+    expect(excluded.test("7.1.0")).toBe(false);
   });
 
   test("declares the pin groups after every automerge rule so they win", () => {
