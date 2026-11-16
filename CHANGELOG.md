@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-16
+
+### Added
+
+- `jobship --help` and `jobship <command> --help` list each command's flags with a one-line description, and `--version` prints the version.
+- In human mode, `jobship` prints one line on stderr when a newer release exists on GitHub. The check runs at most once a day in a detached process and is off when `JOBSHIP_NO_UPDATE_CHECK=1` or `CI` is set, and in JSON mode.
+- `PRIVACY_POLICY.md` states what jobship reads, what it stores locally and what leaves the machine.
+- Releases attach an SBOM, smoke-run every binary on its native runner, and refuse a tag that is unsigned, not annotated, not equal to the plugin version or without a CHANGELOG section. The README has "Supported platforms" and "Verify a release" sections.
+
+### Changed
+
+- The CLI follows one exit code contract: 0 ok, 1 findings, 2 usage or config, 3 internal error, 130 on Ctrl-C.
+- Output is readable text when stdout is a terminal and the JSON envelope otherwise; `--json` forces JSON. Color follows `NO_COLOR`, `FORCE_COLOR`, `--no-color`, `TERM=dumb` and terminal detection.
+- Unknown flags are rejected with a usage error instead of being ignored.
+
 ## [0.8.0] - 2026-11-15
 
 ### Added
@@ -150,7 +165,8 @@ First tagged release.
 
 - `cv lint` is Spanish-safe, and doctor validates CV data.
 
-[Unreleased]: https://github.com/andryorelabs/jobship/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/andryorelabs/jobship/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/andryorelabs/jobship/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/andryorelabs/jobship/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/andryorelabs/jobship/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/andryorelabs/jobship/compare/v0.5.3...v0.6.0
