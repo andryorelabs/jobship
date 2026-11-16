@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -80,6 +80,11 @@ describe("validation", () => {
     ["a feed without parser", feedBoard({ parser: undefined }), "parser"],
     ["a feed without endpoint", feedBoard({ endpoint: undefined }), "endpoint"],
     ["an unknown parser", feedBoard({ parser: "mystery" }), "mystery"],
+    ["options that are not string arrays", feedBoard({ options: { a: "x" } }), "options"],
+    ["an unknown method", feedBoard({ method: "PUT" }), "PUT"],
+    ["headers that are not strings", feedBoard({ headers: { a: 1 } }), "headers"],
+    ["an unknown stability", board({ stability: "shaky" }), "shaky"],
+    ["a non-positive interval", board({ minIntervalMinutes: 0 }), "minIntervalMinutes"],
     ["a placeholder without option", feedBoard({ endpoint: "https://x.com/{a}" }), "{a}"],
   ])("fails catalog-invalid for %s", async (_label, entry, needle) => {
     const result = await loadBundled([entry]);
@@ -174,6 +179,14 @@ describe("loading order", () => {
     expect(result.value.origin).toBe("bundled");
     expect(result.value.warnings.length).toBe(1);
     expect(existsSync(path.join(cacheDir, "boards.json"))).toBe(false);
+  });
+
+  test("an unreadable cache entry is refetched and a cache write failure only warns", async () => {
+    mkdirSync(path.join(cacheDir, "boards.json"));
+    const result = await loadCatalog({ env, fetchText: () => Promise.resolve(remoteText) });
+    if (!result.ok) throw new Error(result.error.message);
+    expect(result.value.origin).toBe("remote");
+    expect(result.value.warnings.join("\n")).toContain("could not write the catalog cache");
   });
 
   test("falls back to bundled when the fetch throws", async () => {

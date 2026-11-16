@@ -152,6 +152,49 @@ describe("dispatch help and flags", () => {
     expect(good.ok ? "" : good.error.message).toContain("--bogus");
   });
 
+  test("doctor with an explicit but unusable data dir fails with the data dir error", async () => {
+    const envelope = await dispatch(["doctor", "--data", path.join(home, "missing")], {}, home);
+    expect(envelope.ok).toBe(false);
+  });
+
+  test("doctor without any data dir source still runs and reports", async () => {
+    const envelope = await dispatch(["doctor"], {}, home);
+    expect(envelope.ok).toBe(false);
+  });
+
+  test("an unknown command is an unknown-command failure", async () => {
+    const envelope = await dispatch(["bogus"], env, home);
+    expect(envelope.ok ? "" : envelope.error.code).toBe("unknown-command");
+  });
+
+  test("an unknown flag on a module command is a usage failure", async () => {
+    const envelope = await dispatch(["sweep", "--bogus"], env, home);
+    expect(envelope.ok ? "" : envelope.error.code).toBe("usage");
+  });
+
+  test("a command that needs a data dir fails when it is unusable", async () => {
+    const missing = path.join(home, "missing");
+    const envelope = await dispatch(["sweep", "--data", missing], {}, home);
+    expect(envelope.ok).toBe(false);
+    expect(envelope.ok ? "" : envelope.error.code).not.toBe("usage");
+  });
+
+  test("apply without verify requires a data dir", async () => {
+    const missing = path.join(home, "missing");
+    const envelope = await dispatch(["apply", "--data", missing], {}, home);
+    expect(envelope.ok ? "" : envelope.error.code).toBe("data-dir-not-found");
+  });
+
+  test.each([[["inbox", "eval"]], [["outreach", "lint"]]])(
+    "%j does not require a data dir",
+    async (command) => {
+      const missing = path.join(home, "missing");
+      const envelope = await dispatch([...command, "--data", missing], {}, home);
+      const code = envelope.ok ? "" : envelope.error.code;
+      expect(code).not.toBe("data-dir-not-found");
+    },
+  );
+
   test("cleanup", () => {
     rmSync(home, { recursive: true, force: true });
   });

@@ -115,6 +115,14 @@ describe("colorEnabled", () => {
 });
 
 describe("renderHuman", () => {
+  test.each([
+    [42, "42"],
+    [null, "null"],
+    [true, "true"],
+  ])("renders the scalar %p as its string form", (data, expected) => {
+    expect(renderHuman(success(data))).toBe(expected);
+  });
+
   test("renders scalars, nested objects and arrays as lines", () => {
     const text = renderHuman(
       success({

@@ -1,4 +1,6 @@
+import { checkPerFile } from "./check-per-file.ts";
 import { checkThreshold, COVERAGE_LIMITS } from "./check-threshold.ts";
+import { coverageExceptions } from "./coverage-exceptions.ts";
 
 /**
  * Runs `bun test` with any extra arguments, mirrors its output, then gates coverage on a full
@@ -21,7 +23,9 @@ async function main(): Promise<number> {
   if (exitCode !== 0 || extraArguments.length > 0) return exitCode;
   const result = checkThreshold(output, COVERAGE_LIMITS);
   for (const failure of result.failures) console.error(failure);
-  return result.ok ? 0 : 1;
+  const perFile = checkPerFile(output, coverageExceptions);
+  for (const failure of perFile.failures) console.error(failure);
+  return result.ok && perFile.ok ? 0 : 1;
 }
 
 process.exit(await main());

@@ -2,7 +2,7 @@
  * Recorded minimum "All files" coverage, as whole percents. Set to the measured value rounded
  * down; raise it when coverage rises, never lower it.
  */
-export const COVERAGE_LIMITS = { lines: 91, functions: 92 } as const;
+export const COVERAGE_LIMITS = { lines: 99, functions: 97 } as const;
 
 /**
  * Outcome of comparing Bun's coverage table with the recorded limits.
