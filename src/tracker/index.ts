@@ -133,7 +133,10 @@ async function projectKey(
   return { ok: true, value: { created: existing.value === null, updated: updated.value } };
 }
 
-interface Totals { readonly created: number; readonly updated: number }
+interface Totals {
+  readonly created: number;
+  readonly updated: number;
+}
 
 async function projectGroups(
   tracker: TrackerAdapter,

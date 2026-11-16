@@ -71,7 +71,10 @@ function frontMatterEnd(lines: readonly string[]): number {
   return -1;
 }
 
-interface FrontMatter { readonly status: SectionStatus; readonly sources: DossierSource[] }
+interface FrontMatter {
+  readonly status: SectionStatus;
+  readonly sources: DossierSource[];
+}
 
 function parseFrontMatter(file: string, lines: readonly string[]): Result<FrontMatter> {
   if (lines.every((line) => line.trim() === "")) return invalid(file, "file is empty");

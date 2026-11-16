@@ -139,7 +139,10 @@ function checkTracker(value: unknown): Checked<TrackerConfig> {
   };
 }
 
-interface ProfileFailure { readonly ok: false; readonly error: { code: string; message: string } }
+interface ProfileFailure {
+  readonly ok: false;
+  readonly error: { code: string; message: string };
+}
 
 function failed(message: string): ProfileFailure {
   return { ok: false, error: { code: "profile-malformed", message } };

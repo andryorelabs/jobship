@@ -6,7 +6,10 @@ const PREFIX = "JOBSHIP_";
 type Env = Readonly<Record<string, string | undefined>>;
 
 /** A setting read from the environment, with the variable name it came from. */
-export interface EnvSetting { readonly name: string; readonly value: string }
+export interface EnvSetting {
+  readonly name: string;
+  readonly value: string;
+}
 
 /** Reads `JOBSHIP_<suffix>`. An empty value counts as unset. */
 export function readSetting(env: Env, suffix: string): EnvSetting | undefined {

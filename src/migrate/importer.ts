@@ -140,7 +140,10 @@ export async function withImporter(
 const LEGACY_ID_NOTE = /^legacy id (\S+)$/;
 const LINEAR_NOTE = /^linear ([^\s;]+);/;
 
-export interface KeyedId { readonly id: string; readonly key: string }
+export interface KeyedId {
+  readonly id: string;
+  readonly key: string;
+}
 
 export function legacyIdNote(legacyId: string): string {
   return `legacy id ${legacyId}`;

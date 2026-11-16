@@ -25,7 +25,10 @@ export interface FinderOptions {
   readonly sleep?: (milliseconds: number) => Promise<void>;
 }
 
-export interface FinderResult { readonly candidates: AtsRef[]; readonly errors: string[] }
+export interface FinderResult {
+  readonly candidates: AtsRef[];
+  readonly errors: string[];
+}
 
 const COLLINFO_URL = "https://index.commoncrawl.org/collinfo.json";
 const CDX_PAGE_LIMIT = 20_000;

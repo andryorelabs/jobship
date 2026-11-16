@@ -13,7 +13,10 @@ const EVENTS_HEADING = "## Events";
 
 type Frontmatter = Record<string, string | number | null>;
 
-interface ParsedFile { readonly frontmatter: Frontmatter; readonly events: string[] }
+interface ParsedFile {
+  readonly frontmatter: Frontmatter;
+  readonly events: string[];
+}
 
 function fail<T>(code: string, message: string): Result<T> {
   return { ok: false, error: { code, message } };

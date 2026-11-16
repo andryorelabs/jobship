@@ -12,7 +12,11 @@ const cliPath = path.join(import.meta.dir, "../cli.ts");
 
 let workDir = "";
 
-interface CliResult { code: number; stdout: string; envelope: Record<string, unknown> }
+interface CliResult {
+  code: number;
+  stdout: string;
+  envelope: Record<string, unknown>;
+}
 
 function runCli(
   args: string[],

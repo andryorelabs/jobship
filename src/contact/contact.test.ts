@@ -36,7 +36,9 @@ beforeEach(() => {
   dir = { path: root };
   ctx = { dataDir: dir, env: {}, cwd: root };
 });
-afterEach(() =>{  rmSync(root, { recursive: true, force: true }); });
+afterEach(() => {
+  rmSync(root, { recursive: true, force: true });
+});
 
 async function createLead(key: string): Promise<void> {
   await appendEvent(dir, { kind: "lead.created", key, posting, eligibility: "eligible" });

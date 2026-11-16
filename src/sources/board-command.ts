@@ -14,7 +14,10 @@ const USAGE =
 
 const MAX_ID_LENGTH = 60;
 
-interface Flags { readonly values: Map<string, string[]>; readonly positionals: string[] }
+interface Flags {
+  readonly values: Map<string, string[]>;
+  readonly positionals: string[];
+}
 
 function parseFlags(argv: readonly string[]): Flags {
   const values = new Map<string, string[]>();
@@ -60,7 +63,10 @@ function duplicateIdMessage(id: string): string {
   return `a board with id "${id}" already exists`;
 }
 
-interface Loaded { readonly catalog: Catalog; readonly custom: Board[] }
+interface Loaded {
+  readonly catalog: Catalog;
+  readonly custom: Board[];
+}
 
 async function loadBoards(
   dir: DataDir,
