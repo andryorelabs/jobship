@@ -33,14 +33,25 @@ export function listMarkdownFiles(root: string): string[] {
 }
 
 /**
- * Removes HTML tags until none are left, then any stray angle bracket, so a nested tag such
- * as `<<b>b>` cannot leave a tag behind.
+ * Removes HTML tags and stray angle brackets in one scan: a `<` with a later `>` drops
+ * everything up to that `>`, and any other angle bracket is dropped alone.
  * @param text Heading text that may contain inline HTML.
  * @returns The text without tags or angle brackets.
  */
 function stripHtmlTags(text: string): string {
-  const stripped = text.replace(/<[^<>]*>/g, "");
-  return stripped === text ? text.replace(/[<>]/g, "") : stripHtmlTags(stripped);
+  let result = "";
+  let index = 0;
+  while (index < text.length) {
+    const character = text.charAt(index);
+    const close = character === "<" ? text.indexOf(">", index + 1) : -1;
+    if (close !== -1) {
+      index = close + 1;
+    } else {
+      if (character !== "<" && character !== ">") result += character;
+      index += 1;
+    }
+  }
+  return result;
 }
 
 /**

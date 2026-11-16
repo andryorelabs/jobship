@@ -47,7 +47,7 @@ describe("anchors", () => {
   test("slugifies like GitHub: case, punctuation, backticks, emoji and links", () => {
     expect(slugifyHeading("Hello, World!")).toBe("hello-world");
     expect(slugifyHeading("The `jobship doctor` check")).toBe("the-jobship-doctor-check");
-    expect(slugifyHeading("<<b>b>Nested <em>tags</em>")).toBe("nested-tags");
+    expect(slugifyHeading("<<b>b>Nested <em>tags</em>")).toBe("bnested-tags");
     expect(slugifyHeading("a < b")).toBe("a--b");
     expect(slugifyHeading("🔖 Release")).toBe("-release");
     expect(slugifyHeading("See [the guide](x.md) now")).toBe("see-the-guide-now");
