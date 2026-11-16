@@ -1,117 +1,154 @@
 # Synced by .github/workflows/labels.yml. The sync never deletes labels missing from this file.
+# The standard set below matches the cross-repo standard; the Area and workflow labels are jobship's own.
 
 - name: "Type: Bug"
-  color: "d73a4a"
+  color: d73a4a
   description: Something does not work as documented
 
 - name: "Type: Feature"
-  color: "0e8a16"
+  color: a2eeef
   description: A new capability
 
 - name: "Type: Enhancement"
-  color: "a2eeef"
+  color: 84b6eb
   description: An improvement to an existing capability
 
 - name: "Type: Docs"
-  color: "0075ca"
-  description: Documentation additions, corrections or improvements
+  color: 0075ca
+  description: Docs, ADRs or guides
 
-- name: "Status: Blocked"
-  color: "b60205"
-  description: Cannot proceed until something else is resolved
+- name: "Type: Security"
+  color: b60205
+  description: A security fix or hardening
 
-- name: "Status: Needs Decision"
-  color: "fbca04"
-  description: Waiting on a maintainer decision
+- name: "Priority: Critical"
+  color: b60205
+  description: Drop everything
 
 - name: "Priority: High"
-  color: "d93f0b"
-  description: Should be handled first
+  color: d93f0b
+  description: Next in line
 
 - name: "Priority: Medium"
-  color: "fbca04"
-  description: Normal priority
+  color: fbca04
+  description: Planned, not urgent
 
 - name: "Priority: Low"
-  color: "c5def5"
-  description: Handle when there is time
+  color: 0e8a16
+  description: Nice to have
 
-- name: "Area: Core"
-  color: "ededed"
-  description: Core, ledger, gates and shared building blocks
+- name: "Status: Needs Info"
+  color: d876e3
+  description: Waiting on more information before it can proceed
 
-- name: "Area: Guard"
-  color: "ededed"
-  description: The Guard hook and its policy
+- name: "Status: Needs Decision"
+  color: e99695
+  description: Waiting on a maintainer decision before it can proceed
 
-- name: "Area: CV"
-  color: "ededed"
-  description: Fact bank, Tailored CV and linting
+- name: "Status: Blocked"
+  color: "000000"
+  description: Blocked by another change or an outside decision
 
-- name: "Area: Sources"
-  color: "ededed"
-  description: Sweeps, Sources and ingest
+- name: "Status: In Progress"
+  color: 1d76db
+  description: Someone is working on it
 
-- name: "Area: Pipeline"
-  color: "ededed"
-  description: Inbox, outreach, apply, interview and tracker
+- name: "Resolution: Duplicate"
+  color: cfd3d7
+  description: Already reported or tracked elsewhere
 
-- name: "Area: Plugin"
-  color: "ededed"
-  description: Skills, agents, commands and plugin manifests
+- name: "Resolution: Won't Fix"
+  color: ffffff
+  description: Out of scope or intentionally not changed
 
-- name: "Area: Docs"
-  color: "ededed"
-  description: Guides, reference and ADRs
-
-- name: "Area: Tooling"
-  color: "ededed"
-  description: Build, CI and developer tooling
-
-- name: needs-triage
-  color: "F9D0C4"
-  description: Freshly captured, not yet reviewed
-
-- name: needs-info
-  color: "BFD4F2"
-  description: Waiting on more information
-
-- name: ready-for-agent
-  color: "BFD4F2"
-  description: Spec'd and unblocked, eligible for agent dispatch
-
-- name: ready-for-human
-  color: "FEF2C0"
-  description: Needs a human decision
-
-- name: wontfix
-  color: "ffffff"
-  description: Reviewed and deliberately not going to be worked on
-
-- name: "status:todo"
-  color: "ededed"
-  description: "emet: not started"
-
-- name: "status:in-progress"
-  color: "fbca04"
-  description: "emet: a worker is on this"
-
-- name: "status:in-review"
-  color: "0e8a16"
-  description: "emet: PR open, awaiting merge"
+- name: "Resolution: Invalid"
+  color: e4e669
+  description: Not a valid report or not reproducible
 
 - name: dependencies
-  color: "0366d6"
+  color: 0366d6
   description: Dependency updates
 
 - name: github-actions
-  color: "2088ff"
-  description: GitHub Actions workflow changes
+  color: "000000"
+  description: GitHub Actions updates
 
 - name: security
-  color: "b60205"
+  color: b60205
   description: A security fix or hardening
 
 - name: breaking-change
-  color: "e11d21"
+  color: e11d21
   description: Changes the CLI or its output incompatibly
+
+- name: good first issue
+  color: 7057ff
+  description: A small, well-scoped change for a first contribution
+
+- name: help wanted
+  color: "008672"
+  description: Extra attention or outside help is welcome
+
+- name: "Area: Core"
+  color: ededed
+  description: Core, ledger, gates and shared building blocks
+
+- name: "Area: Guard"
+  color: ededed
+  description: The Guard hook and its policy
+
+- name: "Area: CV"
+  color: ededed
+  description: Fact bank, Tailored CV and linting
+
+- name: "Area: Sources"
+  color: ededed
+  description: Sweeps, Sources and ingest
+
+- name: "Area: Pipeline"
+  color: ededed
+  description: Inbox, outreach, apply, interview and tracker
+
+- name: "Area: Plugin"
+  color: ededed
+  description: Skills, agents, commands and plugin manifests
+
+- name: "Area: Docs"
+  color: ededed
+  description: Guides, reference and ADRs
+
+- name: "Area: Tooling"
+  color: ededed
+  description: Build, CI and developer tooling
+
+- name: needs-triage
+  color: F9D0C4
+  description: Freshly captured, not yet reviewed
+
+- name: needs-info
+  color: BFD4F2
+  description: Waiting on more information
+
+- name: ready-for-agent
+  color: BFD4F2
+  description: Spec'd and unblocked, eligible for agent dispatch
+
+- name: ready-for-human
+  color: FEF2C0
+  description: Needs a human decision
+
+- name: wontfix
+  color: ffffff
+  description: Reviewed and deliberately not going to be worked on
+
+- name: "status:todo"
+  color: ededed
+  description: "emet: not started"
+
+- name: "status:in-progress"
+  color: fbca04
+  description: "emet: a worker is on this"
+
+- name: "status:in-review"
+  color: 0e8a16
+  description: "emet: PR open, awaiting merge"
