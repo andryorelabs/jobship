@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+
+- `jobship sweep` and `jobship ingest` read the ledger and the event log once per run instead of once per Posting. On a data dir with about 5,000 Postings a full sweep went from 11 minutes to under 20 seconds, and peak memory from 1.5 GB to 450 MB.
+
 ## [0.9.0] - 2026-11-16
 
 ### Added

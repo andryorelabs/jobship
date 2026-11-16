@@ -195,7 +195,7 @@ export async function ledgerRecord(
   posting: Posting,
   outcome: LedgerOutcome,
   reason?: RejectionReason,
-): Promise<void> {
+): Promise<LedgerEntry> {
   const base = { at: new Date().toISOString(), key: dedupKey(posting), outcome, posting };
   const entry: LedgerEntry = reason === undefined ? base : { ...base, reason };
   await withLock(dir.path, () => {
@@ -204,6 +204,7 @@ export async function ledgerRecord(
     appendFileSync(ledgerPath(dir), `${JSON.stringify(entry)}\n`);
     return Promise.resolve();
   });
+  return entry;
 }
 
 interface Candidate {
@@ -212,33 +213,39 @@ interface Candidate {
   readonly posting: Posting;
   readonly dismissed: boolean;
   readonly source: "ledger" | "events";
+  readonly position: number;
 }
 
-async function loadCandidates(dir: DataDir): Promise<Candidate[]> {
-  const ledger: Candidate[] = (await readLedger(dir)).map((entry) => ({
-    key: entry.key,
-    at: entry.at,
-    posting: entry.posting,
-    dismissed: entry.outcome === "dismissed",
-    source: "ledger",
-  }));
-  const events: Candidate[] = [];
-  const raws = await withLock(dir.path, () => Promise.resolve(readJsonLines(eventsPath(dir))));
-  for (const raw of raws) {
-    if (!isObject(raw) || !isPosting(raw.posting) || typeof raw.at !== "string") continue;
-    const kind = raw.kind;
-    if (kind !== "lead.created" && kind !== "posting.seen" && kind !== "posting.dismissed")
-      continue;
-    const key = typeof raw.key === "string" ? raw.key : dedupKey(raw.posting);
-    events.push({
-      key,
-      at: raw.at,
-      posting: raw.posting,
-      dismissed: kind === "posting.dismissed",
-      source: "events",
-    });
-  }
-  return [...ledger, ...events];
+interface CompanyBucket {
+  readonly ledger: Candidate[];
+  readonly events: Candidate[];
+}
+
+/** An event read from the event log; only Posting events with a Posting are indexed. */
+export interface IndexableEvent {
+  readonly kind: string;
+  readonly at: string;
+  readonly key?: string;
+  readonly posting?: unknown;
+}
+
+/** The Posting fields dedup reads; dropping the rest keeps descriptions out of the index. */
+function dedupFields(posting: Posting): Posting {
+  const { id, source, url, company, title, location, postedAt } = posting;
+  return {
+    id,
+    source,
+    url,
+    company,
+    title,
+    ...(location === undefined ? {} : { location }),
+    ...(postedAt === undefined ? {} : { postedAt }),
+  };
+}
+
+function ranksBefore(left: Candidate, right: Candidate): boolean {
+  if (left.source !== right.source) return left.source === "ledger";
+  return left.position < right.position;
 }
 
 function toMatch(candidate: Candidate, matchedBy: "exact" | "fuzzy"): DuplicateMatch {
@@ -250,19 +257,94 @@ function toMatch(candidate: Candidate, matchedBy: "exact" | "fuzzy"): DuplicateM
   };
 }
 
+/**
+ * The ledger and the Posting events, read once and indexed by dedup key and by
+ * normalized company. `find` returns what scanning the ledger and then the
+ * events in file order would return, so a batch reads the logs once instead of
+ * once per Posting.
+ */
+export class DuplicateIndex {
+  private readonly byKey = new Map<string, Candidate>();
+  private readonly byCompany = new Map<string, CompanyBucket>();
+  private ledgerCount = 0;
+  private eventCount = 0;
+
+  addLedgerEntry(entry: LedgerEntry): void {
+    this.add({
+      key: entry.key,
+      at: entry.at,
+      posting: entry.posting,
+      dismissed: entry.outcome === "dismissed",
+      source: "ledger",
+      position: this.ledgerCount,
+    });
+    this.ledgerCount += 1;
+  }
+
+  addEvent(event: IndexableEvent): void {
+    const { kind, posting } = event;
+    if (!isPosting(posting)) return;
+    if (kind !== "lead.created" && kind !== "posting.seen" && kind !== "posting.dismissed") return;
+    this.add({
+      key: event.key ?? dedupKey(posting),
+      at: event.at,
+      posting,
+      dismissed: kind === "posting.dismissed",
+      source: "events",
+      position: this.eventCount,
+    });
+    this.eventCount += 1;
+  }
+
+  find(posting: Posting): DuplicateMatch | null {
+    const exact = this.byKey.get(dedupKey(posting));
+    if (exact !== undefined) return toMatch(exact, "exact");
+    const bucket = this.byCompany.get(normalizeCompany(posting.company));
+    if (bucket === undefined) return null;
+    const now = new Date().toISOString();
+    const fuzzy = [...bucket.ledger, ...bucket.events].find((candidate) =>
+      isFuzzyDuplicate(candidate.posting, candidate.at, posting, now),
+    );
+    return fuzzy === undefined ? null : toMatch(fuzzy, "fuzzy");
+  }
+
+  private add(read: Candidate): void {
+    const candidate = { ...read, posting: dedupFields(read.posting) };
+    this.keep(candidate.key, candidate);
+    this.keep(dedupKey(candidate.posting), candidate);
+    const company = normalizeCompany(candidate.posting.company);
+    const bucket = this.byCompany.get(company) ?? { ledger: [], events: [] };
+    this.byCompany.set(company, bucket);
+    if (candidate.source === "ledger") bucket.ledger.push(candidate);
+    else bucket.events.push(candidate);
+  }
+
+  private keep(key: string, candidate: Candidate): void {
+    const current = this.byKey.get(key);
+    if (current === undefined || ranksBefore(candidate, current)) this.byKey.set(key, candidate);
+  }
+}
+
+function toIndexableEvent(raw: unknown): IndexableEvent | null {
+  if (!isObject(raw) || typeof raw.kind !== "string" || typeof raw.at !== "string") return null;
+  const base = { kind: raw.kind, at: raw.at, posting: raw.posting };
+  return typeof raw.key === "string" ? { ...base, key: raw.key } : base;
+}
+
+export async function loadDuplicateIndex(dir: DataDir): Promise<DuplicateIndex> {
+  const index = new DuplicateIndex();
+  for (const entry of await readLedger(dir)) index.addLedgerEntry(entry);
+  const raws = await withLock(dir.path, () => Promise.resolve(readJsonLines(eventsPath(dir))));
+  for (const raw of raws) {
+    const event = toIndexableEvent(raw);
+    if (event !== null) index.addEvent(event);
+  }
+  return index;
+}
+
 export async function findDuplicate(
   dir: DataDir,
   posting: Posting,
 ): Promise<DuplicateMatch | null> {
-  const candidates = await loadCandidates(dir);
-  const key = dedupKey(posting);
-  const exact = candidates.find(
-    (candidate) => candidate.key === key || dedupKey(candidate.posting) === key,
-  );
-  if (exact !== undefined) return toMatch(exact, "exact");
-  const now = new Date().toISOString();
-  const fuzzy = candidates.find((candidate) =>
-    isFuzzyDuplicate(candidate.posting, candidate.at, posting, now),
-  );
-  return fuzzy === undefined ? null : toMatch(fuzzy, "fuzzy");
+  return (await loadDuplicateIndex(dir)).find(posting);
 }
