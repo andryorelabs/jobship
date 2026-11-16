@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -226,5 +226,72 @@ describe("createNhsXmlAdapter", () => {
       postedAt: "2026-11-13T00:33:34.257Z",
     });
     expect(result.postings[1]?.location).toBe("Rochdale, OL12 9DW");
+  });
+});
+
+function inline(xml: string): FetchFunction {
+  return () => Promise.resolve(new Response(xml));
+}
+
+const streamFailure: FetchFunction = () => {
+  const body = new ReadableStream<Uint8Array>({
+    pull() {
+      throw new Error("stream broke");
+    },
+  });
+  return Promise.resolve(new Response(body));
+};
+
+describe("createFeedAdapter edge cases", () => {
+  test("rejects an unsupported declared encoding", async () => {
+    const result = await createFeedAdapter(
+      inline('<?xml version="1.0" encoding="klingon"?><rss><channel></channel></rss>'),
+      RSS,
+    ).fetch({});
+    expect(result.errors[0]).toContain("unsupported encoding klingon");
+  });
+
+  test("reports a decoder failure", async () => {
+    const spy = spyOn(TextDecoder.prototype, "decode").mockImplementation(() => {
+      throw new Error("boom");
+    });
+    try {
+      const result = await createFeedAdapter(inline("<rss></rss>"), {
+        ...RSS,
+        encoding: "utf-8",
+      }).fetch({});
+      expect(result.errors[0]).toContain("cannot decode as utf-8: boom");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("reports a body that fails while streaming", async () => {
+    const result = await createFeedAdapter(streamFailure, RSS).fetch({});
+    expect(result.errors[0]).toContain("cannot read");
+  });
+
+  test("skips an item whose link cannot be resolved", async () => {
+    const xml =
+      "<rss><channel><item><title>Broken</title><link>http://</link></item></channel></rss>";
+    const result = await createFeedAdapter(inline(xml), RSS).fetch({});
+    expect(result.postings).toEqual([]);
+  });
+
+  test("uses the first non-empty value of a repeated element", async () => {
+    const xml =
+      "<rss><channel><item><title>Repeated</title><link>/a</link><link>/b</link></item></channel></rss>";
+    const result = await createFeedAdapter(inline(xml), RSS).fetch({});
+    expect(result.postings[0]?.url).toBe("https://jobs.example.test/a");
+  });
+
+  test("keeps a differing title prefix", async () => {
+    const xml =
+      "<rss><channel><item><title>Initech: Staff Engineer</title><link>/jobs/1</link><guid>g1</guid><company>Acme</company></item></channel></rss>";
+    const result = await createFeedAdapter(inline(xml), RSS).fetch({});
+    expect(result.errors).toEqual([]);
+    const first = result.postings[0];
+    expect(first?.company).toBe("Acme");
+    expect(first?.title).toBe("Initech: Staff Engineer");
   });
 });
