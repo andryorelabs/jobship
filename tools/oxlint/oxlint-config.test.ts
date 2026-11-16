@@ -51,6 +51,7 @@ describe("oxlint.config.ts", () => {
       "promise",
       "node",
       "jest",
+      "jsdoc",
     ]);
     expect(config.jsPlugins).toEqual(["./tools/oxlint/local-plugin.ts"]);
     expect(existsSync(join(repositoryRoot, "tools", "oxlint", "local-plugin.ts"))).toBe(true);
@@ -62,7 +63,7 @@ describe("oxlint.config.ts", () => {
     }
     expect(config.rules?.["typescript/return-await"]).toEqual([
       "error",
-      "error-handling-correctness-only",
+      "in-try-catch",
     ]);
   });
 
@@ -79,6 +80,7 @@ describe("oxlint.config.ts", () => {
       "jest/no-focused-tests": "error",
       "jest/no-identical-title": "error",
       "jest/no-disabled-tests": "error",
+      "local/no-bun-test-only": "error",
       "local/no-unawaited-async-matcher": "error",
     });
   });
