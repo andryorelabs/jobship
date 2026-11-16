@@ -224,7 +224,10 @@ describe("importLinear", () => {
     const events = await readEvents(ctx.dataDir ?? { path: "" });
     expect(
       foldState(
-        events.filter((event) => event.key?.startsWith("lever:") || event.key?.includes("sre")),
+        events.filter(
+          (event) =>
+            event.key?.startsWith("lever:") === true || event.key?.includes("sre") === true,
+        ),
       ),
     ).not.toBeNull();
     const states = events.flatMap((event) => (event.kind === "status.changed" ? [event.to] : []));
