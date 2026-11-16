@@ -174,7 +174,7 @@ describe("guard --self-test", () => {
     const envelope: unknown = JSON.parse(spawned.stdout.toString());
     if (!isObject(envelope)) throw new Error("envelope is not an object");
     expect(envelope.ok).toBe(true);
-    const cases = isObject(envelope.data) ? envelope.data["cases"] : undefined;
+    const cases = isObject(envelope.data) ? envelope.data.cases : undefined;
     expect(Array.isArray(cases) ? cases.length : 0).toBeGreaterThanOrEqual(5);
   });
 
