@@ -48,7 +48,7 @@ describe("the copied aokit baseline", () => {
   test("the active baseline rules match the baseline setting", async () => {
     const { rules } = await readBaselineRules();
     for (const [ruleName, setting] of Object.entries(rules)) {
-      expect(config.rules?.[ruleName]).toEqual(setting);
+      expect(config.rules?.[ruleName] as unknown).toEqual(setting);
     }
   });
 
@@ -56,7 +56,7 @@ describe("the copied aokit baseline", () => {
     const { testRules } = await readBaselineRules();
     const override = config.overrides?.find((entry) => entry.files.includes("**/*.test.ts"));
     for (const [ruleName, setting] of Object.entries(testRules)) {
-      expect(override?.rules?.[ruleName]).toEqual(setting);
+      expect(override?.rules?.[ruleName] as unknown).toEqual(setting);
     }
   });
 });
