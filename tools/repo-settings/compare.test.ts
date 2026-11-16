@@ -4,7 +4,7 @@ import { readExpectedSettings } from "./check.ts";
 import { compareSettings, formatDifference } from "./compare.ts";
 import type { JsonValue, RepoSettings } from "./compare.ts";
 
-interface JsonObject { [key: string]: JsonValue }
+type JsonObject = Record<string, JsonValue>;
 
 /** Whether `value` is a plain JSON object. */
 function isObject(value: JsonValue | undefined): value is JsonObject {
