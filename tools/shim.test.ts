@@ -79,13 +79,17 @@ function publishRelease(
   writeFileSync(path.join(releaseDir, "SHA256SUMS"), line);
 }
 
-interface ShimResult { code: number; stdout: string; stderr: string }
+interface ShimResult {
+  code: number;
+  stdout: string;
+  stderr: string;
+}
 
 function runShim(
   args: string[],
   env: Record<string, string> = {},
-  stdin: string = "",
-  root: string = pluginRoot,
+  stdin = "",
+  root = pluginRoot,
 ): ShimResult {
   const result = Bun.spawnSync(["sh", path.join(root, "bin/jobship"), ...args], {
     stdin: Buffer.from(stdin),
