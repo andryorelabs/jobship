@@ -34,8 +34,8 @@ CI and the git hooks call these scripts, never the tools behind them. Do not run
 
 Repository settings live as code, not as clicks:
 
-- `.github/rulesets/develop.json`: the `develop` ruleset (no deletion, no force push, linear history, pull request required, squash only, thread resolution, the "CI passed" and "Validate PR title" checks with the up to date policy, signed commits, no bypass actors).
-- `.github/rulesets/main.json`: the `main` ruleset (no deletion, no force push, pull request required, merge commits only, thread resolution, the same two checks, signed commits, no bypass actors).
+- `.github/rulesets/develop.json`: the `develop` ruleset (no deletion, no force push, linear history, pull request required, squash only, thread resolution, the "CI passed" and "Validate PR title" checks with the up to date policy, CodeQL code scanning (no high or higher security alerts, no error alerts), signed commits, no bypass actors).
+- `.github/rulesets/main.json`: the `main` ruleset (no deletion, no force push, pull request required, merge commits only, thread resolution, the same two checks, the same CodeQL code scanning rule, signed commits, no bypass actors).
 - `.github/rulesets/tags.json`: the `refs/tags/v*` ruleset (no deletion, update or force push).
 - `.github/repo-settings.json`: the repository-level settings (squash and merge-commit merges, title and message defaults, branch cleanup, auto-merge, security features, homepage and topics).
 

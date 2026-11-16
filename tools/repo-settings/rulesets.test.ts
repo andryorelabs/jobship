@@ -83,6 +83,13 @@ describe("rulesets", () => {
     }
   });
 
+  test("develop and main block merges on CodeQL code scanning results", () => {
+    for (const name of ["main", "develop"]) {
+      const rule = findRule(readRuleset(name), "code_scanning");
+      expect(JSON.stringify(rule?.parameters)).toContain('"tool":"CodeQL"');
+    }
+  });
+
   test("a required check missing from the workflows is detected", () => {
     const jobNames = readJobNames();
     expect(jobNames.has("No such job")).toBe(false);
