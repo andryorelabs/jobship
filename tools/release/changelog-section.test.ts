@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { extractChangelogSection } from "./changelog-section.ts";
+import { extractChangelogSection, runChangelogSection } from "./changelog-section.ts";
 
 const REPO_ROOT = path.join(import.meta.dir, "..", "..");
 const SCRIPT = path.join(import.meta.dir, "changelog-section.ts");
@@ -115,5 +115,37 @@ describe("bun tools/release/changelog-section.ts <tag>", () => {
     expect(exitCode).toBe(1);
     expect(stdout).toBe("");
     expect(stderr).toContain("Usage");
+  });
+});
+
+/** Runs the CLI against an in-memory changelog and collects what it printed. */
+function run(args: readonly string[]): { code: number; out: string; err: string } {
+  let out = "";
+  let err = "";
+  const code = runChangelogSection(args, {
+    readChangelog: () => SAMPLE,
+    stdout: (text) => {
+      out += text;
+    },
+    stderr: (text) => {
+      err += text;
+    },
+  });
+  return { code, out, err };
+}
+
+describe("runChangelogSection", () => {
+  test("prints the section and returns 0", () => {
+    expect(run(["v1.2.0"])).toEqual({ code: 0, out: "### Added\n\n- A second thing.\n", err: "" });
+  });
+
+  test("returns 1 with the reason for a missing or empty section", () => {
+    expect(run(["v9.9.9"]).err).toContain("no section for v9.9.9");
+    expect(run(["v1.1.0"])).toMatchObject({ code: 1, out: "" });
+  });
+
+  test("returns 1 with usage for no or extra arguments", () => {
+    expect(run([])).toMatchObject({ code: 1, out: "" });
+    expect(run(["v1.2.0", "v1.0.0"]).err).toContain("Usage");
   });
 });
