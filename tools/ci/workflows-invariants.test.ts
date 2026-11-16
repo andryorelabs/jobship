@@ -7,13 +7,21 @@ import {
   isMinimalPermissions,
   jobsInterpolatingIntoShell,
   jobsPersistingCredentials,
+  isNonBlocking,
+  jobsWithoutHardenRunner,
   jobsWithoutTimeout,
-  lacksPullRequestConcurrency,
+  lacksConcurrency,
+  lacksManualTrigger,
+  lacksPushTo,
+  latestBunJobs,
+  missingPins,
   misroutedJobs,
   neededJobs,
   parseWorkflow,
+  skipsPromotionPullRequest,
   triggerNames,
   unpinnedActions,
+  uploadsWithoutFailureGuard,
   type Workflow,
   type WorkflowJob,
 } from "./workflow-rules.ts";
@@ -32,6 +40,20 @@ const GITHUB_HOSTED_ONLY: Record<string, Record<string, string>> = {
     analysis: "Scorecard only publishes results produced on GitHub-hosted runners",
   },
 };
+
+/**
+ * Rules release.yml is not yet held to: its owner adds them in the release hardening change, and
+ * the entry for each is removed there so the rule then covers it too.
+ */
+const RELEASE_DEFERRED = new Set(["concurrency", "harden-runner"]);
+
+/** Whether `rule` is not yet enforced on the given workflow file. */
+function isDeferred(fileName: string, rule: string): boolean {
+  return fileName === "release.yml" && RELEASE_DEFERRED.has(rule);
+}
+
+/** Workflows that must also be startable by hand. */
+const MANUAL_TRIGGER_WORKFLOWS = new Set(["ci.yml", "codeql.yml"]);
 
 const BINARIES = [
   "dist/jobship-linux-x64",
@@ -90,8 +112,23 @@ describe.each(workflows)("$fileName", ({ fileName, raw, workflow }) => {
     expect(isMinimalPermissions(workflow.permissions)).toBe(true);
   });
 
-  test("has a concurrency group when pull requests trigger it", () => {
-    expect(lacksPullRequestConcurrency(workflow)).toBe(false);
+  test.skipIf(isDeferred(fileName, "concurrency"))("has a concurrency group", () => {
+    expect(lacksConcurrency(workflow)).toBe(false);
+  });
+
+  test.skipIf(isDeferred(fileName, "harden-runner"))(
+    "harden-runner in audit mode is the first step of every job",
+    () => {
+      expect(jobsWithoutHardenRunner(workflow)).toEqual([]);
+    },
+  );
+
+  test("artifact uploads only run on failure", () => {
+    expect(uploadsWithoutFailureGuard(workflow)).toEqual([]);
+  });
+
+  test.skipIf(!MANUAL_TRIGGER_WORKFLOWS.has(fileName))("has workflow_dispatch", () => {
+    expect(lacksManualTrigger(workflow)).toBe(false);
   });
 
   test("never uses pull_request_target", () => {
@@ -159,10 +196,10 @@ describe("ci.yml", () => {
     expect(stepIndex(job, (text) => text.includes("bun run lint:commits"))).toBeGreaterThan(-1);
   });
 
-  test("CI passed needs every other job, commitlint included, and always runs", () => {
+  test("CI passed needs every other job but the Bun canary, commitlint included, and always runs", () => {
     const gate = jobs["ci-passed"];
     const others = Object.keys(jobs)
-      .filter((id) => id !== "ci-passed")
+      .filter((id) => id !== "ci-passed" && id !== "bun-canary")
       .toSorted();
     expect(gate?.name).toBe("CI passed");
     expect(gate?.if).toContain("always()");
@@ -174,6 +211,57 @@ describe("ci.yml", () => {
     expect(raw).toContain('[ "$result" = "failure" ]');
     expect(raw).toContain('[ "$result" = "cancelled" ]');
     expect(raw).not.toContain('!= "success"');
+  });
+});
+
+describe("ci.yml hygiene", () => {
+  const { workflow } = workflowFile(workflows, "ci.yml");
+  const jobs = workflow.jobs;
+
+  test("skips commitlint on the develop to main promotion pull request", () => {
+    expect(skipsPromotionPullRequest(jobs.commitlint)).toBe(true);
+  });
+
+  test("uploads the test report when the test job fails", () => {
+    expect(uploadsWithoutFailureGuard(workflow)).toEqual([]);
+    const uploads = (jobs.test?.steps ?? []).filter((step) =>
+      step.uses?.startsWith("actions/upload-artifact@"),
+    );
+    expect(uploads.map((step) => step.if)).toEqual(["failure()"]);
+  });
+
+  test("runs a non-blocking canary on the latest Bun that the gate ignores", () => {
+    expect(latestBunJobs(workflow)).toEqual(["bun-canary"]);
+    expect(isNonBlocking(jobs["bun-canary"])).toBe(true);
+    expect(neededJobs(jobs["ci-passed"])).not.toContain("bun-canary");
+  });
+});
+
+describe("lint-workflows.yml", () => {
+  const { raw, workflow } = workflowFile(workflows, "lint-workflows.yml");
+
+  test("runs on pushes to main and develop as well as pull requests", () => {
+    expect(lacksPushTo(workflow, "main")).toBe(false);
+    expect(lacksPushTo(workflow, "develop")).toBe(false);
+    expect(triggerNames(workflow)).toContain("pull_request");
+  });
+
+  test("pins actionlint 1.7.12 and zizmor 1.32.0", () => {
+    expect(
+      missingPins(raw, {
+        actionlint: "ACTIONLINT_VERSION: 1.7.12",
+        zizmor: "version: v1.32.0",
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe("dependency-review.yml", () => {
+  const { raw, workflow } = workflowFile(workflows, "dependency-review.yml");
+
+  test("reviews dependencies on pull requests", () => {
+    expect(triggerNames(workflow)).toContain("pull_request");
+    expect(raw).toContain("actions/dependency-review-action@");
   });
 });
 
