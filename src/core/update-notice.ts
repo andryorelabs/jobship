@@ -16,7 +16,10 @@ const FETCH_TIMEOUT_MS = 5000;
 type Env = Readonly<Record<string, string | undefined>>;
 
 /** What the last release check learned: when it ran and the latest version it saw. */
-export interface UpdateCache { readonly checkedAt: number; readonly latest: string | null }
+export interface UpdateCache {
+  readonly checkedAt: number;
+  readonly latest: string | null;
+}
 
 /** The injected edges of the update notice: clock, disk and the detached refresh. */
 export interface UpdateNoticeDeps {

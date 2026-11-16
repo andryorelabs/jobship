@@ -49,7 +49,11 @@ const events: HuntEvent[] = [
   noteEvent,
 ];
 
-interface Call { operation: string; variables: Record<string, unknown>; authorization: string }
+interface Call {
+  operation: string;
+  variables: Record<string, unknown>;
+  authorization: string;
+}
 
 function requestOf(init: RequestInit): { query: string; variables: Record<string, unknown> } {
   if (typeof init.body !== "string") throw new Error("expected a string request body");

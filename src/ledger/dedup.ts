@@ -176,9 +176,7 @@ function isLedgerEntry(value: unknown): value is LedgerEntry {
     isObject(value) &&
     typeof value.key === "string" &&
     typeof value.at === "string" &&
-    (value.outcome === "seen" ||
-      value.outcome === "dismissed" ||
-      value.outcome === "duplicate") &&
+    (value.outcome === "seen" || value.outcome === "dismissed" || value.outcome === "duplicate") &&
     isPosting(value.posting)
   );
 }

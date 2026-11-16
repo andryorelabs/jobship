@@ -148,7 +148,10 @@ export async function dispatch(
   return (await load()).run(withoutGlobalFlags(command.path, withoutDataFlag(moduleArgv)), ctx);
 }
 
-interface OutputStream { readonly isTTY?: boolean; write(chunk: string): unknown }
+interface OutputStream {
+  readonly isTTY?: boolean;
+  write(chunk: string): unknown;
+}
 
 /**
  * Writes the envelope in the chosen mode: the JSON envelope for `json`, readable lines for

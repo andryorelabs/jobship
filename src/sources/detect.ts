@@ -1,6 +1,9 @@
 import type { AtsName } from "./ats.ts";
 
-export interface AtsRef { readonly ats: string; readonly slug: string }
+export interface AtsRef {
+  readonly ats: string;
+  readonly slug: string;
+}
 
 const ATS_PATTERNS: readonly { readonly ats: AtsName; readonly pattern: RegExp }[] = [
   {

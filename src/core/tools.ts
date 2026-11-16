@@ -16,7 +16,10 @@ import type { Result } from "./types.ts";
 
 export const TYPST_VERSION = "0.15.1";
 
-interface TypstAsset { readonly asset: string; readonly sha256: string }
+interface TypstAsset {
+  readonly asset: string;
+  readonly sha256: string;
+}
 
 const TYPST_ASSETS: Readonly<Record<string, TypstAsset>> = {
   "linux-x64": {
@@ -42,7 +45,10 @@ const TYPST_MANUAL_HINT =
   "install typst yourself: mise use -g typst, cargo install typst-cli or brew install typst";
 
 export type ToolEnv = Readonly<Record<string, string | undefined>>;
-export interface PlatformInfo { readonly os: string; readonly arch: string }
+export interface PlatformInfo {
+  readonly os: string;
+  readonly arch: string;
+}
 export type Downloader = (url: string) => Promise<Result<Uint8Array>>;
 export type Extractor = (archive: string, destination: string) => Promise<Result<void>>;
 export interface InstallDeps {

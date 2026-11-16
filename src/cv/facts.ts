@@ -94,8 +94,7 @@ function parseEntries(value: unknown, key: string): Result<Entry[] | undefined> 
       return fail(`facts.yaml: ${key} entry ${item.id} has invalid dates`);
     }
     const metadata = stringMap(item.metadata);
-    if (metadata === null)
-      return fail(`facts.yaml: ${key} entry ${item.id} has invalid metadata`);
+    if (metadata === null) return fail(`facts.yaml: ${key} entry ${item.id} has invalid metadata`);
     entries.push({
       id: item.id,
       name: item.name,

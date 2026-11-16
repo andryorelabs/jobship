@@ -21,7 +21,10 @@ import type { DataDir, Profile } from "./types.ts";
 const PLUGIN_RECOVERY_ACTION =
   "claude plugin marketplace add andryorelabs/jobship && claude plugin install jobship@jobship-marketplace";
 
-export interface DoctorDeps { readonly fetch?: FetchLike; readonly guardHooks?: unknown }
+export interface DoctorDeps {
+  readonly fetch?: FetchLike;
+  readonly guardHooks?: unknown;
+}
 
 interface DoctorWarning {
   readonly code: string;
@@ -29,7 +32,10 @@ interface DoctorWarning {
   readonly recoveryAction: string;
 }
 
-interface PluginProbe { readonly installed: boolean; readonly warning: DoctorWarning | null }
+interface PluginProbe {
+  readonly installed: boolean;
+  readonly warning: DoctorWarning | null;
+}
 
 function cvDataProblems(dir: DataDir): string[] {
   const present = (file: string): boolean => existsSync(path.join(dir.path, file));

@@ -11,7 +11,10 @@ function fixture(name: string): string {
   return readFileSync(path.join(import.meta.dir, "fixtures", "api", name), "utf8");
 }
 
-interface Call { readonly url: string; readonly init: RequestInit | undefined }
+interface Call {
+  readonly url: string;
+  readonly init: RequestInit | undefined;
+}
 
 function recordingFetch(routes: Record<string, string>, calls: Call[] = []): FetchFunction {
   return (input, init) => {

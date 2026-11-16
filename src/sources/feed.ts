@@ -17,7 +17,10 @@ export interface XmlFeedOptions {
 }
 
 type Node = Record<string, unknown>;
-interface Mapped { readonly postings: Posting[]; readonly warnings: string[] }
+interface Mapped {
+  readonly postings: Posting[];
+  readonly warnings: string[];
+}
 type Outcome<Value> =
   | { readonly ok: true; readonly value: Value }
   | { readonly ok: false; readonly error: string };

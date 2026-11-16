@@ -1,4 +1,6 @@
-interface TerminalStream { readonly isTTY?: boolean }
+interface TerminalStream {
+  readonly isTTY?: boolean;
+}
 type Env = Readonly<Record<string, string | undefined>>;
 
 /**

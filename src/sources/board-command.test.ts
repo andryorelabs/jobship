@@ -25,7 +25,12 @@ function errorCode(envelope: Awaited<ReturnType<typeof run>>): string | null {
   return envelope.ok ? null : envelope.error.code;
 }
 
-interface ListedBoard { id: string; access: string; active: boolean; custom: boolean }
+interface ListedBoard {
+  id: string;
+  access: string;
+  active: boolean;
+  custom: boolean;
+}
 
 function listedBoards(envelope: Awaited<ReturnType<typeof run>>): ListedBoard[] {
   if (!envelope.ok) return [];

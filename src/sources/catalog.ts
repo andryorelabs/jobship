@@ -216,7 +216,10 @@ const REGION_GROUPS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
 ]);
 
 type ParseMode = "bundled" | "remote";
-interface Parsed { readonly boards: Board[]; readonly warnings: string[] }
+interface Parsed {
+  readonly boards: Board[];
+  readonly warnings: string[];
+}
 
 function invalid(message: string): Result<never> {
   return { ok: false, error: { code: "catalog-invalid", message } };
@@ -343,8 +346,7 @@ function toOptions(value: unknown): Record<string, string[]> {
 
 function toBoard(entry: Record<string, unknown>): Board {
   const access = BOARD_ACCESS.find((candidate) => candidate === entry.access) ?? "manual";
-  const method =
-    entry.method === "POST" ? "POST" : entry.method === "GET" ? "GET" : undefined;
+  const method = entry.method === "POST" ? "POST" : entry.method === "GET" ? "GET" : undefined;
   const interval = entry.minIntervalMinutes;
   return {
     id: optionalString(entry.id) ?? "",
@@ -357,9 +359,7 @@ function toBoard(entry: Record<string, unknown>): Board {
     ...(entry.stability === "unofficial" ? { stability: "unofficial" as const } : {}),
     ...(typeof entry.parser === "string" ? { parser: entry.parser } : {}),
     ...(typeof entry.endpoint === "string" ? { endpoint: entry.endpoint } : {}),
-    ...(typeof entry.optionEndpoint === "string"
-      ? { optionEndpoint: entry.optionEndpoint }
-      : {}),
+    ...(typeof entry.optionEndpoint === "string" ? { optionEndpoint: entry.optionEndpoint } : {}),
     ...(method === undefined ? {} : { method }),
     ...(entry.headers === undefined ? {} : { headers: toStringRecord(entry.headers) }),
     ...(entry.body === undefined ? {} : { body: entry.body }),

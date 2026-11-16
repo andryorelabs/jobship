@@ -119,7 +119,10 @@ export function resolveDataDir(
   return checkVersion({ path: found });
 }
 
-export interface LoadedProfile { readonly profile: Profile; readonly warnings: string[] }
+export interface LoadedProfile {
+  readonly profile: Profile;
+  readonly warnings: string[];
+}
 
 export function loadProfile(dir: DataDir): Result<Profile> {
   const loaded = loadProfileWithWarnings(dir);

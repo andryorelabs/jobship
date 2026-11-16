@@ -82,7 +82,10 @@ export function copyLine(copy: string, heading: string): string {
   return block?.[1] ?? "";
 }
 
-interface LockEntry { readonly skillPath?: unknown; readonly computedHash?: unknown }
+interface LockEntry {
+  readonly skillPath?: unknown;
+  readonly computedHash?: unknown;
+}
 
 /**
  * Compares a skills lock with the skills on disk, in both directions, and checks each hash.

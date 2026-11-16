@@ -67,7 +67,10 @@ const COMPOSITE_REGION_ALIASES: Readonly<Record<string, readonly string[]>> = {
   "central america": ["latam"],
 };
 
-interface AliasEntry { readonly alias: string; readonly groups: readonly string[] }
+interface AliasEntry {
+  readonly alias: string;
+  readonly groups: readonly string[];
+}
 
 const ALIAS_ENTRIES: readonly AliasEntry[] = [
   ...Object.entries(REGION_ALIAS_GROUPS).flatMap(([group, aliases]) =>

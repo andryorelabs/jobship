@@ -24,11 +24,7 @@ export function readCompanies(dir: DataDir): Result<SavedCompany[]> {
     if (!Array.isArray(list)) throw new Error("expected an object with a companies array");
     const entries: SavedCompany[] = [];
     for (const entry of list) {
-      if (
-        !isObject(entry) ||
-        typeof entry.ats !== "string" ||
-        typeof entry.slug !== "string"
-      ) {
+      if (!isObject(entry) || typeof entry.ats !== "string" || typeof entry.slug !== "string") {
         throw new Error("every company needs string ats and slug fields");
       }
       const origin = entry.origin;
@@ -58,7 +54,10 @@ export function readCompanies(dir: DataDir): Result<SavedCompany[]> {
   }
 }
 
-export interface AddOutcome { readonly added: boolean; readonly company: SavedCompany }
+export interface AddOutcome {
+  readonly added: boolean;
+  readonly company: SavedCompany;
+}
 
 /**
  * Replaces the Saved companies with what `update` derives from the current list, reading and

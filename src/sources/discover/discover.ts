@@ -47,7 +47,10 @@ export interface DiscoverReport {
   readonly errors: string[];
 }
 
-interface Verdict { readonly target: AtsRef; readonly passes: boolean }
+interface Verdict {
+  readonly target: AtsRef;
+  readonly passes: boolean;
+}
 
 function companyKey(company: AtsRef): string {
   return `${company.ats}:${company.slug}`;
