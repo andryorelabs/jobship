@@ -481,3 +481,60 @@ describe("doctor on a data dir without a Dossier", () => {
     expect(result.ok ? "" : (result.error.recoveryAction ?? "")).toContain("--missing");
   });
 });
+
+describe("doctor failure paths", () => {
+  test("fails data-dir-not-found without a data directory", async () => {
+    const result = await runDoctor({ dataDir: null, env: {}, cwd: workDir });
+    expect(result.ok ? "" : result.error.code).toBe("data-dir-not-found");
+    expect(result.ok ? "" : result.error.message).toContain("no data directory");
+  });
+
+  test("fails with the profile error when profile.yaml is invalid", async () => {
+    const ctx = writeDataDir({ kind: "local" });
+    rewriteProfile(ctx, { regions: "LATAM" });
+    const result = await runDoctor(ctx);
+    expect(result.ok).toBe(false);
+    expect(result.ok ? "" : (result.error.recoveryAction ?? "")).toContain("profile.yaml");
+  });
+
+  test("fails when boards.json cannot be read", async () => {
+    const ctx = writeDataDir({ kind: "local" });
+    writeFileSync(dataFile(ctx, "boards.json"), "{oops");
+    const result = await runDoctor(ctx);
+    expect(result.ok).toBe(false);
+    expect(result.ok ? "" : (result.error.recoveryAction ?? "")).toContain("boards.json");
+  });
+
+  test("fails with the Dossier error when a Dossier file is unknown", async () => {
+    const ctx = writeDataDir({ kind: "local" });
+    writeFileSync(path.join(dataFile(ctx, "dossier"), "stray.md"), "x\n");
+    const result = await runDoctor(ctx);
+    expect(result.ok).toBe(false);
+    expect(result.ok ? "" : (result.error.recoveryAction ?? "")).toBe("fix the named Dossier file");
+  });
+
+  test("fails cv-data-invalid when never-claim.yaml is malformed", async () => {
+    const ctx = writeDataDir({ kind: "local" });
+    writeFileSync(dataFile(ctx, "never-claim.yaml"), "terms:\n  - 5\n");
+    const result = await runDoctor(ctx);
+    expect(result.ok ? "" : result.error.code).toBe("cv-data-invalid");
+    expect(result.ok ? "" : result.error.message).toContain("never-claim.yaml");
+  });
+
+  test("fails cv-data-invalid when a Bullet cites a missing fact", async () => {
+    const ctx = writeDataDir({ kind: "local" });
+    writeFileSync(
+      dataFile(ctx, "bullets.yaml"),
+      "bullets:\n  - id: b1\n    text: Built a thing\n    facts: [ghost]\n",
+    );
+    const result = await runDoctor(ctx);
+    expect(result.ok ? "" : result.error.message).toContain("cites missing fact ghost");
+  });
+
+  test("accepts a valid events.jsonl and answers.json", async () => {
+    const ctx = writeDataDir({ kind: "local" });
+    writeFileSync(dataFile(ctx, "events.jsonl"), '{"a":1}\n\n{"b":2}\n');
+    writeFileSync(dataFile(ctx, "answers.json"), "[]");
+    expect((await runDoctor(ctx)).ok).toBe(true);
+  });
+});

@@ -112,23 +112,27 @@ function reclaimStale(lockPath: string): void {
   }
 }
 
-async function acquire(lockPath: string, deadline: number): Promise<void> {
+async function acquire(lockPath: string, deadline: number, timeoutMs: number): Promise<void> {
   if (tryAcquire(lockPath)) return;
   if (existsSync(lockPath) && isStale(lockPath)) {
     reclaimStale(lockPath);
-    return acquire(lockPath, deadline);
+    return acquire(lockPath, deadline, timeoutMs);
   }
   if (Date.now() >= deadline) {
-    throw new Error(`timed out after ${LOCK_TIMEOUT_MS}ms waiting for the lock at ${lockPath}`);
+    throw new Error(`timed out after ${timeoutMs}ms waiting for the lock at ${lockPath}`);
   }
   await Bun.sleep(LOCK_POLL_MS);
-  return acquire(lockPath, deadline);
+  return acquire(lockPath, deadline, timeoutMs);
 }
 
-export async function withLock<T>(dir: string, fn: () => Promise<T>): Promise<T> {
+export async function withLock<T>(
+  dir: string,
+  fn: () => Promise<T>,
+  timeoutMs: number = LOCK_TIMEOUT_MS,
+): Promise<T> {
   mkdirSync(dir, { recursive: true });
   const lockPath = path.join(dir, LOCK_DIRECTORY_NAME);
-  await acquire(lockPath, Date.now() + LOCK_TIMEOUT_MS);
+  await acquire(lockPath, Date.now() + timeoutMs, timeoutMs);
   try {
     return await fn();
   } finally {
