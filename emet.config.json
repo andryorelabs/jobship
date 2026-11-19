@@ -42,7 +42,8 @@
     "maxChars": 8000,
     "autoChain": true,
     "launcher": "auto",
-    "permissionMode": "bypassPermissions"
+    "permissionMode": "bypassPermissions",
+    "afterSpec": "release"
   },
   "landing": {
     "mode": "pr"
@@ -103,5 +104,9 @@
     "bootstrap": [
       "bun install --frozen-lockfile --silent"
     ]
+  },
+  "language": {
+    "conversation": "es",
+    "artifacts": "en"
   }
 }
