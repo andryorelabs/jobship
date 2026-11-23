@@ -46,7 +46,8 @@
     "afterSpec": "release"
   },
   "landing": {
-    "mode": "pr"
+    "mode": "pr",
+    "specMergeMethod": "squash"
   },
   "pr": {
     "autoMerge": true,
