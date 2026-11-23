@@ -46,7 +46,8 @@
     "afterSpec": "release"
   },
   "landing": {
-    "mode": "pr"
+    "mode": "pr",
+    "specMergeMethod": "squash"
   },
   "pr": {
     "autoMerge": true,
@@ -78,7 +79,12 @@
     }
   },
   "review": {
-    "highRiskPaths": []
+    "highRiskPaths": [
+      "src/core/data-dir.ts",
+      "privacy_policy",
+      ".claude-plugin/",
+      ".github/rulesets/"
+    ]
   },
   "budgets": {
     "workerAttempts": 2,
@@ -92,7 +98,8 @@
     "path": "docs/agents/codebase.md"
   },
   "specs": {
-    "dir": "docs/specs"
+    "dir": "docs/specs",
+    "enabled": true
   },
   "commands": {
     "selfCheck": [
